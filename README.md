@@ -29,7 +29,7 @@ Settings are defined in `config.json` and `_globals.py`
 Pleasу see a file called LICENSE.
 
 
-##Contacts
+## Contacts
 ----------------------------------------
 Author: Andrey Shalaev
 Nickname: Hukyl
