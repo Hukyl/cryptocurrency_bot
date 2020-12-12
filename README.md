@@ -7,9 +7,13 @@
 changes in currency rates, such as BRENT and some business shares, and helps you prognose the changes.
 
 
+
+
 ## Documentation
 ----------------------------------------
 None for now
+
+
 
 
 ## Setting up
@@ -24,9 +28,13 @@ Settings are defined in `config.json` and `_globals.py`
 `$ python3 bot.py` - and the bot starts!
 
 
+
+
 ## Licensing
 ----------------------------------------
 Pleasу see a file called LICENSE.
+
+
 
 
 ## Contacts
@@ -35,6 +43,8 @@ Author: Andrey Shalaev
 Nickname: Hukyl
 Email: a.shalaev7125@gmail.com
 Telegram: @Hukyl
+
+
 
 
 ----------------------------------------
