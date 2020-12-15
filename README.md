@@ -40,9 +40,13 @@ Pleasу see a file called LICENSE.
 ## Contacts
 ----------------------------------------
 Author: Andrey Shalaev
+
 Nickname: Hukyl
+
 Email: a.shalaev7125@gmail.com
+
 Telegram: @Hukyl
+
 
 
 
