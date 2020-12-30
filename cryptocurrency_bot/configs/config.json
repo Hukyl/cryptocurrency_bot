@@ -1,0 +1,24 @@
+{
+	"initialValueBRENT": 50.0,
+	"initialValueBTC": 23000.0,
+	"initialValueRTS": 140.0,
+	"subsriptionStartPrice": 10,
+	"subsriptionPrices": [
+		{
+			"period": 1,
+			"discount": 0
+		},
+		{
+			"period": 3,
+			"discount": 5
+		},
+		{
+			"period": 6,
+			"discount": 10
+		},
+		{
+			"period": 12,
+			"discount": 20
+		}
+	]
+}
