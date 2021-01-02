@@ -4,7 +4,7 @@
 ## What is it?
 ----------------------------------------
 **Currency Bot** is a Telegram bot, which supports you in trade business. It provides notifications about the 
-changes in currency rates, such as BRENT and some business shares, and helps you prognose the changes.
+changes in currency rates, such as BRENT and some business shares, and helps you predict the changes.
 
 
 
