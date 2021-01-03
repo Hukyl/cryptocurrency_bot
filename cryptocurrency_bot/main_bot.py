@@ -11,8 +11,9 @@ from telebot import apihelper
 from configs import _globals, MAIN_TOKEN
 from models._parser import *
 from models.user import DBUser, DBCurrencyPrediction
+from utils import merge_dicts, prettify_utcoffset
 from utils.translator import translate as _
-from utils.telegram import kbs, inline_kbs, main_menu
+from utils.telegram import kbs, inline_kbs
 from utils._datetime import (
     check_datetime_in_future,
     convert_from_country_format,
@@ -28,9 +29,12 @@ apihelper.ENABLE_MIDDLEWARE = True
 bot = TeleBot(MAIN_TOKEN.TOKEN) # threaded=True
 bot.bot_commands = {
     '/start': 'Start the bot',
+    '/me': 'See your info',
     '/today': 'Get exchange rates today',
     '/change_checktime': 'Change the check time of the currency rate changes',
     '/change_delta': 'Change percent delta at which to notify',
+    '/change_timezone': 'Change your timezone',
+    '/toggle_alarms': 'Enable/disable notifications',
     '/make_prediction': 'Make a prediction',
     '/get_predictions': 'Get to predictions menu',
     '/convert': 'Currency converter',
@@ -52,9 +56,10 @@ currency_parser = FreecurrencyratesParser()
 
 @bot.middleware_handler(update_types=['message'])
 def check_if_command(bot_instance, message):
-    if bot_instance.bot_commands.get(message.text, None) is not None:
+    is_command = bot_instance.bot_commands.get(message.text, None) is not None
+    if is_command:
         bot_instance.clear_step_handler(message)
-    
+
 
 
 
@@ -84,7 +89,6 @@ def start_bot(msg):
 
 
 
-@main_menu(start_bot)
 def choose_option(msg, user=None, buttons=None):
     buttons = buttons or []
     user = user or DBUser(msg.chat.id)
@@ -93,17 +97,22 @@ def choose_option(msg, user=None, buttons=None):
         return get_currency_rates_today(msg, user)
     elif buttons[1] == msg.text:
         # go to notifications section
-        buttons = [
-                _("Посмотреть информацию 📄", user.language),
-                _('Изменить время оповещений 🕒', user.language),
-                _('Изменить процент оповещений 󠀥󠀥󠀥💯', user.language),
-                _('Включить/отключить оповещения ▶', user.language),
-                _('В главное меню', user.language)
-            ]
+        buttons = {
+            _("Посмотреть информацию 📄", user.language): see_user_info,
+            _('Изменить время оповещений 🕒', user.language): change_user_rate_check_times,
+            _('Изменить процент оповещений 󠀥󠀥󠀥💯', user.language):change_user_rate_percent_delta,
+            _('Включить/отключить оповещения ▶', user.language): toggle_user_alarms,
+            _('Изменить часовой пояс 🌐', user.language): change_user_timezone,
+            _('В главное меню', user.language): start_bot
+        }
         if user.is_pro:
-            buttons.insert(-1, _('⚜ Добавить свою валюту ⚜', user.language))
-        kb = kbs(buttons, one_time_keyboard=False)
-        bot.send_message(msg.chat.id, _('Выберите опцию', user.language), reply_markup=kb)
+            buttons[ _('⚜ Добавить свою валюту ⚜', user.language)] = add_new_currency
+        kb = kbs(list(buttons), one_time_keyboard=False, row_width=2)
+        bot.send_message(
+            msg.chat.id,
+            _('Выберите опцию', user.language),
+            reply_markup=kb
+        )
         return bot.register_next_step_handler(msg, change_alarms, user, buttons)
     elif buttons[2] == msg.text:
         return buy_subscription(msg)
@@ -112,8 +121,16 @@ def choose_option(msg, user=None, buttons=None):
         return change_language(msg)
     elif buttons[-1] == msg.text:
         return send_techsupport_message(msg)
-    # return bot.register_next_step_handler(msg, choose_option, user, buttons)
-
+    else:
+        bot.send_message(
+            msg.chat.id,
+            _(
+                "❗ Я не понял ваш ответ, попробуйте что-то другое ❗",
+                user.language
+            ),
+            reply_markup=kbs(list(buttons))
+        )
+        return bot.register_next_step_handler(msg, choose_option, user, buttons)
 
 
 
@@ -132,13 +149,13 @@ def get_currency_rates_today(msg, user=None):
             bot.send_message(msg.chat.id, _('❗ Выберите только из предложенного ❗', user.language))
             bot.register_next_step_handler(msg, choose_option_inner)
         else:
-            bot.send_message(
-                msg.chat.id,
-                _(
-                    f"❗ Please aware, that time of alerts and forecasts is in UTC+0300 only, which now is {convert_to_country_format(get_current_datetime(), user.language)} ❗",
-                    user.language
-                )
-            )
+            # bot.send_message(
+            #     msg.chat.id,
+            #     _(
+            #         f"❗ Please aware, that time of alerts and forecasts is in UTC+0300 only, which now is {convert_to_country_format(get_current_datetime(user.timezone), user.language)} ❗",
+            #         user.language
+            #     )
+            # )
             return buttons_dct.get(msg.text)(msg)
 
     bot.send_message(
@@ -159,7 +176,7 @@ def make_user_currency_prediction(msg):
     iso_from = iso_to = None
     value = None
 
-    @main_menu(start_bot)
+
     def get_date(msg):
         nonlocal date
         try:
@@ -184,7 +201,7 @@ def make_user_currency_prediction(msg):
             )
             bot.register_next_step_handler(msg, get_iso)
 
-    @main_menu(start_bot)
+
     def get_iso(msg):
         nonlocal iso_from, iso_to
         iso_from, iso_to = [x.strip() for x in msg.text.split('-')]
@@ -200,7 +217,7 @@ def make_user_currency_prediction(msg):
             )
             bot.register_next_step_handler(msg, get_iso)
 
-    @main_menu(start_bot)
+
     def get_value(msg):
         nonlocal value
         try:
@@ -508,7 +525,7 @@ def convert_currency(msg):
     iso_from = None
     iso_to = None
 
-    @main_menu(start_bot)
+
     def get_isos(msg):
         nonlocal iso_from, iso_to
         try:
@@ -536,7 +553,7 @@ def convert_currency(msg):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    f"Конвертация на {convert_to_country_format(get_current_datetime(), user.language)}:\
+                    f"Конвертация на {convert_to_country_format(get_current_datetime(user.timezone), user.language)}:\
                     ;{rate[iso_from]} {iso_from} - {rate[iso_to]} {iso_to}",
                     user.language,
                     parse_mode='newline'
@@ -579,7 +596,7 @@ def get_callback_for_change_currency_converter_amount(call):
                         chat_id=call.message.chat.id, 
                         message_id=call.message.message_id, 
                         text=_(
-                            f"Конвертация на {convert_to_country_format(get_current_datetime(), user.language)}:\
+                            f"Конвертация на {convert_to_country_format(get_current_datetime(user.timezone), user.language)}:\
                             ;{change_amount} {iso_from[1]} - {new_amount} {iso_to[1]}",
                             user.language,
                             parse_mode='newline'
@@ -625,36 +642,56 @@ def get_callback_for_change_currency_converter_amount(call):
 
 
 def change_alarms(msg, user, buttons):
-    if buttons[3] == msg.text:
-        # enable/disable notifications
-        user.update(is_active=not user.is_active)
+    func = buttons.get(msg.text, None)
+    if func is None:
         bot.send_message(
             msg.chat.id,
-            _(f"Уведомления {'включены ▶' if user.is_active else 'отключены ⏸'}", user.language))
-    elif buttons[1] == msg.text:
-        # change notification times
-        return change_user_rate_check_times(msg, user)
-    elif buttons[2] == msg.text:
-        # change percentage at which to notify
-        return change_user_rate_percent_delta(msg, user)
-    elif buttons[0] == msg.text:
-        # see user info
-        info = f"Пользователь @{msg.from_user.username}\
-                ;ID на сервисе: {user.id}\
-                ;Telegram ID: {user.user_id}\
-                ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
-                ;Персонал: {'да' if user.is_staff else 'нет'}\
-                ;Оповещения: {'включены' if user.is_active else 'отключены'}\
-                ;Оповещения:\
-                ;{DBUser.prettify_rates(user.rates)}"
-        bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
-    elif buttons[-1] == msg.text:
-        # return to main menu
-        return start_bot(msg)
-    elif buttons[-2] == msg.text:
-        # add currency to parse
-        return add_new_currency(msg)
-    return bot.register_next_step_handler(msg, change_alarms, DBUser(msg.chat.id), buttons)
+            _(
+                "❗ Не могу понять ваш запрос, повторите ещё раз ❗",
+                user.language
+            ),
+            reply_markup=kbs(list(buttons), row_width=2)
+        )
+        return bot.register_next_step_handler(
+            msg,
+            change_alarms,
+            DBUser(msg.chat.id),
+            buttons
+        )
+    else:
+        return func(msg)
+
+
+
+@bot.message_handler(commands=['toggle_alarms'])
+def toggle_user_alarms(msg):
+    user = DBUser(msg.chat.id)
+    user.update(is_active=not user.is_active)
+    bot.send_message(
+        msg.chat.id,
+        _(
+            f"Уведомления {'включены ▶' if user.is_active else 'отключены ⏸'}",
+            user.language
+        )
+    )
+    return start_bot(msg)
+
+
+
+@bot.message_handler(commands=['me'])
+def see_user_info(msg):
+    user = DBUser(msg.chat.id)
+    info = f"Пользователь @{msg.from_user.username}\
+            ;ID на сервисе: {user.id}\
+            ;Telegram ID: {user.user_id}\
+            ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
+            ;Персонал: {'да' if user.is_staff else 'нет'}\
+            ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
+            ;Оповещения: {'включены' if user.is_active else 'отключены'}\
+            ;Оповещения:\
+            ;{DBUser.prettify_rates(user.rates)}"
+    bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
+    return start_bot(msg)
 
 
 
@@ -710,7 +747,7 @@ def change_user_rate_check_times(msg, user=None):
     start = _globals.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else _globals.SUBSCIRBED_USER_CHECK_TIMES
     currency = None
 
-    @main_menu(start_bot)
+
     def inner1(msg):
         nonlocal currency
         if msg.text in user.rates:
@@ -743,7 +780,7 @@ def change_user_rate_check_times(msg, user=None):
             )
             bot.register_next_step_handler(msg, inner1)
 
-    @main_menu(start_bot)
+
     def inner2(msg, iteration_num):
         nonlocal chosen_times, available_times
         try:
@@ -780,10 +817,58 @@ def change_user_rate_check_times(msg, user=None):
 
 
 
+@bot.message_handler(commands=['change_timezone'])
+def change_user_timezone(msg):
+    user = DBUser(msg.chat.id)
+    timezones = merge_dicts(
+        {
+            prettify_utcoffset(zone): zone
+            for zone in range(-11, 13)
+        },
+        {'UTC': 0}
+    )
+
+    def accept_input(msg):
+        res_timezone = timezones.get(msg.text, None)
+        if res_timezone is None:
+            bot.send_message(
+                msg.chat.id,
+                _(
+                    '❗ Вводите только предложеные часовые пояса ❗',
+                    user.language,
+                ),
+                reply_markup=kbs(list(timezones), row_width=2)
+            )
+            bot.register_next_step_handler(msg, accept_input)
+        else:
+            user.update(timezone=res_timezone)
+            bot.send_message(
+                msg.chat.id,
+                _(
+                    f"Теперь ваш часовой пояс - {prettify_utcoffset(user.timezone)}",
+                    user.language
+                )
+            )
+            return start_bot(msg)
+
+    bot.send_message(
+        msg.chat.id,
+        _(
+            f'Ваш текущий часовой пояс: {prettify_utcoffset(user.timezone)}\
+            ;Выберите ваш часовой пояс',
+            user.language,
+            parse_mode='newline'
+        ),
+        reply_markup=kbs(list(timezones), row_width=2)
+    )
+    bot.register_next_step_handler(msg, accept_input)
+
+
+
 def add_new_currency(msg):
     user = DBUser(msg.chat.id)
 
-    @main_menu(start_bot)
+
     def ask_new_iso(msg):
         iso = msg.text
         if not currency_parser.check_currency_exists(iso):
@@ -799,8 +884,21 @@ def add_new_currency(msg):
             bot.send_message(msg.chat.id, 'Валюта уже есть в вашем списке валют')
             return start_bot(msg)
         elif user.is_pro:
-            user.add_rate(iso, start_value=currency_parser.get_rate(iso).get('USD'), check_times=_globals.CHECK_TIMES)
-            bot.send_message(msg.chat.id, _('Новая валюта успешно создана!', user.language))
+            rate = round(
+                currency_parser.get_rate(iso).get('USD'),
+                _globals.PRECISION_NUMBER
+            )
+            reverse_rate = round(1/rate, _globals.PRECISION_NUMBER+3)
+            user.add_rate(iso, start_value=rate, check_times=_globals.CHECK_TIMES)
+            bot.send_message(
+                msg.chat.id, 
+                _(
+                    f'Новая валюта успешно создана!\
+                    ;Сейчас курс {iso} - {rate} USD, или 1 USD - {reverse_rate} {iso}',
+                    user.language,
+                    parse_mode='newline'
+                )
+            )
             return start_bot(msg)
 
     bot.send_message(
@@ -936,7 +1034,7 @@ def checkout_handler(pre_checkout_query):
 def subsription_payment_success(msg):
     user = DBUser(msg.chat.id)
     n_months = int(msg.successful_payment.invoice_payload)
-    datetime_expires = get_current_datetime() + datetime.timedelta(days=n_months*31)
+    datetime_expires = get_current_datetime(user.timezone) + datetime.timedelta(days=n_months*31)
     user.init_premium(datetime_expires)
     bot.send_message(
         msg.chat.id,
@@ -955,7 +1053,7 @@ def subsription_payment_success(msg):
 def change_language(msg):
     user = DBUser(msg.chat.id)
 
-    @main_menu(start_bot)
+
     def confirm_language(msg):
         if _('Русский 🇷🇺', user.language) == msg.text:
             user.update(language='ru')
@@ -1001,13 +1099,13 @@ def send_techsupport_message(msg):
             ),
             reply_markup=inline_kbs({_('Ask for staff rank', user.language): 'ask_for_staff_rank'})
         )
-        bot.send_message(
-                msg.chat.id,
-                _(
-                    "❗ Please aware, that time of alerts and forecasts is in UTC+0300 only ❗",
-                    user.language
-                )
-            )
+        # bot.send_message(
+        #     msg.chat.id,
+        #     _(
+        #         "❗ Please aware, that time of alerts and forecasts is in UTC+0300 only ❗",
+        #         user.language
+        #     )
+        # )
     else:
         bot.send_message(
             msg.chat.id, 
@@ -1025,15 +1123,10 @@ def send_techsupport_message(msg):
 def ask_for_staff_rank(call):
     if call.message:
         user = DBUser(call.message.chat.id)
-        if list(len(DBUser.get_staff_users())) == 0:
+        if len(list(DBUser.get_staff_users())) == 0:
             user.init_staff()
             msg = '⚙ You are now a member of staff, congratulations! ⚙'
             send_message_to_techsupport(msg, if_one=True)
-            bot.answer_callback_query(
-                call_id=call.id,
-                show_alert=False,
-                text=_(msg, user.language)
-            )
         else:
             res = send_message_to_techsupport(
                 f'TechSupport\nFrom: @{call.message.chat.username}\nTopic: request for staff rank',
@@ -1043,20 +1136,20 @@ def ask_for_staff_rank(call):
                     'No': f'decline_staff_permission_{user.user_id}'
                 })
             )
-            answer_text = (
+            msg = (
                 'Your request was accepted, wait for the callback'
                 if res else
                 'Sorry, some error occurred, try again later'
-            )
-            bot.answer_callback_query(
-                call.id, 
-                show_alert=False, 
-                text=_(answer_text, user.language)
             )
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=call.message.text
+        )
+        bot.answer_callback_query(
+            callback_query_id=call.id,
+            show_alert=False,
+            text=_(msg, user.language)
         )
 
 
@@ -1092,7 +1185,7 @@ def update_rates():
 
 def check_premium_ended():
     def check_user_premium_ended(user):
-        if get_current_datetime() > user.is_pro:
+        if get_current_datetime(user.timezone) > user.is_pro:
             bot.send_message(
                 user.user_id,
                 _('Your premium has expired 😢😢😢, but you can always refresh it!', user.language)
@@ -1103,7 +1196,7 @@ def check_premium_ended():
         with futures.ThreadPoolExecutor(max_workers=50) as executor:
             for user in DBUser.get_pro_users():
                 executor.submit(check_user_premium_ended, user)
-        time.sleep(150) # 5 min
+        time.sleep(180) # 3 min
 
 
 
@@ -1145,13 +1238,13 @@ def verify_predictions():
 def check_alarm_times():
     previous_minute = 0
     while True:
-        t_ = get_current_datetime().time()
+        t_ = get_current_datetime(0).time()
         some_time = str(t_.strftime('%H:%M'))
         if some_time in _globals.CHECK_TIMES and t_.minute != previous_minute:
             previous_minute = t_.minute
             thread = threading.Thread(target=start_alarms, args=(some_time,), daemon=True)
             thread.start()
-        time.sleep(59.9) # 0.1 sec for this code to 
+        time.sleep(59.9) # 0.1 sec for this code to pass
 
 
 
@@ -1195,8 +1288,8 @@ def send_alarm(user, time_):
                 )
             if rate.get('new', None): # WARNING: CAN BE DELETED
                 new, old = rate.get('new'), rate.get('old')
-                usd_to_iso_new = round(1/new, _globals.PRECISION_NUMBER)
-                usd_to_iso_old = round(1/old, _globals.PRECISION_NUMBER)
+                usd_to_iso_new = round(1/new, 6)
+                usd_to_iso_old = round(1/old, 6)
                 user.update_rates(k, start_value=new)
                 perc_delta = round(rate.get('percentage_difference'), _globals.PRECISION_NUMBER)
                 delta = round(rate.get('difference'), _globals.PRECISION_NUMBER)
@@ -1215,16 +1308,18 @@ def send_alarm(user, time_):
                 )
 
 
+
 def start_checking_threads():
     for target in [check_alarm_times, update_rates, check_premium_ended, verify_predictions]:
         threading.Thread(target=target, daemon=True).start()
 
 
+
 def main():
     start_checking_threads()
-    print(f"[INFO] Bot started at {str(get_current_datetime().time().strftime('%H:%M:%S'))}")
-    bot.infinity_polling()
-    print(f"[INFO] Bot stopped at {str(get_current_datetime().time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot started at {str(get_current_datetime(+2).time().strftime('%H:%M:%S'))}")
+    bot.polling()
+    print(f"[INFO] Bot stopped at {str(get_current_datetime(+2).time().strftime('%H:%M:%S'))}")
 
 
 ###################################################################################################################

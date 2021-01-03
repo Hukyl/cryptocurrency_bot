@@ -13,13 +13,14 @@ from utils.translator import translate as _
 
 
 class User(object):
-    def __init__(self, id, user_id, is_pro, is_active, is_staff, rates, language):
+    def __init__(self, id, user_id, is_pro, is_active, is_staff, rates, timezone, language):
         self.id = id
         self.user_id = user_id
         self.is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if is_pro else is_pro
         self.is_active = is_active
         self.is_staff = is_staff
         self.rates = self.normalize_rates(rates)
+        self.timezone = timezone
         self.language = language
 
     @staticmethod
@@ -57,7 +58,8 @@ class DBUser(User):
     def update(self, **kwargs):
         self.db.change_user(self.user_id, **kwargs)
         for k, v in kwargs.items():
-            self.__dict__[k] = v
+            if k in self.__dict__:
+                self.__dict__[k] = v
 
     def get_predictions(self, if_all:bool=False):
         for pred_data in self.db.get_user_predictions(self.user_id, if_all):
@@ -120,7 +122,7 @@ class DBUser(User):
                 self.db.change_user_rates(self.user_id, k, _globals.DEFAULT_CHECK_TIMES)
 
     def init_staff(self):
-        until_datetime = get_current_datetime() + timedelta(days=100*365)
+        until_datetime = get_current_datetime(self.timezone) + timedelta(days=100*365)
         self.init_premium(until_datetime)
         self.update(is_staff=1)
         for prediction in self.get_predictions(True):
@@ -156,7 +158,8 @@ class DBCurrencyPrediction(object):
     def update(self, **kwargs):
         self.db.change_user_prediction(self.id, **kwargs)
         for k, v in kwargs.items():
-            self.__dict__[k] = v
+            if k in self.__dict__:
+                self.__dict__[k] = v
 
     def get_closest_neighbours(self):
         res = self.db.get_closest_neighbours_of_prediction(self.id)
@@ -168,7 +171,8 @@ class DBCurrencyPrediction(object):
 
     @property
     def is_actual(self):
-        return check_datetime_in_future(self.up_to_date)
+        user = DBUser(self.user_id)
+        return check_datetime_in_future(self.up_to_date, user.timezone)
 
     @property
     def likes(self):

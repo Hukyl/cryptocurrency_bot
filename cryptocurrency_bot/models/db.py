@@ -5,6 +5,8 @@ import threading
 
 from configs import _globals
 
+from utils._datetime import check_datetime_in_future
+
 
 
 class TelegramUserDBHandler(object):
@@ -20,6 +22,7 @@ class TelegramUserDBHandler(object):
                     is_pro DATETIME DEFAULT NULL, 
                     is_active BOOLEAN DEFAULT FALSE,
                     is_staff BOOLEAN DEFAULT FALSE,
+                    timezone INTEGER DEFAULT 0,
                     language TEXT DEFAULT "en", 
                     UNIQUE(user_id) ON CONFLICT REPLACE
                 )
@@ -67,11 +70,12 @@ class TelegramUserDBHandler(object):
                 conn.commit()
                 return res
 
-    def add_user(self, user_id, is_active=False, is_pro:bool=False, is_staff:bool=False, language:str='en'):
+    def add_user(self, user_id, is_active=False, is_pro:bool=False, is_staff:bool=False, timezone:int=0, language:str='en'):
         self.execute_and_commit(
-            "INSERT INTO users(user_id, is_active, is_pro, is_staff, language) \
-            VALUES (?, ?, ?, ?, ?)", 
-            (user_id, is_active, is_pro, is_staff, language)
+            "INSERT INTO users\
+            (user_id, is_active, is_pro, is_staff, timezone, language) \
+            VALUES (?, ?, ?, ?, ?, ?)", 
+            (user_id, is_active, is_pro, is_staff, timezone, language)
         )
         return True
 
@@ -100,7 +104,24 @@ class TelegramUserDBHandler(object):
         res = self.execute_and_commit('SELECT id FROM currency_predictions WHERE id = ?', (pred_id, ))
         return len(res) > 0
 
-    def get_users_by_check_time(self, check_time):
+    def check_user_rates_in_check_time(self, user, check_time:str):
+        """
+        Check if `check_time` (in UTC) in some of user rates check times (converted to UTC)
+        """
+        *data, rates, timezone, language = user
+        all_user_check_times = [list(rate[-1]) for rate in rates]
+        all_user_check_times = set(sum(all_user_check_times, [])) # unfold all list into outer list
+        all_user_check_times = {
+            str(int(time_.split(':')[0]) - timezone) + f':{time_.split(":")[1]}'
+            for time_ in all_user_check_times
+        }
+        return check_time in all_user_check_times
+
+    def get_users_by_check_time(self, check_time:str):
+        """
+        Get all users, which checktimes, converted from their timezone to UTC,
+        equals to `check_time` (which is in UTC)
+        """
         return [
             self.get_user(user_id[0])
             for user_id in self.execute_and_commit(
@@ -109,15 +130,19 @@ class TelegramUserDBHandler(object):
                 WHERE users.user_id = users_rates.user_id AND users.is_active = TRUE AND users_rates.check_times LIKE ?',
                 (f"%{check_time}%", )
             )
+            if self.check_user_rates_in_check_time(
+                self.get_user(user_id[0]),
+                check_time
+            )
         ]
 
     def get_user(self, user_id):
         if self.check_user_exists(user_id):
-            id, user_id, is_pro, is_active, is_staff, language = list(
+            id, user_id, is_pro, is_active, is_staff, timezone, language = list(
                 self.execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
             )
             rates = self.get_user_rates(user_id)
-            return [id, user_id, is_pro, is_active, is_staff, rates, language]
+            return [id, user_id, is_pro, is_active, is_staff, rates, timezone, language]
         return []
 
     def get_all_users(self):
@@ -130,22 +155,22 @@ class TelegramUserDBHandler(object):
 
     def get_staff_users(self):
         return self.execute_and_commit(
-                'SELECT * FROM users WHERE is_staff = 1 AND is_active = 1'
+                'SELECT * FROM users WHERE is_staff = 1'
             )
 
     def get_active_users(self):
         return [
-            list(user[:-1]) + 
-            [self.get_user_rates(user[1])] + # get_user_rates(user_id)
-            [user[-1]]
+            list(user[:-2]) + # id, user_id, is_pro, is_active, is_staff
+            [self.get_user_rates(user[1])] + # rates
+            [user[-2:]] # timezone, language
             for user in self.execute_and_commit('SELECT * FROM users WHERE is_active = TRUE')
         ]
 
     def get_pro_users(self):
         return [
-            list(user[:-1]) + 
+            list(user[:-2]) + 
             [self.get_user_rates(user[1])] + # get_user_rates(user_id)
-            [user[-1]]
+            [user[-2:]]
             for user in self.execute_and_commit('SELECT * FROM users WHERE is_active = TRUE and is_pro != NULL')
         ]
 
@@ -195,27 +220,26 @@ class TelegramUserDBHandler(object):
                     "SELECT * FROM currency_predictions WHERE id > ? AND is_by_experts = FALSE ORDER BY id ASC LIMIT 1",
                     (pred_id,)
                 )
-            if res:
-                return res[0]
+            return res[0] if res else None
 
         def get_previous():
             res = self.execute_and_commit(
                     "SELECT * FROM currency_predictions WHERE id < ? AND is_by_experts = FALSE ORDER BY id DESC LIMIT 1",
                     (pred_id,)
                 )
-            if res:
-                return res[0]
+            return res[0] if res else None
 
         prev = get_previous()
         next = get_next()
         return {
-            'previous': prev[0] if prev else None,
+            'previous': prev[0] if prev else None,  # prev_id
             'current': pred_id,
-            'next': next[0] if next else None
+            'next': next[0] if next else None  # next_id
         }
 
     def get_experts_predictions(self, if_all:bool=False):
-        check_datetime_str = 'datetime() < up_to_date and ' if not if_all else ''
+        select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
+        check_datetime_str = select_datetime + ' < up_to_date and ' if not if_all else ''
         return self.execute_and_commit(
                 'SELECT * FROM currency_predictions WHERE ' + (
                     check_datetime_str
@@ -223,8 +247,9 @@ class TelegramUserDBHandler(object):
             )
 
     def get_unverified_predictions(self):
+        select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
         return self.execute_and_commit(
-                'SELECT * FROM currency_predictions WHERE datetime() > up_to_date AND real_value is NULL'
+                'SELECT * FROM currency_predictions WHERE ' + select_datetime + ' > up_to_date AND real_value is NULL'
             )
 
     def change_user(self, user_id, **kwargs):
@@ -260,13 +285,15 @@ class TelegramUserDBHandler(object):
                         (user_id, iso)
                     )
             except sqlite3.OperationalError:
-                pass
+                return False
             else:
                 return True
 
     def change_user_prediction(self, pred_id, **kwargs):
         if self.check_prediction_exists(pred_id):
             for k, v in kwargs.items():
+                if isinstance(v, datetime):
+                    v = v.strftime('%Y-%m-%d %H:%M:%S')
                 try:
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,

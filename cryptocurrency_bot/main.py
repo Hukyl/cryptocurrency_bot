@@ -31,10 +31,10 @@ if __name__ == '__main__':
     ]
     for target in targets:
         threading.Thread(target=target, daemon=True).start()
-    print(f"[INFO] Bot started at {str(get_current_datetime().time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot started at {str(get_current_datetime(0).time().strftime('%H:%M:%S'))}")
     while True:
         try:
             sleep(100000)
         except KeyboardInterrupt:
-            print(f"[INFO] Bot stopped at {str(get_current_datetime().time().strftime('%H:%M:%S'))}")
+            print(f"[INFO] Bot stopped at {str(get_current_datetime(0).time().strftime('%H:%M:%S'))}")
             sys.exit(0)

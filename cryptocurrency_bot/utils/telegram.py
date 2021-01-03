@@ -5,14 +5,16 @@ from .translator import translate as _
 
 
 
-def kbs(buttons, one_time_keyboard=True):
+def kbs(buttons, one_time_keyboard=True, row_width:int=None):
     """
-    Creates a Telegram Keybord
+    Creates a Telegram Keyboard
     :param buttons:
     :param one_time_keyboard:
-    :return keyboard:
+    :param row_width:
+    :return:
     """
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=one_time_keyboard, row_width=len(buttons)//2)
+    row_width = row_width or len(buttons)//2
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=one_time_keyboard, row_width=row_width)
     if len(buttons) > 1:
         kb.add(*[types.KeyboardButton(i) for i in buttons])
     else:

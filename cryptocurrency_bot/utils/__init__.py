@@ -1,1 +1,12 @@
+def merge_dicts(*dcts):
+    assert len(dcts) > 1, 'you can pass minimum one dictionary'
+    start_dct = dcts[0]
+    for dct in dcts[1:]:
+            for k, v in dct.items():
+                    start_dct[k] = v
+    return start_dct
 
+
+def prettify_utcoffset(utcoffset:int=0):
+    sign = '+' if utcoffset >= 0 else '-'
+    return "UTC" + sign + "{:0>2}00".format(str(abs(utcoffset)))
