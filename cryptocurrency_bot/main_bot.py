@@ -65,9 +65,8 @@ def check_if_command(bot_instance, message):
 @bot.message_handler(commands=['start'])
 def start_message(msg):
     user = DBUser(msg.chat.id)
-    bot.send_photo(msg.chat.id, 'https://minfin.com.ua/img/2020/41845791/d9aebb8711b9b0f6261f9abbc18032a0.jpeg?1584112216')
     bot.send_message(msg.chat.id, _(f'Добро пожаловать, {msg.from_user.first_name}!', user.language))
-    bot.send_message(msg.chat.id, _(f"Я - <b>{bot.get_me().first_name}</b>, твой личный бот акционер, и буду держать тебя в курсе важных событий трейдинга! 💼⚖📊", user.language), parse_mode='html')
+    bot.send_message(msg.chat.id, _(f"Я - <b>{bot.get_me().first_name}</b>, твой личный бот акционер, и буду держать тебя в курсе важных событий трейдинга!", user.language), parse_mode='html')
     return start_bot(msg)
 
 
@@ -76,14 +75,14 @@ def start_message(msg):
 def start_bot(msg):
     user = DBUser(msg.chat.id)
     buttons = [
-        _('Курсы сегодня ⚖', user.language),
-        _('Оповещения 🕒', user.language),
-        _('Подписка 💰', user.language),
-        _('Язык 🇬🇧', user.language),
-        _('Техподдержка ⚙', user.language)
+        _('Rates today', user.language),
+        _('Notifications', user.language),
+        _('Subscription', user.language),
+        _('Language', user.language),
+        _('Technical support', user.language)
     ]   
     kb = kbs(buttons, one_time_keyboard=False)
-    bot.send_message(msg.chat.id, _(f"К вашим услугам!", user.language), reply_markup=kb)
+    bot.send_message(msg.chat.id, _(f"Main menu", user.language), reply_markup=kb)
     bot.register_next_step_handler(msg, choose_option, user=user, buttons=buttons)
 
 
@@ -97,11 +96,11 @@ def choose_option(msg, user=None, buttons=None):
     elif buttons[1] == msg.text:
         # go to notifications section
         buttons = {
-            _("Посмотреть информацию 📄", user.language): see_user_info,
-            _('Изменить время оповещений 🕒', user.language): change_user_rate_check_times,
-            _('Изменить процент оповещений 󠀥󠀥󠀥💯', user.language):change_user_rate_percent_delta,
-            _('Включить/отключить оповещения ▶', user.language): toggle_user_alarms,
-            _('Изменить часовой пояс 🌐', user.language): change_user_timezone,
+            _("Посмотреть информацию", user.language): see_user_info,
+            _('Изменить время оповещений', user.language): change_user_rate_check_times,
+            _('Изменить процент оповещений', user.language):change_user_rate_percent_delta,
+            _('Включить/отключить оповещения', user.language): toggle_user_alarms,
+            _('Изменить часовой пояс', user.language): change_user_timezone,
             _('В главное меню', user.language): start_bot
         }
         if user.is_pro:
@@ -137,9 +136,9 @@ def choose_option(msg, user=None, buttons=None):
 def get_currency_rates_today(msg, user=None):
     user = user or DBUser(msg.chat.id)
     buttons_dct = {
-            _('Сделать прогноз 📈', user.language): make_user_currency_prediction,
-            _('Посмотреть прогнозы 📊', user.language): see_users_currency_predicitions,
-            _('Узнать курс валюты ⚖', user.language): convert_currency,
+            _('Сделать прогноз', user.language): make_user_currency_prediction,
+            _('Посмотреть прогнозы', user.language): see_users_currency_predicitions,
+            _('Узнать курс валюты', user.language): convert_currency,
             _('В главное меню', user.language): start_bot
         }
 
@@ -237,16 +236,16 @@ def make_user_currency_prediction(msg):
                     user.language,
                     parse_mode='newline'
                 ),
-                reply_markup=kbs([_('Да ✔', user.language), _('Нет ❌', user.language)])
+                reply_markup=kbs([_('Да', user.language), _('Нет', user.language)])
             )
             bot.register_next_step_handler(msg, confirm_prediction)
 
     def confirm_prediction(msg):
-        if msg.text == _('Да ✔', user.language):
+        if msg.text == _('Да', user.language):
             user.create_prediction(date, iso_from, iso_to, value)
             bot.send_message(msg.chat.id, _('Прогноз создан!', user.language))
             return start_bot(msg)
-        elif msg.text ==  _('Нет ❌', user.language):
+        elif msg.text ==  _('Нет', user.language):
             bot.send_message(msg.chat.id, _('Прогноз не создан', user.language))
             return start_bot(msg)
         else:
@@ -384,7 +383,7 @@ def see_users_currency_predicitions(msg):
     }
     bot.send_message(
         msg.chat.id,
-        _('Лайкайте чужие посты, и тогда другие будут лайкать ваши!', user.language),
+        _('Выберите из предложенного:', user.language),
         reply_markup=kbs(list(buttons))
     )
     bot.register_next_step_handler(msg, choose_option_inner)
@@ -487,8 +486,8 @@ def ask_delete_prediction(call):
             parse_mode='newline'
         ),
         reply_markup=inline_kbs({
-            _('Yes ✔', user.language): f'delete_prediction_{pred_id}',
-            _('No ❌', user.language): f'get_user_predictions_{prediction.user_id}'
+            _('Yes', user.language): f'delete_prediction_{pred_id}',
+            _('No', user.language): f'get_user_predictions_{prediction.user_id}'
         })
     )
 
@@ -681,7 +680,7 @@ def toggle_user_alarms(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            f"Уведомления {'включены ▶' if user.is_active else 'отключены ⏸'}",
+            f"Уведомления {'включены' if user.is_active else 'отключены'}",
             user.language
         )
     )
@@ -1016,7 +1015,7 @@ def buy_subscription(msg):
         bot.send_message(
                 msg.chat.id,
                 _(
-                    'Покупая ⚜ Подписку ⚜, вы получаете доступ к:\
+                    'Покупая Подписку, вы получаете доступ к:\
                     ;    1. Неограниченому количеству оповещений в день\
                     ;    2. Прогнозам от экспертов\
                     ;    3. Добавлению своих валют к оповещениям\
@@ -1029,7 +1028,7 @@ def buy_subscription(msg):
             )
         bot.register_next_step_handler(msg, confirm_payment)
     else:
-        bot.send_message(msg.chat.id, _('⚜ Вы уже оформили подписку! ⚜', user.language))
+        bot.send_message(msg.chat.id, _('Вы уже оформили подписку!', user.language))
         return start_bot(msg)
 
 
@@ -1199,7 +1198,7 @@ def check_premium_ended():
         if get_current_datetime(utcoffset=user.timezone) > user.is_pro:
             bot.send_message(
                 user.user_id,
-                _('Your premium has expired 😢😢😢, but you can always refresh it!', user.language)
+                _('Your premium has expired, but you can always refresh it!', user.language)
             )
             user.delete_premium()
 

@@ -184,14 +184,16 @@ class TelegramUserDBHandler(object):
         )
 
     def get_actual_predictions(self):
+        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
         return self.execute_and_commit(
             'SELECT * FROM currency_predictions \
-            WHERE datetime() < up_to_date \
+            WHERE ' + current_datetime + ' < up_to_date \
             ORDER BY up_to_date ASC'
         )
 
     def get_user_predictions(self, user_id, if_all:bool=False):
-        check_datetime_str = 'datetime() < up_to_date and ' if not if_all else ''
+        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
+        check_datetime_str = current_datetime + ' < up_to_date and ' if not if_all else ''
         return self.execute_and_commit(
             'SELECT * FROM currency_predictions \
             WHERE ' + check_datetime_str + 'user_id = ? \
@@ -354,10 +356,14 @@ class TelegramUserDBHandler(object):
                 )[0][0]
 
     def get_max_liked_predictions_ids(self):
+        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = currency_predictions.user_id) || ' hours' )"
         return self.execute_and_commit('''
                 SELECT DISTINCT currency_predictions.id
                 FROM currency_predictions JOIN predictions_reactions
-                WHERE currency_predictions.id = predictions_reactions.pred_id AND currency_predictions.up_to_date > datetime()
+                WHERE currency_predictions.id = predictions_reactions.pred_id AND currency_predictions.up_to_date > datetime('now', (
+                        SELECT timezone
+                        FROM users WHERE user_id = currency_predictions.user_id
+                    ) || ' hours' )
                 ORDER BY
                 (
                     SELECT COUNT(reaction) 
