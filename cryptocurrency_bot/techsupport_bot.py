@@ -8,7 +8,9 @@ from models.user import DBUser
 from utils.translator import translate as _
 from configs import TECHSUPPORT_TOKEN
 
-bot = TeleBot(TECHSUPPORT_TOKEN.TOKEN)
+
+
+bot = TeleBot(TECHSUPPORT_TOKEN.TOKEN, threaded=True)
 
 
 def send_message_to_techsupport(message, if_one:bool=False, **kwargs):

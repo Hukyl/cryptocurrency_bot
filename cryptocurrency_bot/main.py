@@ -3,8 +3,8 @@ import sys
 from time import sleep
 import datetime
 
-import main_bot
 import techsupport_bot
+import main_bot
 from utils._datetime import get_current_datetime
 
 
@@ -26,8 +26,8 @@ if __name__ == '__main__':
         main_bot.update_rates,
         main_bot.check_premium_ended,
         main_bot.verify_predictions,
+        techsupport_bot.main,
         main_bot.bot.infinity_polling,
-        techsupport_bot.bot.infinity_polling
     ]
     for target in targets:
         threading.Thread(target=target, daemon=True).start()

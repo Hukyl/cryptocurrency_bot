@@ -25,8 +25,8 @@ from techsupport_bot import bot as support_bot, send_message_to_techsupport
 ########################################################################
 apihelper.ENABLE_MIDDLEWARE = True
 
-bot = TeleBot(MAIN_TOKEN.TOKEN) # threaded=True
-bot.bot_commands = {
+bot = TeleBot(MAIN_TOKEN.TOKEN, threaded=True)
+bot.full_bot_commands = {
     '/start': 'Start the bot',
     '/me': 'See your info',
     '/today': 'Get exchange rates today',
@@ -43,6 +43,10 @@ bot.bot_commands = {
     '/techsupport': 'Send message to techsupport',
     '/help': 'See help'
 }
+bot.short_bot_commands = {
+    k: bot.full_bot_commands.get(k)
+    for k in ['/start', '/me', '/today', '/subscription', '/language', '/help']
+}
 
 
 brent_parser = BrentParser()
@@ -56,7 +60,7 @@ currency_parser = FreecurrencyratesParser()
 
 @bot.middleware_handler(update_types=['message'])
 def check_if_command(bot_instance, message):
-    is_command = bot_instance.bot_commands.get(message.text, None) is not None
+    is_command = bot_instance.full_bot_commands.get(message.text, None) is not None
     if is_command:
         bot_instance.clear_step_handler(message)
 
@@ -72,7 +76,7 @@ def start_message(msg):
 
 
 @bot.message_handler(commands=['menu'])
-def start_bot(msg):
+def start_bot(msg, to_show_commands:bool=True):
     user = DBUser(msg.chat.id)
     buttons = [
         _('Rates today', user.language),
@@ -82,7 +86,19 @@ def start_bot(msg):
         _('Technical support', user.language)
     ]   
     kb = kbs(buttons, one_time_keyboard=False)
-    bot.send_message(msg.chat.id, _(f"Main menu", user.language), reply_markup=kb)
+    if to_show_commands:
+        str_ = ';'.join(['{} - %s' % v for k, v in bot.short_bot_commands.items()])
+        bot.send_message(
+            msg.chat.id,
+            _(
+                str_, 
+                user.language,
+                parse_mode='newline'
+            ).format(*list(bot.short_bot_commands)),
+            reply_markup=kb
+        )
+    else:
+        bot.send_message(msg.chat.id, _("Main menu", user.language), reply_markup=kb)
     bot.register_next_step_handler(msg, choose_option, user=user, buttons=buttons)
 
 
@@ -1168,7 +1184,7 @@ def ask_for_staff_rank(call):
 def send_bot_help(msg):
     user = DBUser(msg.chat.id)
     help_message = 'Here are bot\'s commands:;'
-    for k, v in bot.bot_commands.items():
+    for k, v in bot.full_bot_commands.items():
         help_message += '{} - %s;' % v
     bot.send_message(
         msg.chat.id,
@@ -1176,9 +1192,9 @@ def send_bot_help(msg):
             help_message,
             user.language,
             parse_mode='newline'
-        ).format(*list(bot.bot_commands))
+        ).format(*list(bot.full_bot_commands))
     )
-    return start_bot(msg)
+    return start_bot(msg, to_show_commands=False)
 
 
 
