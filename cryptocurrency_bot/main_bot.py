@@ -3,9 +3,9 @@ import datetime
 import threading
 import time
 
-from telebot import TeleBot
+import telebot
 from telebot.types import LabeledPrice
-from telebot import apihelper
+
 
 from configs import _globals, MAIN_TOKEN
 from models._parser import *
@@ -23,9 +23,9 @@ from techsupport_bot import bot as support_bot, send_message_to_techsupport
 
 # ! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !
 ########################################################################
-apihelper.ENABLE_MIDDLEWARE = True
+telebot.apihelper.ENABLE_MIDDLEWARE = True
 
-bot = TeleBot(MAIN_TOKEN.TOKEN, threaded=True)
+bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=True)
 bot.full_bot_commands = {
     '/start': 'Start the bot',
     '/me': 'See your info',
@@ -1363,6 +1363,9 @@ def start_checking_threads():
 
 
 def main():
+    import logging
+
+    telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
     print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=+2).time().strftime('%H:%M:%S'))}")
     bot.polling()
