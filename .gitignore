@@ -137,3 +137,34 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Ignore bundler config
+/.bundle
+
+# Ignore the default SQLite database.
+/db/*.sqlite3
+
+# Ignore all logfiles and tempfiles.
+/log/*.log
+/tmp
+
+# Ignore JetBrains RubyMine IDE settings
+/.idea
+
+# Ignore PaperClip images
+/public/system
+
+# Ignore generated ERD file
+erd.pdf
+
+# Ignore compiled assets
+public/assets
+
+# Ignore OSX folder attributes
+.DS_Store
+
+# Ignore RVM profiles
+.rvmrc
+
+# Ignore simplecov results
+coverage
