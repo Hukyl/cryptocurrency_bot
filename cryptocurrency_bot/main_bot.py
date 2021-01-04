@@ -1227,7 +1227,7 @@ def verify_predictions():
             user = DBUser(prediction.user_id)
             perc_diff = round(
                 abs(prediction.value-prediction.real_value)/prediction.value*100,
-                _globals.PRECISION_NUMBER
+                _globals.PERCENT_PRECISION_NUMBER
             )
             bot.send_message(
                 prediction.user_id, 
@@ -1320,7 +1320,10 @@ def send_alarm(user):
             usd_to_iso_old = round(1/old, 6)
             user.update_rates(k, start_value=new)
             perc_delta = round(rate.get('percentage_difference'), _globals.PRECISION_NUMBER)
-            delta = round(rate.get('difference'), _globals.PRECISION_NUMBER)
+            delta = round(
+                rate.get('difference'), 
+                _globals.PERCENT_PRECISION_NUMBER
+            )
             bot.send_message(
                 user.user_id,
                 _(
