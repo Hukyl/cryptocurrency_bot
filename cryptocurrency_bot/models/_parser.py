@@ -141,9 +141,9 @@ class FreecurrencyratesParser(CurrencyParser):
         res = self.get_response(self.link % currency.upper())
         return res.ok
 
-    def check_delta(self, iso, start_value, percent_delta=1):
-        old, new = start_value, self.get_rate(iso).get("USD")
-        return self.calculate_differences(iso, old, new, percent_delta)
+    def check_delta(self, iso_from, iso_to, start_value=1, percent_delta=1):
+        old, new = start_value, self.get_rate(iso_from, iso_to).get(iso_to)
+        return self.calculate_differences(None, old, new, percent_delta)
 
 
 if __name__ == "__main__":

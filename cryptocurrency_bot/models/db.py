@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from datetime import datetime
 import threading
@@ -115,7 +114,9 @@ class TelegramUserDBHandler(object):
             str(int(time_.split(':')[0]) - timezone) + f':{time_.split(":")[1]}'
             for time_ in all_user_check_times
         }
-        return check_time in all_user_check_times
+        if check_time in all_user_check_times:
+            return all_user_check_times
+        return False
 
     def get_users_by_check_time(self, check_time:str):
         """

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from .db import TelegramUserDBHandler
 from configs import _globals
+from utils import get_json_config
 from utils._datetime import (
     convert_to_country_format,
     convert_from_country_format,
@@ -81,7 +82,10 @@ class DBUser(User):
         if not cls.db.check_user_exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
-            [cls.db.add_user_rate(user_id, currency) for currency in _globals.CURRENCIES]
+            json_config = get_json_config()
+            for currency in _globals.CURRENCIES:
+                s_v = json_config.get('initialValue' + currency, 1.0) # start_value
+                cls.db.add_user_rate(user_id, currency, start_value=s_v) 
 
     @classmethod
     def get_pro_users(cls):
@@ -122,7 +126,7 @@ class DBUser(User):
                 self.db.change_user_rates(self.user_id, k, _globals.DEFAULT_CHECK_TIMES)
 
     def init_staff(self):
-        until_datetime = get_current_datetime(self.timezone) + timedelta(days=100*365)
+        until_datetime = get_current_datetime(utcoffset=self.timezone) + timedelta(days=100*365)
         self.init_premium(until_datetime)
         self.update(is_staff=1)
         for prediction in self.get_predictions(True):
@@ -141,7 +145,7 @@ class DBCurrencyPrediction(object):
 
     def __init__(self, pred_id):
         self.id, self.user_id, self.iso_from, self.iso_to, self.value, self.up_to_date, self.is_by_experts, self.real_value = self.db.get_prediction(pred_id)
-        self.up_to_date = datetime.strptime(self.up_to_date, '%Y-%m-%d %H:%M:%S')
+        self.up_to_date = datetime.strptime(self.up_to_date, '%Y-%m-%d %H:%M:%S%z')
 
     def toggle_like(self, user_id, if_like=True):
         """

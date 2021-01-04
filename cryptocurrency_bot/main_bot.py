@@ -2,7 +2,6 @@ from concurrent import futures
 import datetime
 import threading
 import time
-import json
 
 from telebot import TeleBot
 from telebot.types import LabeledPrice
@@ -11,7 +10,7 @@ from telebot import apihelper
 from configs import _globals, MAIN_TOKEN
 from models._parser import *
 from models.user import DBUser, DBCurrencyPrediction
-from utils import merge_dicts, prettify_utcoffset
+from utils import merge_dicts, prettify_utcoffset, get_json_config
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
 from utils._datetime import (
@@ -22,8 +21,8 @@ from utils._datetime import (
 )
 from techsupport_bot import bot as support_bot, send_message_to_techsupport
 
-# !!!!!!!!!!!!!!!!!!! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !!!!!!!!!!!!!!!!!!!!!!!!!!
-###################################################################################################################
+# ! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !
+########################################################################
 apihelper.ENABLE_MIDDLEWARE = True
 
 bot = TeleBot(MAIN_TOKEN.TOKEN) # threaded=True
@@ -41,6 +40,7 @@ bot.bot_commands = {
     '/menu': 'Go to menu',
     '/subscription': 'Go to subsciption section',
     '/language': 'Change language',
+    '/techsupport': 'Send message to techsupport',
     '/help': 'See help'
 }
 
@@ -50,7 +50,7 @@ bitcoin_parser = BitcoinParser()
 rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
 
-###################################################################################################################
+########################################################################
 
 
 
@@ -59,7 +59,6 @@ def check_if_command(bot_instance, message):
     is_command = bot_instance.bot_commands.get(message.text, None) is not None
     if is_command:
         bot_instance.clear_step_handler(message)
-
 
 
 
@@ -122,14 +121,14 @@ def choose_option(msg, user=None, buttons=None):
     elif buttons[-1] == msg.text:
         return send_techsupport_message(msg)
     else:
-        bot.send_message(
-            msg.chat.id,
-            _(
-                "❗ Я не понял ваш ответ, попробуйте что-то другое ❗",
-                user.language
-            ),
-            reply_markup=kbs(list(buttons))
-        )
+        # bot.send_message(
+        #     msg.chat.id,
+        #     _(
+        #         "❗ Я не понял ваш ответ, попробуйте что-то другое ❗",
+        #         user.language
+        #     ),
+        #     reply_markup=kbs(list(buttons))
+        # )
         return bot.register_next_step_handler(msg, choose_option, user, buttons)
 
 
@@ -138,7 +137,7 @@ def choose_option(msg, user=None, buttons=None):
 def get_currency_rates_today(msg, user=None):
     user = user or DBUser(msg.chat.id)
     buttons_dct = {
-            _('Сделать прогноз 📈📉', user.language): make_user_currency_prediction,
+            _('Сделать прогноз 📈', user.language): make_user_currency_prediction,
             _('Посмотреть прогнозы 📊', user.language): see_users_currency_predicitions,
             _('Узнать курс валюты ⚖', user.language): convert_currency,
             _('В главное меню', user.language): start_bot
@@ -180,7 +179,11 @@ def make_user_currency_prediction(msg):
     def get_date(msg):
         nonlocal date
         try:
-            up_to_date = convert_from_country_format(msg.text, user.language)
+            up_to_date = convert_from_country_format(
+                msg.text,
+                user.language,
+                user.timezone
+            )
             assert check_datetime_in_future(up_to_date)
         except ValueError:
             bot.send_message(msg.chat.id, _('❗ Вводите дату только в указаном формате ❗', user.language))
@@ -193,14 +196,15 @@ def make_user_currency_prediction(msg):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    'Введите iso-код валюты прогноза <b><code>&#60;изо-код&#62;-&#60;изо-код&#62;</code></b>',
-                    user.language
+                    'Введите iso-код валюты прогноза `<изо-код>-<изо-код>`\
+                    ;Например, USD-RUB',
+                    user.language,
+                    parse_mode='newline'
                 ),
-                parse_mode='html',
+                parse_mode='markdown',
                 reply_markup=kbs(_globals.ACCEPTABLE_CURRENCIES_CONVERTION)
             )
             bot.register_next_step_handler(msg, get_iso)
-
 
     def get_iso(msg):
         nonlocal iso_from, iso_to
@@ -251,19 +255,23 @@ def make_user_currency_prediction(msg):
 
     bot.send_message(
         msg.chat.id,
-        _('Для выхода в любом месте введите <b><code>Меню</code></b>', user.language),
-        parse_mode='html'
+        _('Для выхода в любом месте введите {}', user.language).format('/menu')
     )
     datetime_check_str = 'ДД.ММ.ГГГГ ЧЧ:ММ' if user.language ==  'ru' else 'MM-DD-YYYY HH:ММ AM/PM'
-    datetime_example = '30.12.2021 22:00' if user.language == 'ru' else '12-30-2021 10:00 PM'
+    datetime_example = convert_to_country_format(
+        get_current_datetime(utcoffset=user.timezone),
+        user.language,
+        no_offset=True
+    )
     bot.send_message(
         msg.chat.id, 
         _(
-            'Выберите период действия прогноза в формате <b><code>{check_str} </code></b>;Например, {example}', 
+            'Выберите период действия прогноза в формате `{check_str}`\
+            ;Например, {example}', 
             user.language,
             parse_mode='newline'
         ).format(check_str=datetime_check_str, example=datetime_example),
-        parse_mode='html'
+        parse_mode='markdown'
     )
     bot.register_next_step_handler(msg, get_date)
 
@@ -553,7 +561,7 @@ def convert_currency(msg):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    f"Конвертация на {convert_to_country_format(get_current_datetime(user.timezone), user.language)}:\
+                    f"Конвертация на {convert_to_country_format(get_current_datetime(utcoffset=user.timezone), user.language)}:\
                     ;{rate[iso_from]} {iso_from} - {rate[iso_to]} {iso_to}",
                     user.language,
                     parse_mode='newline'
@@ -564,10 +572,12 @@ def convert_currency(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'Введите валюты в формате <b><code>&#60;изо-код&#62;-&#60;изо-код&#62;</code></b>',
-            user.language
+            'Введите валюты в формате `<изо-код>-<изо-код>`\
+            ;Например, USD-RUB',
+            user.language,
+            parse_mode='newline'
         ),
-        parse_mode='html'
+        parse_mode='markdown'
     )
     bot.register_next_step_handler(msg, get_isos)
 
@@ -596,7 +606,7 @@ def get_callback_for_change_currency_converter_amount(call):
                         chat_id=call.message.chat.id, 
                         message_id=call.message.message_id, 
                         text=_(
-                            f"Конвертация на {convert_to_country_format(get_current_datetime(user.timezone), user.language)}:\
+                            f"Конвертация на {convert_to_country_format(get_current_datetime(utcoffset=user.timezone), user.language)}:\
                             ;{change_amount} {iso_from[1]} - {new_amount} {iso_to[1]}",
                             user.language,
                             parse_mode='newline'
@@ -634,6 +644,7 @@ def get_callback_for_change_currency_converter_amount(call):
     if call.message:
         change_amount = call.data.split('_')[-1]
         if change_amount == '...':
+            # bot.clear_step_handler(call.message)
             msg_to_delete = bot.send_message(call.message.chat.id, _('Введите вашу сумму', user.language))
             return bot.register_next_step_handler(call.message, ask_sum, call, msg_to_delete)
         elif change_amount == 'Reset':
@@ -910,17 +921,17 @@ def add_new_currency(msg):
 
 
 
-@bot.message_handler(commands=['subsription'])
+@bot.message_handler(commands=['subscription'])
 def buy_subscription(msg):
     user = DBUser(msg.chat.id)
-    json_config = json.load(open('configs\\config.json', 'r', encoding='utf-8'))
-    prices_json_list = json_config.get('subsriptionPrices')
-    start_price = json_config.get('subsriptionStartPrice')
+    json_config = get_json_config()
+    prices_json_list = json_config.get('subscriptionPrices')
+    start_price = json_config.get('subscriptionStartPrice')
     prices = [
         [
             LabeledPrice(
                 label=_(
-                    f"Cost of subsription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
+                    f"Cost of subscription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
                     user.language
                 ),
                 amount=int(round(start_price * price.get('period'), 2) * 100)
@@ -995,7 +1006,7 @@ def buy_subscription(msg):
             photo_height=300,  # !=0/None or picture won't be shown
             photo_width=600,
             photo_size=512,
-            start_parameter='subsription-telegram-bot',
+            start_parameter='subscription-telegram-bot',
             is_flexible=False,  # True If you need to set up Shipping Fee
             prices=prices,
             invoice_payload=f"{n_months}"
@@ -1031,10 +1042,10 @@ def checkout_handler(pre_checkout_query):
 
 
 @bot.message_handler(content_types=['successful_payment'])
-def subsription_payment_success(msg):
+def subscription_payment_success(msg):
     user = DBUser(msg.chat.id)
     n_months = int(msg.successful_payment.invoice_payload)
-    datetime_expires = get_current_datetime(user.timezone) + datetime.timedelta(days=n_months*31)
+    datetime_expires = get_current_datetime(utcoffset=user.timezone) + datetime.timedelta(days=n_months*31)
     user.init_premium(datetime_expires)
     bot.send_message(
         msg.chat.id,
@@ -1172,7 +1183,7 @@ def send_bot_help(msg):
 
 
 
-###################################################################################################################
+#########################################################################
 
 
 def update_rates():
@@ -1185,7 +1196,7 @@ def update_rates():
 
 def check_premium_ended():
     def check_user_premium_ended(user):
-        if get_current_datetime(user.timezone) > user.is_pro:
+        if get_current_datetime(utcoffset=user.timezone) > user.is_pro:
             bot.send_message(
                 user.user_id,
                 _('Your premium has expired 😢😢😢, but you can always refresh it!', user.language)
@@ -1207,8 +1218,12 @@ def verify_predictions():
     }
     while True:
         for prediction in DBCurrencyPrediction.get_unverified_predictions():
-            parser = parsers.get(prediction.iso_from, currency_parser)
-            real_value = parser.get_rate()
+            real_value = get_rate_safe(
+                prediction.iso_from, 
+                prediction.iso_to,
+                1,
+                0.0000000001
+            ).get('new') 
             prediction.update(real_value=real_value)
             user = DBUser(prediction.user_id)
             perc_diff = round(
@@ -1236,76 +1251,90 @@ def verify_predictions():
 
 
 def check_alarm_times():
-    previous_minute = 0
+    previous_time = ''
     while True:
-        t_ = get_current_datetime(0).time()
+        t_ = get_current_datetime().time()
         some_time = str(t_.strftime('%H:%M'))
-        if some_time in _globals.CHECK_TIMES and t_.minute != previous_minute:
-            previous_minute = t_.minute
-            thread = threading.Thread(target=start_alarms, args=(some_time,), daemon=True)
+        if some_time != previous_time and t_.minute == 0:
+            previous_time = some_time
+            thread = threading.Thread(
+                target=start_alarms, 
+                args=(some_time,), 
+                daemon=True
+            )
             thread.start()
-        time.sleep(59.9) # 0.1 sec for this code to pass
+        time.sleep(50) 
 
 
 
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in DBUser.get_users_by_check_time(time_):
-            executor.submit(send_alarm, user, time_)
+            executor.submit(send_alarm, user)
 
 
 
-def send_alarm(user, time_):
+def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
     parsers = {
         parser.iso: parser
         for parser in [brent_parser, bitcoin_parser, rts_parser]
     }
+    parser = parsers.get(iso_from, currency_parser)
+    try:
+        if getattr(parser, 'iso', None) is not None:
+            rate = parser.check_delta(
+                start_value=start_value,
+                percent_delta=percent_delta
+            )
+        else:
+            # if parser is `FreecurrencyratesParser`
+            rate = parser.check_delta(
+                iso_from=iso_from,
+                iso_to=iso_to,
+                start_value=start_value, 
+                percent_delta=percent_delta
+            )
+    except Exception:
+        # if network can not be reached or somewhat
+        json_config = get_json_config()
+        initial_values = {
+            iso_from: value
+            for key, value in json_config.items()
+            if isinstance(value, float) and iso_from in key
+        }
+        rate = CurrencyParser.calculate_differences(
+            iso=iso_from,
+            old=start_value,
+            new=initial_values.get(iso_from, 1),
+            percent=percent_delta
+        )
+    return rate
+
+
+
+def send_alarm(user):
     for k, v in user.rates.items():
-        if time_ in v.get('check_times'):
-            parser = parsers.get(k, currency_parser)
-            try:
-                if getattr(parser, 'iso', None) is not None:
-                    rate = parser.check_delta(
-                        start_value=v.get('start_value'),
-                        percent_delta=v.get('percent_delta')
-                    )
-                else:
-                    # if parser is `FreecurrencyratesParser`
-                    rate = parser.check_delta(
-                        iso=k,
-                        start_value=v.get('start_value'), 
-                        percent_delta=v.get('percent_delta')
-                    )
-            except Exception:
-                # if network can not be reached or somewhat
-                json_config = json.load(open('configs\\config.json', 'r', encoding='utf-8'))
-                initial_values = {k: value for key, value in json_config if isinstance(value, float) and k in key}
-                rate = CurrencyParser.calculate_differences(
-                    k,
-                    v.get('start_value'),
-                    initial_values.get(k, 1),
-                    v.get('percent_delta')
-                )
-            if rate.get('new', None): # WARNING: CAN BE DELETED
-                new, old = rate.get('new'), rate.get('old')
-                usd_to_iso_new = round(1/new, 6)
-                usd_to_iso_old = round(1/old, 6)
-                user.update_rates(k, start_value=new)
-                perc_delta = round(rate.get('percentage_difference'), _globals.PRECISION_NUMBER)
-                delta = round(rate.get('difference'), _globals.PRECISION_NUMBER)
-                bot.send_message(
-                    user.user_id,
-                    _(
-                        "Цена **{}** - **{} USD**, или **1 USD - {} {}**\
-                        ;Изменение составило **{}**, или **{}%**\
-                        ;Предыдущая цена **{} - {} USD**, или **1 USD - {} {}**",
-                        user.language,
-                        parse_mode='newline'
-                    ).format(
-                        k, new, usd_to_iso_new, k, delta, perc_delta, k, old, usd_to_iso_old, k
-                    ),
-                    parse_mode='markdown'
-                )
+        rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
+        if rate.get('new', None): # WARNING: CAN BE DELETED
+            new, old = rate.get('new'), rate.get('old')
+            usd_to_iso_new = round(1/new, 6)
+            usd_to_iso_old = round(1/old, 6)
+            user.update_rates(k, start_value=new)
+            perc_delta = round(rate.get('percentage_difference'), _globals.PRECISION_NUMBER)
+            delta = round(rate.get('difference'), _globals.PRECISION_NUMBER)
+            bot.send_message(
+                user.user_id,
+                _(
+                    "Цена **{}** - **{} USD**, или **1 USD - {} {}**\
+                    ;Изменение составило **{}**, или **{}%**\
+                    ;Предыдущая цена **{} - {} USD**, или **1 USD - {} {}**",
+                    user.language,
+                    parse_mode='newline'
+                ).format(
+                    k, new, usd_to_iso_new, k, delta, perc_delta, k, old, usd_to_iso_old, k
+                ),
+                parse_mode='markdown'
+            )
 
 
 
@@ -1317,12 +1346,12 @@ def start_checking_threads():
 
 def main():
     start_checking_threads()
-    print(f"[INFO] Bot started at {str(get_current_datetime(+2).time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=+2).time().strftime('%H:%M:%S'))}")
     bot.polling()
-    print(f"[INFO] Bot stopped at {str(get_current_datetime(+2).time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot stopped at {str(get_current_datetime(utcoffset=+2).time().strftime('%H:%M:%S'))}")
 
 
-###################################################################################################################
+#######################################################################
 
 
 if __name__ == '__main__':

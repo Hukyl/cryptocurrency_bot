@@ -1,3 +1,6 @@
+import json
+
+
 def merge_dicts(*dcts):
     assert len(dcts) > 1, 'you can pass minimum one dictionary'
     start_dct = dcts[0]
@@ -10,3 +13,8 @@ def merge_dicts(*dcts):
 def prettify_utcoffset(utcoffset:int=0):
     sign = '+' if utcoffset >= 0 else '-'
     return "UTC" + sign + "{:0>2}00".format(str(abs(utcoffset)))
+
+
+def get_json_config():
+    return json.load(open('configs\\config.json', 'r', encoding='utf-8'))
+    
