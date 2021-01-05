@@ -12,7 +12,7 @@ def merge_dicts(*dcts):
 
 def prettify_utcoffset(utcoffset:int=0):
     sign = '+' if utcoffset >= 0 else '-'
-    return "UTC" + sign + "{:0>2}00".format(str(abs(utcoffset)))
+    return "UTC" if utcoffset == 0 else "UTC" + sign + "{:0>2}00".format(str(abs(utcoffset)))
 
 
 def get_json_config():
