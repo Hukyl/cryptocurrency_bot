@@ -7,7 +7,7 @@ import telebot
 from telebot.types import LabeledPrice
 
 
-from configs import _globals, MAIN_TOKEN
+from configs import _globals, MAIN_TOKEN, TECHSUPPORT_TOKEN
 from models._parser import *
 from models.user import DBUser, DBCurrencyPrediction
 from utils import merge_dicts, prettify_utcoffset, get_json_config
@@ -68,9 +68,18 @@ def check_if_command(bot_instance, message):
 
 @bot.message_handler(commands=['start'])
 def start_message(msg):
+    tech_support_recognizer = TECHSUPPORT_TOKEN.ACCESSIBLE_LINK.split('=')[1]
+    args = msg.text.split()[1:]
     user = DBUser(msg.chat.id)
     bot.send_message(msg.chat.id, _(f'Добро пожаловать, {msg.from_user.first_name}!', user.language))
     bot.send_message(msg.chat.id, _(f"Я - <b>{bot.get_me().first_name}</b>, твой личный бот акционер, и буду держать тебя в курсе важных событий трейдинга!", user.language), parse_mode='html')
+    if args and tech_support_recognizer in args:
+        # if user got in bot with techsupport link
+        user.init_staff()
+        bot.send_message(
+            msg.chat.id,
+            _('Ты получил ссылку техподдержки, поэтому теперь ты являешься сотрудником техподдержки!')
+        )    
     return start_bot(msg)
 
 
@@ -163,13 +172,6 @@ def get_currency_rates_today(msg, user=None):
             bot.send_message(msg.chat.id, _('❗ Выберите только из предложенного ❗', user.language))
             bot.register_next_step_handler(msg, choose_option_inner)
         else:
-            # bot.send_message(
-            #     msg.chat.id,
-            #     _(
-            #         f"❗ Please aware, that time of alerts and forecasts is in UTC+0300 only, which now is {convert_to_country_format(get_current_datetime(user.timezone), user.language)} ❗",
-            #         user.language
-            #     )
-            # )
             return buttons_dct.get(msg.text)(msg)
 
     bot.send_message(
@@ -1125,13 +1127,6 @@ def send_techsupport_message(msg):
             ),
             reply_markup=inline_kbs({_('Ask for staff rank', user.language): 'ask_for_staff_rank'})
         )
-        # bot.send_message(
-        #     msg.chat.id,
-        #     _(
-        #         "❗ Please aware, that time of alerts and forecasts is in UTC+0300 only ❗",
-        #         user.language
-        #     )
-        # )
     else:
         bot.send_message(
             msg.chat.id, 
