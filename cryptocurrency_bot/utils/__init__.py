@@ -18,3 +18,6 @@ def prettify_utcoffset(utcoffset:int=0):
 def get_json_config():
     return json.load(open('configs\\config.json', 'r', encoding='utf-8'))
     
+
+def prettify_float(num:float):
+    return round(num, 3) if num // 1 > 0 else round(num, 6)

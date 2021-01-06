@@ -10,7 +10,7 @@ from telebot.types import LabeledPrice
 from configs import _globals, MAIN_TOKEN, TECHSUPPORT_TOKEN
 from models._parser import *
 from models.user import DBUser, DBCurrencyPrediction
-from utils import merge_dicts, prettify_utcoffset, get_json_config
+from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
 from utils._datetime import (
@@ -19,7 +19,7 @@ from utils._datetime import (
     convert_to_country_format,
     get_current_datetime
 )
-from techsupport_bot import bot as support_bot, send_message_to_techsupport
+from utils.mail import send_mail
 
 # ! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !
 ########################################################################
@@ -73,12 +73,12 @@ def start_message(msg):
     user = DBUser(msg.chat.id)
     bot.send_message(msg.chat.id, _(f'Добро пожаловать, {msg.from_user.first_name}!', user.language))
     bot.send_message(msg.chat.id, _(f"Я - <b>{bot.get_me().first_name}</b>, твой личный бот акционер, и буду держать тебя в курсе важных событий трейдинга!", user.language), parse_mode='html')
-    if args and tech_support_recognizer in args:
-        # if user got in bot with techsupport link
+    if args and tech_support_recognizer in args or not list(DBUser.get_staff_users()):
+        # if user got in bot with techsupport link or there are not support users
         user.init_staff()
         bot.send_message(
             msg.chat.id,
-            _('⚙ Ты получил ссылку техподдержки, поэтому теперь ты являешься сотрудником техподдержки! ⚙')
+            _('⚙ Вы получили статус техподдержки ⚙')
         )    
     return start_bot(msg)
 
@@ -93,7 +93,7 @@ def start_bot(msg, to_show_commands:bool=True):
         _('Subscription', user.language),
         _('Language', user.language),
         _('Technical support', user.language)
-    ]   
+    ]
     kb = kbs(buttons, one_time_keyboard=False)
     if to_show_commands:
         str_ = ';'.join(['{} - %s' % v for k, v in bot.short_bot_commands.items()])
@@ -947,19 +947,13 @@ def buy_subscription(msg):
     prices = [
         [
             LabeledPrice(
-                label=_(
-                    f"Cost of subscription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
-                    user.language
-                ),
+                label=f"Cost of subscription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
                 amount=int(round(start_price * price.get('period'), 2) * 100)
                 # * 100 because amount in cents
             )
         ] + ([
             LabeledPrice(
-                label=_(
-                        f'Discount {price.get("discount")}%',
-                        user.language
-                    ),
+                label=f'Discount {price.get("discount")}%',
                 amount=-int(round(start_price * price.get('period') * price.get('discount')/100 * 100, 2))
             )
         ] if price.get('discount') > 0 else [])
@@ -1120,18 +1114,17 @@ def send_techsupport_message(msg):
             msg.chat.id,
             _(
                 f'⚙ This is techsupport of @{bot.get_me().username} ⚙\
-                ;You can contact us in @{support_bot.get_me().username}\
                 ;Feel free to send us any feedbacks about this bot, we are always grateful for your help!',
                 user.language,
                 parse_mode='newline'
             ),
-            reply_markup=inline_kbs({_('Ask for staff rank', user.language): 'ask_for_staff_rank'})
+            reply_markup=inline_kbs({_('Send message to Techsupport', user.language): 'send_message_to_techsupport'})
         )
     else:
         bot.send_message(
             msg.chat.id, 
             _(
-                f'⚙ You are already a staff member ⚙;Staff bot: @{support_bot.get_me().username}',
+                f'⚙ You are already a staff member ⚙',
                 user.language,
                 parse_mode='newline'
             )
@@ -1140,38 +1133,49 @@ def send_techsupport_message(msg):
 
 
 
-@bot.callback_query_handler(func=lambda call: call.data == 'ask_for_staff_rank')
+@bot.callback_query_handler(func=lambda call: call.data == 'send_message_to_techsupport')
 def ask_for_staff_rank(call):
+    def send_message(msg):
+        bot.send_message(msg.chat.id, _("Подождите немного, пожалуйста", user.language))
+        text = msg.text
+        try:
+            template = 'Feedback (@%s)\nFrom:%s\nMessage:%s'
+            username = msg.from_user.username
+            first_name = msg.from_user.first_name
+            message = template % (
+                bot.get_me().username,
+                f"@{username}" if username else first_name,
+                text
+            )
+            send_mail(message) # send email from self to self
+        except Exception:
+            answer_msg = _("Some error occurred", user.language)
+        else:
+            answer_msg = _("Your message was recieved", user.language)
+        finally:
+            bot.send_message(msg.chat.id, answer_msg)
+            return start_bot(msg)
+
     if call.message:
         user = DBUser(call.message.chat.id)
-        if len(list(DBUser.get_staff_users())) == 0:
-            user.init_staff()
-            msg = '⚙ You are now a member of staff, congratulations! ⚙'
-            send_message_to_techsupport(msg, if_one=True)
-        else:
-            res = send_message_to_techsupport(
-                f'TechSupport\nFrom: @{call.message.chat.username}\nTopic: request for staff rank',
-                if_one=True,
-                reply_markup=inline_kbs({
-                    'Yes': f'allow_staff_permission_{user.user_id}',
-                    'No': f'decline_staff_permission_{user.user_id}'
-                })
-            )
-            msg = (
-                'Your request was accepted, wait for the callback'
-                if res else
-                'Sorry, some error occurred, try again later'
-            )
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=call.message.text
+        ) # make the button disappear
+        bot.send_message(
+            user.user_id,
+            _(
+                'Напишите ваше сообщение техподдержке ({} чтобы выйти в меню)',
+                user.language,
+            ).format('/menu')
         )
-        bot.answer_callback_query(
-            callback_query_id=call.id,
-            show_alert=False,
-            text=_(msg, user.language)
-        )
+        bot.register_next_step_handler(call.message, send_message)
+        # bot.answer_callback_query(
+        #     callback_query_id=call.id,
+        #     show_alert=False,
+        #     text=_(msg, user.language)
+        # )
 
 
 
@@ -1327,14 +1331,11 @@ def send_alarm(user):
         rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
-            usd_to_iso_new = round(1/new, 6)
-            usd_to_iso_old = round(1/old, 6)
+            usd_to_iso_new = prettify_float(1/new)
+            usd_to_iso_old = prettify_float(1/old)
             user.update_rates(k, start_value=new)
-            perc_delta = round(rate.get('percentage_difference'), _globals.PRECISION_NUMBER)
-            delta = round(
-                rate.get('difference'), 
-                _globals.PERCENT_PRECISION_NUMBER
-            )
+            perc_delta = round(rate.get('percentage_difference'), _globals.PERCENT_PRECISION_NUMBER)
+            delta = prettify_float(rate.get('difference'))
             bot.send_message(
                 user.user_id,
                 _(
@@ -1358,13 +1359,13 @@ def start_checking_threads():
 
 
 def main():
-    import logging
+    # import logging
 
-    telebot.logger.setLevel(logging.DEBUG)
+    # telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
-    print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=+2).time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
     bot.polling()
-    print(f"[INFO] Bot stopped at {str(get_current_datetime(utcoffset=+2).time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
 
 
 #######################################################################

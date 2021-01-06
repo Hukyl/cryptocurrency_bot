@@ -3,7 +3,6 @@ import sys
 from time import sleep
 import datetime
 
-import techsupport_bot
 import main_bot
 from utils._datetime import get_current_datetime
 
@@ -26,15 +25,14 @@ if __name__ == '__main__':
         main_bot.update_rates,
         main_bot.check_premium_ended,
         main_bot.verify_predictions,
-        techsupport_bot.main,
         main_bot.bot.infinity_polling,
     ]
     for target in targets:
         threading.Thread(target=target, daemon=True).start()
-    print(f"[INFO] Bot started at {str(get_current_datetime(0).time().strftime('%H:%M:%S'))}")
+    print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
     while True:
         try:
             sleep(100000)
         except KeyboardInterrupt:
-            print(f"[INFO] Bot stopped at {str(get_current_datetime(0).time().strftime('%H:%M:%S'))}")
+            print(f"[INFO] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
             sys.exit(0)
