@@ -62,7 +62,10 @@ currency_parser = FreecurrencyratesParser()
 def check_if_command(bot_instance, message):
     is_command = bot_instance.full_bot_commands.get(message.text, None) is not None
     if is_command:
-        bot_instance.clear_step_handler(message)
+        try:    
+            bot_instance.clear_step_handler(message)
+        except Exception:
+            pass
 
 
 
