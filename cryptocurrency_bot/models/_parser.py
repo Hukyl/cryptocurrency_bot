@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup as bs
 from utils.agent import get_useragent
 
 
+
 class CurrencyParser(abc.ABC):
     """
     Universal abstract class for parsing the currency
