@@ -16,6 +16,7 @@ def get_current_datetime(d:dt.datetime=None, utcoffset:int=0):
     n = n.replace(
         day=n.day + ((n.hour + utcoffset) // 24),
         hour=(n.hour + utcoffset) % 24,
+        microsecond=0
     )
     return add_offset(n, utcoffset)
 
