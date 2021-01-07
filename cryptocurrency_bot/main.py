@@ -14,8 +14,6 @@ def infinite_loop(func, *args, **kwargs):
             func(*args, **kwargs)
         except Exception as e:
             print(repr(e))
-        else:
-            break
 
 
 
@@ -27,8 +25,12 @@ if __name__ == '__main__':
         main_bot.verify_predictions,
         main_bot.bot.infinity_polling,
     ]
-    for target in targets:
-        threading.Thread(target=target, daemon=True).start()
+    if sys.argv[1:] and sys.argv[1] == '-d' ot sys.argv[1] == '--DEBUG':
+        for targer in targets:
+            threading.Thread(target=target, daemon=True).start()
+    else:
+        for target in targets:
+            threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
     print(
         "[INFO] Bot started at {} UTC".format(
             str(get_current_datetime(utcoffset=0).strftime('%Y-%m-%d %H:%M:%S'))

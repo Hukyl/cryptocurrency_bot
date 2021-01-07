@@ -1388,16 +1388,11 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
             )
     except Exception:
         # if network can not be reached or somewhat
-        json_config = get_json_config()
-        initial_values = {
-            iso_from: value
-            for key, value in json_config.items()
-            if isinstance(value, float) and iso_from in key
-        }
+        default_value = get_default_values_from_config(iso_from)
         rate = CurrencyParser.calculate_differences(
             iso=iso_from,
             old=start_value,
-            new=initial_values.get(iso_from, 1),
+            new=default_value,
             percent=percent_delta
         )
     return rate

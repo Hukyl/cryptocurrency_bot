@@ -19,5 +19,11 @@ def get_json_config():
     return json.load(open('configs\\config.json', 'r', encoding='utf-8'))
     
 
+def get_default_values_from_config(*args):
+    json_config = get_json_config()
+    return {curr: json_config.get('initialValue' + curr, 1) for curr in args}
+
+
+
 def prettify_float(num:float):
     return round(num, 3) if num // 1 > 0 else round(num, 6)
