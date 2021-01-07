@@ -20,6 +20,9 @@ def get_json_config():
     
 
 def get_default_values_from_config(*args):
+    if len(args) == 0:
+        return None
+    print('[ERROR] Default value was used for: ' + ', '.join(args))
     json_config = get_json_config()
     return {curr: json_config.get('initialValue' + curr, 1) for curr in args}
 

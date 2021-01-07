@@ -1432,13 +1432,12 @@ def start_checking_threads():
 
 
 def main():
-    # import logging
-
-    # telebot.logger.setLevel(logging.DEBUG)
+    import logging
+    telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
-    print(f"[INFO] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
-    bot.polling()
-    print(f"[INFO] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
+    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
+    bot.infinity_polling()
+    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
 
 
 #######################################################################

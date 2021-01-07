@@ -51,7 +51,7 @@ class CurrencyParser(abc.ABC):
     def get_rate(self):
         soup = self.get_soup()
         span = soup.select(self.css_selector)
-        if span is not None:
+        if len(span) != 0:
             return float(span[0].text.strip().replace(",", "."))
         raise ValueError(f'can not parse currency of "{self.iso}"')
 
@@ -83,14 +83,17 @@ class BrentParser(CurrencyParser):
     iso = "BRENT"
 
     def __init__(self, start_value:float=None):
-        link = "https://m.investing.com/commodities/brent-oil"
-        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > div.quotesBox > \
-            div.quotesBoxTop > span.lastInst.pid-8833-last"
+        # link = "https://m.investing.com/commodities/brent-oil"
+        link = "https://www.exchangerates.org.uk/commodities/live-oil-prices/BRT-USD.html"
+        # css_selector = "#siteWrapper > div.wrapper > \
+        #     section.boxItemInstrument.boxItem > div.quotesBox > \
+        #     div.quotesBoxTop > span.lastInst.pid-8833-last"
+        css_selector = "#value_BRTUSD"
         super().__init__(link, css_selector, start_value, self.iso)
 
     def get_rate(self):
         try:
-            super().get_rate()
+            return super().get_rate()
         except Exception:
             return get_default_values_from_config(self.iso).get(self.iso)
 
@@ -106,7 +109,7 @@ class RTSParser(CurrencyParser):
 
     def get_rate(self):
         try:
-            super().get_rate()
+            return super().get_rate()
         except Exception:
             return get_default_values_from_config(self.iso).get(self.iso)
 
@@ -144,7 +147,6 @@ class FreecurrencyratesParser(CurrencyParser):
             soup = self.get_soup(link)
             rate = soup.select(f"#rate-iso-{iso_to.upper()}")
             if rate:
-                try:
                 return {
                     iso_from: 1,
                     iso_to: float(
