@@ -6,7 +6,7 @@ gt_t = Translator()
 
 def translate(text:str, dest:str='ru', parse_mode='casual'):
     try:
-        trans_text = gt_t.translate(text, dest=destination)
+        trans_text = gt_t.translate(text, dest=dest).text
     except google_new_transError:
         trans_text = text
     assert parse_mode in ['casual', 'newline']
