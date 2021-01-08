@@ -61,7 +61,7 @@ currency_parser = FreecurrencyratesParser()
 
 @bot.middleware_handler(update_types=['message'])
 def check_if_command(bot_instance, message):
-    is_bot_command = message.entities[0].type == 'bot_command'
+    is_bot_command = message.entities and message.entities[0].type == 'bot_command'
     if is_bot_command:
         try:    
             bot_instance.clear_step_handler(message)
@@ -299,6 +299,7 @@ def make_user_currency_prediction(msg):
             )
             bot.register_next_step_handler(msg, get_value)
         else:
+            buttons = [_('Yes', user.language), _('No', user.language)]
             bot.send_message(
                 msg.chat.id, 
                 _(
@@ -307,16 +308,16 @@ def make_user_currency_prediction(msg):
                     user.language,
                     parse_mode='newline'
                 ),
-                reply_markup=kbs([_('Да', user.language), _('Нет', user.language)])
+                reply_markup=kbs(buttons)
             )
             bot.register_next_step_handler(msg, confirm_prediction)
 
-    def confirm_prediction(msg):
-        if msg.text == _('Да', user.language):
+    def confirm_prediction(msg, buttons):
+        if msg.text == buttons[0]:
             user.create_prediction(date, iso_from, iso_to, value)
             bot.send_message(msg.chat.id, _('Прогноз создан!', user.language)) # Prediction created
             return start_bot(msg)
-        elif msg.text ==  _('Нет', user.language):
+        elif msg.text ==  buttons[1]:
             bot.send_message(msg.chat.id, _('Прогноз не создан', user.language)) # Prediction not created
             return start_bot(msg)
         else:

@@ -1,16 +1,15 @@
-from google_trans_new import google_translator
-from google_trans_new.google_trans_new import google_new_transError 
+from googletrans import Translator
 
 
-translator = google_translator()
+gt_t = Translator()
 
 
-def translate(message:str, destination:str='ru', parse_mode='casual'):
+def translate(text:str, dest:str='ru', parse_mode='casual'):
     try:
-        new_message = translator.translate(message, lang_tgt=destination)
+        trans_text = gt_t.translate(text, dest=destination)
     except google_new_transError:
-        new_message = message
+        trans_text = text
     assert parse_mode in ['casual', 'newline']
     if parse_mode == 'newline':
-        new_message = new_message.replace('; ', '\n').replace(';', '\n')
-    return new_message.strip()  # .strip() because sometimes it returns useless spaces
+        trans_text = trans_text.replace('; ', '\n').replace(';', '\n')
+    return trans_text.strip()  # .strip() because sometimes it returns useless spaces
