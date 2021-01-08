@@ -990,11 +990,8 @@ def add_new_currency(msg):
             bot.send_message(msg.chat.id, 'Валюта уже есть в вашем списке валют')
             return start_bot(msg)
         elif user.is_pro:
-            rate = round(
-                currency_parser.get_rate(iso).get('USD'),
-                _globals.PRECISION_NUMBER
-            )
-            reverse_rate = round(1/rate, _globals.PRECISION_NUMBER+3)
+            rate = prettify_float(currency_parser.get_rate(iso).get('USD'))
+            reverse_rate = prettify_float(1/rate)
             user.add_rate(iso, start_value=rate, check_times=_globals.CHECK_TIMES)
             bot.send_message(
                 msg.chat.id, 
