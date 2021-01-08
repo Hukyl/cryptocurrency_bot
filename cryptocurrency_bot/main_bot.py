@@ -61,8 +61,8 @@ currency_parser = FreecurrencyratesParser()
 
 @bot.middleware_handler(update_types=['message'])
 def check_if_command(bot_instance, message):
-    is_command = bot_instance.full_bot_commands.get(message.text, None) is not None
-    if is_command:
+    is_bot_command = message.entities[0].type == 'bot_command'
+    if is_bot_command:
         try:    
             bot_instance.clear_step_handler(message)
         except Exception:
@@ -1266,7 +1266,7 @@ def send_bot_help(msg):
             help_message,
             user.language,
             parse_mode='newline'
-        ).format(*list(bot.full_bot_commands))
+        ).replace('{ }', '{}').format(*list(bot.full_bot_commands))
     )
     return start_bot(msg, to_show_commands=False)
 

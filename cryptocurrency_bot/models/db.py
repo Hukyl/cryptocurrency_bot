@@ -108,8 +108,13 @@ class TelegramUserDBHandler(object):
         Check if `check_time` (in UTC) in some of user rates check times (converted to UTC)
         """
         *data, rates, timezone, language = user
-        all_user_check_times = [list(rate[-1]) for rate in rates]
-        all_user_check_times = set(sum(all_user_check_times, [])) # unfold all list into outer list
+        all_user_check_times = [rate[-1] for rate in rates]
+        all_user_check_times = set(
+            sum(
+                [x.split(',') for x in all_user_check_times],
+                []
+            )
+        ) # unfold all list into outer list
         all_user_check_times = {
             str(int(time_.split(':')[0]) - timezone) + f':{time_.split(":")[1]}'
             for time_ in all_user_check_times
