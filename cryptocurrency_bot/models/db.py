@@ -9,6 +9,24 @@ from utils._datetime import check_datetime_in_future
 
 
 class TelegramUserDBHandler(object):
+    """
+    DB Format:
+
+    users:
+        id: Just incrementing id
+        user_id: user's id in Telegram
+        is_pro: is user subscribed
+        is_staff: is user staff
+        timezone: offset from UTC (+3, -2)
+        language: language
+
+    user_rates: notifing user if currency rate changed by some percent
+        user_id: user's id in Telegram
+        iso: currency's isocode
+        start_value: A value from which to calculate difference
+        percent_delta: A percent delta at which to notify
+        check_times: Times at which to check (according to user's time zone)
+    """
     def __init__(self, db_name:str=None):
         self.db_name = db_name or 'db.sqlite3'
         self.setup_db()
