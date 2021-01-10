@@ -122,7 +122,7 @@ translation_dict = {
     },
     'New currency has been created successfully!\nNow the rate is {} - {} USD, or 1 USD - {} {}': {
         'en': 'New currency has been created successfully!\nNow the rate is {} - {} USD, or 1 USD - {} {}',
-        'ru': 'Новая валюта успешно создана!;Сейчас курс {} - {} USD, или 1 USD - {} {}'
+        'ru': 'Новая валюта успешно создана!\nСейчас курс {} - {} USD, или 1 USD - {} {}'
     },
     'No': {
         'en': 'No', 

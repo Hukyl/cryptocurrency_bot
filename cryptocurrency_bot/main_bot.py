@@ -25,7 +25,7 @@ from utils.mail import send_mail
 ########################################################################
 telebot.apihelper.ENABLE_MIDDLEWARE = True
 
-bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=True)
+bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=False) # RecursionError
 bot.full_bot_commands = {
     '/start': 'запустить бота', # Start the bot
     '/me': 'просмотреть вашу информация', # See your info

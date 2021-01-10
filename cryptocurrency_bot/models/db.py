@@ -25,7 +25,22 @@ class TelegramUserDBHandler(object):
         iso: currency's isocode
         start_value: A value from which to calculate difference
         percent_delta: A percent delta at which to notify
-        check_times: Times at which to check (according to user's time zone)
+        check_times: Times at which to check (in user's time zone)
+
+    currency_predictions: predict rate at some date
+        id: just an id
+        user_id: user's id in Telegram who made the prediction
+        iso_from: currency's iso for convertation
+        iso_to: currency's iso for convartation
+        value: convertation rate (1 `iso_from` - `value` `iso_to`)
+        up_to_date: datetime, at which predict the exchange rate
+        is_by_experts: is user, who made the prediction, has `is_staff` status
+        real_value: value, which really was on `up_to_date`
+
+    predictions_reactions:
+        pred_id: id of prediction
+        user_id: user's Telegram ID, who made reaction
+        reaction: like/dislike (1/0 respectively)
     """
     def __init__(self, db_name:str=None):
         self.db_name = db_name or 'db.sqlite3'
