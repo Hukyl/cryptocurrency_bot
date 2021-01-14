@@ -1,6 +1,8 @@
-from googletrans import Translator
+from google_trans_new import google_translator
+from google_trans_new.google_trans_new import google_new_transError 
 
-gt_t = Translator()
+
+gt_t = google_translator()
 
 
 translation_dict = {
@@ -399,8 +401,10 @@ def translate(text:str, dest:str='ru', parse_mode:str='casual'):
     res = translation_dict.get(text, None)
     assert parse_mode in ['casual', 'newline']
     if res is None:
-        res = gt_t.translate(text, dest=dest).text
-        return text.replace('; ', '\n').replace(';', '\n') if parse_mode == 'newline' else text
+        try:
+            res = gt_t.translate(text, lang_tgt=dest).strip()
+        except google_new_transError:
+            res = text
     else:
         res = res.get(dest, text)
     return res.replace('; ', '\n').replace(';', '\n') if parse_mode == 'newline' else res
