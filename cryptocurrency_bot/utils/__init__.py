@@ -1,4 +1,5 @@
 import json
+import os
 
 
 def merge_dicts(*dcts):
@@ -16,7 +17,13 @@ def prettify_utcoffset(utcoffset:int=0):
 
 
 def get_json_config():
-    return json.load(open('configs\\config.json', 'r', encoding='utf-8'))
+    return json.load(
+        open(
+            os.path.join('configs', 'config.json'), 
+            'r',
+            encoding='utf-8'
+        )
+    )
     
 
 def get_default_values_from_config(*args):
