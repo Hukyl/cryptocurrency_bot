@@ -1469,7 +1469,10 @@ def send_alarm(user):
             usd_to_iso_new = prettify_float(1/new)
             usd_to_iso_old = prettify_float(1/old)
             user.update_rates(k, start_value=new)
-            perc_delta = round(rate.get('percentage_difference'), _globals.PERCENT_PRECISION_NUMBER)
+            perc_delta = round(
+                rate.get('percentage_difference') * 100, 
+                _globals.PERCENT_PRECISION_NUMBER
+            )
             delta = prettify_float(rate.get('difference'))
             bot.send_message(
                 user.user_id,
