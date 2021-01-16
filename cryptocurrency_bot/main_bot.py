@@ -7,18 +7,13 @@ import telebot
 from telebot.types import LabeledPrice
 
 
-from configs import _globals, MAIN_TOKEN, TECHSUPPORT_TOKEN
+from configs import settings, MAIN_TOKEN, TECHSUPPORT_TOKEN
 from models._parser import *
 from models.user import DBUser, DBCurrencyPrediction
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
-from utils._datetime import (
-    check_datetime_in_future,
-    convert_from_country_format,
-    convert_to_country_format,
-    get_current_datetime
-)
+from utils._datetime import *
 from utils.mail import send_mail
 
 # ! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !
@@ -257,16 +252,16 @@ def make_user_currency_prediction(msg):
                     
                 ),
                 parse_mode='markdown',
-                reply_markup=kbs(list(_globals.ACCEPTABLE_CURRENCIES_CONVERTION))
+                reply_markup=kbs(list(settings.ACCEPTABLE_CURRENCIES_CONVERTION))
             )
             bot.register_next_step_handler(msg, get_iso)
 
     def get_iso(msg):
         nonlocal iso_from, iso_to
-        msg.text = _globals.ACCEPTABLE_CURRENCIES_CONVERTION.get(msg.text, msg.text)
+        msg.text = settings.ACCEPTABLE_CURRENCIES_CONVERTION.get(msg.text, msg.text)
         iso_from, iso_to = [x.strip() for x in msg.text.split('-')] 
         if currency_parser.check_currency_exists(iso_from) and currency_parser.check_currency_exists(iso_to) or (
-                msg.text in _globals.ACCEPTABLE_CURRENCIES_CONVERTION.values()
+                msg.text in settings.ACCEPTABLE_CURRENCIES_CONVERTION.values()
             ):
             bot.send_message(
                 msg.chat.id,
@@ -387,7 +382,7 @@ def see_users_currency_predicitions(msg):
                 _(
                     experts_str.replace('\n', ';'),
                     user.language,
-                    
+                    parse_mode='newline'
                 ),
             )
 
@@ -435,7 +430,7 @@ def see_users_currency_predicitions(msg):
                 _(
                     str(prediction).replace('\n', ';'),
                     user.language,
-                    
+                    parse_mode='newline'
                 ),
                 reply_markup=inline_kb
             )
@@ -500,7 +495,7 @@ def get_closest_prediction(call):
             text=_(
                     str(prediction).replace('\n', ';'),
                     user.language,
-                    
+                    parse_mode='newline'
                 ),
             reply_markup=inline_kb
         )
@@ -520,7 +515,7 @@ def toggle_user_reaction(call):
             text=_(
                     str(prediction).replace('\n', ';'),
                     user.language,
-                    
+                    parse_mode='newline'
                 ),
             reply_markup=__get_prediction_inline_kb_for_liking(prediction)
         )
@@ -543,7 +538,7 @@ def get_prediction_details(call):
         text=_(
             str(prediction).replace('\n', ';'),
             user.language,
-            
+            parse_mode='newline'
         ),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
@@ -652,7 +647,7 @@ def convert_currency(msg):
             return bot.register_next_step_handler(msg, get_isos)
         else:
             markup = inline_kbs(
-                {i: f"change_currency_converter_amount_to_{i}" for i in _globals.CURRENCY_RATES_CHANGE_AMOUNTS}
+                {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
             )
             bot.send_message(
                 msg.chat.id,
@@ -697,9 +692,9 @@ def get_callback_for_change_currency_converter_amount(call):
                 change_amount = float(change_amount)
                 iso_from, iso_to = [x.split() for x in call.message.text.split(':')[-1].split('-')]
                 rate = float(iso_to[0].replace(',', '.')) / float(iso_from[0].replace(',', '.'))
-                new_amount = round(rate * change_amount, _globals.PRECISION_NUMBER)
+                new_amount = round(rate * change_amount, settings.PRECISION_NUMBER)
                 markup = inline_kbs(
-                    {i: f"change_currency_converter_amount_to_{i}" for i in _globals.CURRENCY_RATES_CHANGE_AMOUNTS}
+                    {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
                 )
                 if change_amount == float(iso_from[0]): # if we try to set the same text as before, TG throws error
                     return bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
@@ -842,18 +837,20 @@ def change_user_rate_percent_delta(msg, user=None):
             bot.send_message(
                 msg.chat.id, 
                 _(
-                    "Your interest on {} - {}%\nSelect the amount of interest",
-                    user.language,
-                    
-                ).format(currency, user.rates.get(currency).get('percent_delta')),
-                reply_markup=kbs(_globals.PERCENTAGES)
+                    "Your interest on {} - {}\nSelect the amount of interest",
+                    user.language
+                ).format(
+                    currency, 
+                    prettify_percent(user.rates.get(currency).get('percent_delta'))
+                ),
+                reply_markup=kbs(settings.PERCENTAGES)
             )
             bot.register_next_step_handler(msg, inner2)
         else:
             bot.send_message(
                 msg.chat.id, 
                 '❗ Please enter only valid currencies ❗', 
-                reply_markup=kbs(_globals.CURRENCIES)
+                reply_markup=kbs(settings.CURRENCIES)
             )
             bot.register_next_step_handler(msg, inner1)
 
@@ -861,7 +858,7 @@ def change_user_rate_percent_delta(msg, user=None):
         nonlocal currency
         try:
             if 'inf' not in msg.text:
-                delta = float(msg.text)
+                delta = float(msg.text) / 100
             else:
                 raise ValueError
         except ValueError:
@@ -870,7 +867,9 @@ def change_user_rate_percent_delta(msg, user=None):
         user.update_rates(currency, percent_delta=delta)
         bot.send_message(
             msg.chat.id,
-            _("Your percentage is now {}%", user.language).format(delta)
+            _("Your percentage is now {}", user.language).format(
+                prettify_percent(delta)
+            )
         )
         return start_bot(msg)
 
@@ -887,9 +886,9 @@ def change_user_rate_percent_delta(msg, user=None):
 @bot.message_handler(commands=['change_checktime'])
 def change_user_rate_check_times(msg, user=None):
     user = user or DBUser(msg.chat.id)
-    available_times = _globals.CHECK_TIMES
+    available_times = settings.CHECK_TIMES
     chosen_times = []
-    start = _globals.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else _globals.SUBSCIRBED_USER_CHECK_TIMES
+    start = settings.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else settings.SUBSCIRBED_USER_CHECK_TIMES
     currency = None
 
 
@@ -913,14 +912,14 @@ def change_user_rate_check_times(msg, user=None):
                         'Your alert times for {} - {}',
                         user.language
                     ).format(
-                    currency, 
-                    ', '.join(user.rates.get(currency).get('check_times'))
+                        currency, 
+                        ', '.join(user.rates.get(currency).get('check_times'))
                     )
                 )
                 bot.send_message(
                     msg.chat.id,
                     _(  
-                        'Select {} date(s)',
+                        'Select {} time(s)',
                         user.language
                     ).format(start),
                     reply_markup=kbs(available_times))
@@ -929,7 +928,7 @@ def change_user_rate_check_times(msg, user=None):
             bot.send_message(
                 msg.chat.id,
                 _('❗ Please enter only valid currencies ❗', user.language),
-                reply_markup=kbs(_globals.CURRENCIES)
+                reply_markup=kbs(settings.CURRENCIES)
             )
             bot.register_next_step_handler(msg, inner1)
 
@@ -937,7 +936,7 @@ def change_user_rate_check_times(msg, user=None):
     def inner2(msg, iteration_num):
         nonlocal chosen_times, available_times
         try:
-            if msg.text in available_times: # _globals.CHECK_TIMES
+            if msg.text in available_times: # settings.CHECK_TIMES
                 time.strptime(msg.text, '%H:%M')
                 iteration_num -= 1
                 available_times.remove(msg.text)
@@ -970,7 +969,7 @@ def change_user_rate_check_times(msg, user=None):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    f"Enter more {iteration_num} date(s)",
+                    f"Enter more {iteration_num} time(s)",
                     user.language),
                 reply_markup=kbs(available_times)
             )
@@ -984,13 +983,10 @@ def change_user_rate_check_times(msg, user=None):
 @bot.message_handler(commands=['change_timezone'])
 def change_user_timezone(msg):
     user = DBUser(msg.chat.id)
-    timezones = merge_dicts(
-        {
-            prettify_utcoffset(zone): zone
-            for zone in range(-11, 13)
-        },
-        {'UTC': 0}
-    )
+    timezones = {
+        prettify_utcoffset(zone): zone
+        for zone in range(-11, 13)
+    }
 
     def accept_input(msg):
         res_timezone = timezones.get(msg.text, None)
@@ -1054,13 +1050,13 @@ def add_new_currency(msg):
         elif user.is_pro:
             rate = prettify_float(currency_parser.get_rate(iso).get('USD'))
             reverse_rate = prettify_float(1/rate)
-            user.add_rate(iso, start_value=rate, check_times=_globals.CHECK_TIMES)
+            user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
             bot.send_message(
                 msg.chat.id, 
                 _(
-                    'New currency has been created successfully!\nNow the rate is {} - {} USD, or 1 USD - {} {}',
+                    'New currency has been created successfully!\nNow the rate is {} - {} USD',
                     user.language
-                ).format(iso, rate, reverse_rate, iso)
+                ).format(iso, rate)
             )
             return start_bot(msg)
 
@@ -1088,8 +1084,9 @@ def buy_subscription(msg):
             )
         ] + ([
             LabeledPrice(
-                label=f'Discount {price.get("discount")}%',
-                amount=-int(round(start_price * price.get('period') * price.get('discount')/100 * 100, 2))
+                label=f'Discount {price.get("discount")*100}%',
+                amount=-int(round(start_price * price.get('period') * price.get('discount') * 100, 2))
+                # * 100 because amount in cents
             )
         ] if price.get('discount') > 0 else [])
         for price in prices_json_list
@@ -1208,7 +1205,7 @@ def subscription_payment_success(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            "You have activated the Subscription before {}\nHappy trades!",
+            "You have activated the Subscription until {}\nHappy trades!",
             user.language
         ).format(convert_to_country_format(datetime_expires, user.language))
     )
@@ -1385,19 +1382,18 @@ def verify_predictions():
             user = DBUser(prediction.user_id)
             perc_diff = round(
                 abs(prediction.value-prediction.real_value)/prediction.value*100,
-                _globals.PERCENT_PRECISION_NUMBER
+                settings.PERCENT_PRECISION_NUMBER
             )
             bot.send_message(
                 prediction.user_id, 
                 _(
-                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}%',
-                    user.language,
-                    
+                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
+                    user.language
                 ).format(
                     repr(prediction),
                     prediction.value,
                     prediction.real_value,
-                    perc_diff
+                    prettify_percent(perc_diff)
                 ),
                 parse_mode='markdown'
             )
@@ -1466,21 +1462,21 @@ def send_alarm(user):
         rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
-            usd_to_iso_new = prettify_float(1/new)
-            usd_to_iso_old = prettify_float(1/old)
             user.update_rates(k, start_value=new)
-            perc_delta = round(
-                rate.get('percentage_difference') * 100, 
-                _globals.PERCENT_PRECISION_NUMBER
-            )
+            perc_delta = prettify_float(rate.get('percentage_difference'))
             delta = prettify_float(rate.get('difference'))
             bot.send_message(
                 user.user_id,
                 _(
-                    'Price ** {} ** - ** {} USD **, or ** 1 USD - {} {} **\nThe change was ** {} **, or ** {}% **\nPrevious price ** {} - {} USD **, or ** 1 USD - {} {} ** ',
+                    '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
                     user.language
                 ).format(
-                    k, new, usd_to_iso_new, k, delta, perc_delta, k, old, usd_to_iso_old, k
+                    k, 
+                    prettify_float(new), 
+                    delta, 
+                    prettify_percent(perc_delta), 
+                    k, 
+                    prettify_float(old)
                 ),
                 parse_mode='markdown'
             )

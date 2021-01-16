@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime
 import threading
 
-from configs import _globals
+from configs import settings
 
 from utils._datetime import check_datetime_in_future
 
@@ -111,7 +111,7 @@ class TelegramUserDBHandler(object):
         )
         return True
 
-    def add_user_rate(self, user_id, iso, start_value=1, percent_delta=1, check_times:list=_globals.DEFAULT_CHECK_TIMES):
+    def add_user_rate(self, user_id, iso, start_value=1, percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES):
         check_times = ','.join(check_times)
         self.execute_and_commit(
             "INSERT INTO users_rates \

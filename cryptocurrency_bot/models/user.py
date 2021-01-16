@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
 from .db import TelegramUserDBHandler
-from configs import _globals
-from utils import get_json_config
+from configs import settings
+from utils import get_json_config, prettify_percent
 from utils._datetime import (
     convert_to_country_format,
     convert_from_country_format,
@@ -14,6 +14,23 @@ from utils.translator import translate as _
 
 
 class User(object):
+    """
+    User base class
+
+    id:int: - id
+    user_id:int: - user's id in Telegram
+    is_pro:None or datetime.datetime: - has user bought the subscription
+    is_active:bool: - if to send the notifications
+    is_staff:bool: - is user staff
+    rates:dict:
+        iso_code:str: - currnies str:
+            'check_times': list of times (IN USER'S UTCOFFSET)
+            'percent_delta':float: not in percent format (not 23%, 0.23)
+            'start_value':float: just normal
+    timezone:int: - utcoffset ( in range (-11, 13) )
+    language:str: - user's language
+    """
+
     def __init__(self, id, user_id, is_pro, is_active, is_staff, rates, timezone, language):
         self.id = id
         self.user_id = user_id
@@ -40,7 +57,15 @@ class User(object):
         total_str = ''
         for idx, pair in enumerate(rates.items(), start=1):
             k, v = pair
-            total_str += f"\t{idx}. {k}:;\t\t▫ Процент - {v.get('percent_delta')}%;\t\t▫ Время проверки - {', '.join(v.get('check_times'))};".replace('\t', '    ')
+            total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
+                    idx, 
+                    k, 
+                    prettify_percent(v.get('percent_delta')), 
+                    ', '.join(v.get('check_times'))
+                ).replace(
+                    '\t', 
+                    '    '
+                )
         return total_str
 
     def get_currencies_by_check_time(self, check_time):
@@ -83,8 +108,8 @@ class DBUser(User):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
             json_config = get_json_config()
-            for currency in _globals.CURRENCIES:
-                s_v = json_config.get('initialValue' + currency, 1.0) # start_value
+            for currency in settings.CURRENCIES:
+                s_v = json_config.get('initialValue' + currency, 0.01) # start_value
                 cls.db.add_user_rate(user_id, currency, start_value=s_v) 
 
     @classmethod
@@ -111,19 +136,19 @@ class DBUser(User):
         self.is_pro = up_to_datetime
         self.db.change_user(self.user_id, is_pro=up_to_datetime)
         for k, v in self.rates.items():
-            self.db.change_user_rates(self.user_id, k, check_times=_globals.CHECK_TIMES)
-            self.rates[k]['check_times'] = _globals.CHECK_TIMES
+            self.db.change_user_rates(self.user_id, k, check_times=settings.CHECK_TIMES)
+            self.rates[k]['check_times'] = settings.CHECK_TIMES
 
     def delete_premium(self):
         self.is_pro = None
         self.db.change_user(is_pro=None)
         for k, v in self.rates.items():
-            if k not in _globals.CURRENCIES:
+            if k not in settings.CURRENCIES:
                 self.db.delete_user_rate(self.user_id, k)
                 del self.rates[k]
             else:
-                self.rates[k]['check_times'] = _globals.DEFAULT_CHECK_TIMES
-                self.db.change_user_rates(self.user_id, k, _globals.DEFAULT_CHECK_TIMES)
+                self.rates[k]['check_times'] = settings.DEFAULT_CHECK_TIMES
+                self.db.change_user_rates(self.user_id, k, settings.DEFAULT_CHECK_TIMES)
 
     def init_staff(self):
         until_datetime = get_current_datetime(utcoffset=self.timezone) + timedelta(days=100*365)

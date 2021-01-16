@@ -40,7 +40,7 @@ translation_dict = {
     },
     'Change time zone': {
         'en': 'Change time zone',
-        'ru': ''
+        'ru': 'Изменить часовой пояс'
     },
     'Choose from the following:': {
         'en': 'Choose from the following:',
@@ -66,9 +66,9 @@ translation_dict = {
         'en': 'English 🇬🇧', 
         'ru': 'Английский 🇬🇧'
     },
-    'Enter more {} date(s)': {
-        'en': 'Enter more {} date(s)', 
-        'ru': 'Введите ещё {} дату(ы)'
+    'Enter more {} time(s)': {
+        'en': 'Enter more {} time(s)', 
+        'ru': 'Введите ещё {} время(-ени)'
     },
     'Enter new amount': {
         'en': 'Enter new amount', 
@@ -122,9 +122,9 @@ translation_dict = {
         'en': 'My predictions', 
         'ru': 'Мои прогнозы'
     },
-    'New currency has been created successfully!\nNow the rate is {} - {} USD, or 1 USD - {} {}': {
-        'en': 'New currency has been created successfully!\nNow the rate is {} - {} USD, or 1 USD - {} {}',
-        'ru': 'Новая валюта успешно создана!\nСейчас курс {} - {} USD, или 1 USD - {} {}'
+    'New currency has been created successfully!\nNow the rate is {} - {} USD': {
+        'en': 'New currency has been created successfully!\nNow the rate is {} - {} USD',
+        'ru': 'Новая валюта успешно создана!\nСейчас курс {} - {} USD'
     },
     'No': {
         'en': 'No', 
@@ -162,9 +162,9 @@ translation_dict = {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'
     },
-    'Price ** {} ** - ** {} USD **, or ** 1 USD - {} {} **\nThe change was ** {} **, or ** {}% **\nPrevious price ** {} - {} USD **, or ** 1 USD - {} {} ** ': {
-        'en': 'Price ** {} ** - ** {} USD **, or ** 1 USD - {} {} **\nThe change was ** {} **, or ** {}% **\nPrevious price ** {} - {} USD **, or ** 1 USD - {} {} ** ',
-        'ru': "Цена **{}** - **{} USD**, или **1 USD - {} {}**\nИзменение составило **{}**, или **{}%**\nПредыдущая цена **{} - {} USD**, или **1 USD - {} {}**"
+    '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **': {
+        'en': '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
+        'ru': "**Оповещение**\n**{}** - **{} USD**\nИзменение: **{}**, или **{}**\nПредыдущее: **{} - {} USD**"
     },
     'Quotes': {
         'en': 'Quotes', 
@@ -198,9 +198,9 @@ translation_dict = {
         'en': 'Select the forecast validity period in the format `{}`\nFor example, {}',
         'ru': 'Выберите период действия прогноза в формате `{}`\nНапример, {}'
     },
-    'Select {} date(s)': {
-        'en': 'Select {} date(s)', 
-        'ru': 'Выберите {} дату(ы)'
+    'Select {} time(s)': {
+        'en': 'Select {} time(s)', 
+        'ru': 'Выберите {} время(-ени)'
     },
     'Send message to Techsupport': {
         'en': 'Send message to Techsupport', 
@@ -266,8 +266,8 @@ translation_dict = {
         'en': 'Yes, I want to!', 
         'ru': 'Да, я хочу!'
     },
-    'You have activated the Subscription before {}\nHappy trades!': {
-        'en': 'You have activated the Subscription before {}\nHappy trades!',
+    'You have activated the Subscription until {}\nHappy trades!': {
+        'en': 'You have activated the Subscription until {}\nHappy trades!',
         'ru': 'Вы активировали подписку до {}\nУдачных трейдов!'
     },
     'You have already subscribed!': {
@@ -294,9 +294,9 @@ translation_dict = {
         'en': 'Your current time zone is {}\nPlease select your time zone',
         'ru': 'Ваш текущий часовой пояс - {}\nВыберите ваш часовой пояс '
     },
-    'Your interest on {} - {}%\nSelect the amount of interest': {
-        'en': 'Your interest on {} - {}%\nSelect the amount of interest',
-        'ru': 'Ваш процент на {} - {}%\nВыберите новый процент'
+    'Your interest on {} - {}\nSelect the amount of interest': {
+        'en': 'Your interest on {} - {}\nSelect the amount of interest',
+        'ru': 'Ваш процент на {} - {}\nВыберите новый процент'
     },
     'You liked this prediction': {
         'en': 'You liked this prediction',

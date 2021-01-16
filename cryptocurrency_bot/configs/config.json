@@ -10,15 +10,15 @@
 		},
 		{
 			"period": 3,
-			"discount": 5
+			"discount": 0.05
 		},
 		{
 			"period": 6,
-			"discount": 10
+			"discount": 0.1
 		},
 		{
 			"period": 12,
-			"discount": 20
+			"discount": 0.2
 		}
 	]
 }

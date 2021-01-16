@@ -1,6 +1,8 @@
 import json
 import os
 
+from configs import settings
+
 
 def merge_dicts(*dcts):
     assert len(dcts) > 1, 'you can pass minimum one dictionary'
@@ -12,8 +14,8 @@ def merge_dicts(*dcts):
 
 
 def prettify_utcoffset(utcoffset:int=0):
-    sign = '+' if utcoffset >= 0 else '-'
-    return "UTC" if utcoffset == 0 else "UTC" + sign + "{:0>2}00".format(str(abs(utcoffset)))
+    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
+    return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}00'.format(utcoffset))
 
 
 def get_json_config():
@@ -36,4 +38,10 @@ def get_default_values_from_config(*args):
 
 
 def prettify_float(num:float):
-    return round(num, 3) if num // 1 > 0 else round(num, 6)
+    round_num = settings.PRECISION_NUMBER + (0 if num // 1 > 0 else 3)
+    return round(num, round_num)
+
+
+def prettify_percent(n:float):
+    res = round(n*100, settings.PRECISION_NUMBER)
+    return str(int(res) if res % 1 == 0 else res) + '%'

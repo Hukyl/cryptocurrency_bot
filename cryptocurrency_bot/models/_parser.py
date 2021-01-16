@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
-from utils import get_default_values_from_config
+from utils import get_default_values_from_config, prettify_float
 
 
 
@@ -68,14 +68,15 @@ class CurrencyParser(abc.ABC):
         self.start_value = start_value
 
     @staticmethod
-    def calculate_differences(iso:str, old:float, new:float, percent:float):
-        percent = percent * 0.01
+    def calculate_differences(iso:str, old:float, new:float, percent:'not 23%, 0.23'):
         lower_limit, upper_limit = old * (1 - percent), old * (1 + percent)
         dct = {"old": old, "currency": iso}
         if not (lower_limit < new < upper_limit):
             dct["new"] = new
-            dct["percentage_difference"] = round((max(new, old) - min(new, old)) / min(new, old), 5)
-            dct["difference"] = round(abs(old - new), 2)
+            dct["percentage_difference"] = prettify_float(
+                (max(new, old) - min(new, old)) / min(new, old)
+            )
+            dct["difference"] = prettify_float(abs(old - new))
         return dct
 
 
