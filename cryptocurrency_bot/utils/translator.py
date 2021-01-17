@@ -82,6 +82,10 @@ translation_dict = {
         'en': 'Enter the iso-code of the forecast currency `<isocode> - <isocode>`\nFor example, USD-RUB',
         'ru': 'Введите iso-код валюты прогноза `<изо-код>-<изо-код>`\nНапример, USD-RUB'
     },
+    'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB': {
+        'en': 'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB',
+        'ru': 'Введите iso-коды валют `<изо-код>-<изо-код>`\nНапример, USD-RUB'
+    },
     'Enter the iso-code of the new currency': {
         'en': 'Enter the iso-code of the new currency', 
         'ru': 'Введите iso-код новой валюты'

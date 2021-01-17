@@ -133,22 +133,19 @@ class DBUser(User):
             yield cls(user_data[1]) # user_data.user_id
 
     def init_premium(self, up_to_datetime:datetime):
-        self.is_pro = up_to_datetime
+        self.update(is_pro=up_to_datetime)
         self.db.change_user(self.user_id, is_pro=up_to_datetime)
         for k, v in self.rates.items():
-            self.db.change_user_rates(self.user_id, k, check_times=settings.CHECK_TIMES)
-            self.rates[k]['check_times'] = settings.CHECK_TIMES
+            self.update_rates(k, check_times=settings.CHECK_TIMES)
 
     def delete_premium(self):
-        self.is_pro = None
-        self.db.change_user(is_pro=None)
+        self.update(is_pro=None)
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
                 self.db.delete_user_rate(self.user_id, k)
                 del self.rates[k]
             else:
-                self.rates[k]['check_times'] = settings.DEFAULT_CHECK_TIMES
-                self.db.change_user_rates(self.user_id, k, settings.DEFAULT_CHECK_TIMES)
+                self.update_rates(k, check_times=settings.DEFAULT_CHECK_TIMES)
 
     def init_staff(self):
         until_datetime = get_current_datetime(utcoffset=self.timezone) + timedelta(days=100*365)

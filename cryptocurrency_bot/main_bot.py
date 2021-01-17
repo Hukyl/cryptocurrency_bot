@@ -1,4 +1,5 @@
 from concurrent import futures
+import copy
 import datetime
 import threading
 import time
@@ -653,8 +654,7 @@ def convert_currency(msg):
                 msg.chat.id,
                 _(
                     'Conversion by {}:\n{} {} - {} {}',
-                    user.language,
-                    
+                    user.language
                 ).format(
                     convert_to_country_format(
                         get_current_datetime(utcoffset=user.timezone),
@@ -671,7 +671,7 @@ def convert_currency(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'Enter the iso-code of the forecast currency `<isocode> - <isocode>`\nFor example, USD-RUB',
+            'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB',
             user.language,
             
         ),
@@ -886,7 +886,7 @@ def change_user_rate_percent_delta(msg, user=None):
 @bot.message_handler(commands=['change_checktime'])
 def change_user_rate_check_times(msg, user=None):
     user = user or DBUser(msg.chat.id)
-    available_times = settings.CHECK_TIMES
+    available_times = copy.deepcopy(settings.CHECK_TIMES)
     chosen_times = []
     start = settings.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else settings.SUBSCIRBED_USER_CHECK_TIMES
     currency = None
@@ -932,7 +932,6 @@ def change_user_rate_check_times(msg, user=None):
             )
             bot.register_next_step_handler(msg, inner1)
 
-
     def inner2(msg, iteration_num):
         nonlocal chosen_times, available_times
         try:
@@ -944,6 +943,10 @@ def change_user_rate_check_times(msg, user=None):
             else:
                 raise ValueError
             if iteration_num == 0:
+                chosen_times = sorted(
+                    chosen_times, 
+                    key=lambda x: int(x.split(':')[0])
+                )
                 user.update_rates(currency, check_times=chosen_times)
                 bot.send_message(
                     msg.chat.id,
@@ -1160,6 +1163,7 @@ def buy_subscription(msg):
             prices=prices,
             invoice_payload=f"{n_months}"
         )
+        return start_bot(msg, to_show_commands=False)
 
     if not user.is_pro:
         bot.send_message(
