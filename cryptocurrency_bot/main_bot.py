@@ -44,7 +44,7 @@ bot.short_bot_commands = {
     k: bot.full_bot_commands.get(k)
     for k in ['/start', '/me', '/today', '/subscription', '/language', '/help']
 }
-
+bot.skip_pending = True
 
 brent_parser = BrentParser()
 bitcoin_parser = BitcoinParser()

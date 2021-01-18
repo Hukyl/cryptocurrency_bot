@@ -299,6 +299,8 @@ class TelegramUserDBHandler(object):
     def change_user(self, user_id, **kwargs):
         if self.check_user_exists(user_id):
             for k, v in kwargs.items():
+                if isinstance(v, datetime):
+                    v = v.strftime('%Y-%m-%d %H:%M:%S')
                 try:
                     self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
                 except sqlite3.OperationalError:
@@ -334,6 +336,8 @@ class TelegramUserDBHandler(object):
     def change_user_prediction(self, pred_id, **kwargs):
         if self.check_prediction_exists(pred_id):
             for k, v in kwargs.items():
+                if isinstance(v, datetime):
+                    v = v.strftime('%Y-%m-%d %H:%M:%S%z')
                 try:
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
@@ -395,12 +399,12 @@ class TelegramUserDBHandler(object):
     def get_max_liked_predictions_ids(self):
         current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = currency_predictions.user_id) || ' hours' )"
         return self.execute_and_commit('''
-                SELECT DISTINCT currency_predictions.id
+                SELECT DISTINCT currency_predictions.id 
                 FROM currency_predictions JOIN predictions_reactions
                 WHERE currency_predictions.id = predictions_reactions.pred_id AND datetime(currency_predictions.up_to_date) > datetime('now', (
                         SELECT timezone
                         FROM users WHERE user_id = currency_predictions.user_id
-                    ) || ' hours' )
+                    ) || ' hours' ) # select datetime according to user's timezone
                 ORDER BY
                 (
                     SELECT COUNT(reaction) 
@@ -410,7 +414,7 @@ class TelegramUserDBHandler(object):
                     SELECT COUNT(reaction) 
                     FROM predictions_reactions 
                     where pred_id = currency_predictions.id AND reaction = 0
-                ) DESC;
+                ) DESC; # max difference between user's likes and dislikes
             ''')
 
 
