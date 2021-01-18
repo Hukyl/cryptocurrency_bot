@@ -149,7 +149,10 @@ class TelegramUserDBHandler(object):
             )
         ) # unfold all list into outer list
         all_user_check_times = {
-            str(int(time_.split(':')[0]) - timezone) + f':{time_.split(":")[1]}'
+            '{:0>2}:{:0>2}'.format(
+                int(time_.split(':')[0]) - timezone, 
+                time_.split(":")[1]
+            )
             for time_ in all_user_check_times
         }
         if check_time in all_user_check_times:
@@ -164,10 +167,7 @@ class TelegramUserDBHandler(object):
         return [
             self.get_user(user_id[0])
             for user_id in self.execute_and_commit(
-                'SELECT DISTINCT users.user_id\
-                FROM users JOIN users_rates\
-                WHERE users.user_id = users_rates.user_id AND users.is_active = TRUE AND users_rates.check_times LIKE ?',
-                (f"%{check_time}%", )
+                'SELECT DISTINCT user_id FROM users'
             )
             if self.check_user_rates_in_check_time(
                 self.get_user(user_id[0]),
@@ -207,10 +207,12 @@ class TelegramUserDBHandler(object):
 
     def get_pro_users(self):
         return [
-            list(user[:-2]) + 
-            [self.get_user_rates(user[1])] + # get_user_rates(user_id)
-            [user[-2:]]
-            for user in self.execute_and_commit('SELECT * FROM users WHERE is_active = TRUE and is_pro != NULL')
+            self.get_user(user_id[0])
+            for user_id in self.execute_and_commit(
+                'SELECT user_id \
+                FROM users \
+                WHERE is_active = TRUE and is_pro is not NULL'
+            )
         ]
 
     def get_user_rates(self, user_id):
@@ -247,9 +249,10 @@ class TelegramUserDBHandler(object):
                 )[0]
 
     def get_random_prediction(self):
-        return self.execute_and_commit(
-                'SELECT * FROM currency_predictions WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1;'
-            )[0]
+        res = self.execute_and_commit(
+            'SELECT * FROM currency_predictions WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1;'
+        )
+        return res[0] if res else -1
 
     def get_closest_neighbours_of_prediction(self, pred_id):
         """
@@ -334,7 +337,7 @@ class TelegramUserDBHandler(object):
         if self.check_prediction_exists(pred_id):
             for k, v in kwargs.items():
                 if isinstance(v, datetime):
-                    v = v.strftime('%Y-%m-%d %H:%M:%S')
+                    v = v.strftime('%Y-%m-%d %H:%M:%S%z')
                 try:
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,

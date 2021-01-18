@@ -17,7 +17,7 @@ from utils.telegram import kbs, inline_kbs
 from utils._datetime import *
 from utils.mail import send_mail
 
-# ! ALL COMMENTED CODE IN ALL FILES IS IMPLEMENTATION OF LIKING SYSTEM !
+###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
 ########################################################################
 telebot.apihelper.ENABLE_MIDDLEWARE = True
 
@@ -57,12 +57,13 @@ currency_parser = FreecurrencyratesParser()
 
 @bot.middleware_handler(update_types=['message'])
 def check_if_command(bot_instance, message):
-    is_bot_command = message.entities and message.entities[0].type == 'bot_command'
-    if is_bot_command:
-        try:    
-            bot_instance.clear_step_handler(message)
-        except Exception:
-            pass
+    if message.entities:
+        is_bot_command = message.entities[0].type == 'bot_command' and message.text in bot_instance.full_bot_commands
+        if is_bot_command:
+            try:
+                bot_instance.clear_step_handler(message)
+            except Exception:
+                pass
 
 
 
@@ -1110,8 +1111,9 @@ def buy_subscription(msg):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    'Отлично!\
-                    ;Выберите длительность Подписки (в месяцах)' + prices_str,
+                    f'Отлично!\
+                    ;Выберите длительность Подписки (в месяцах)\
+                    ;{prices_str}',
                     user.language,
                     parse_mode='newline'
                 ),
@@ -1142,6 +1144,13 @@ def buy_subscription(msg):
             bot.register_next_step_handler(msg, get_months_number)
         else:
             price = [(y, x) for x, y in zip(list(prices_easy), prices) if x == int(months)][0]
+            bot.send_message(
+                msg.chat.id,
+                _(
+                    '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗', 
+                    user.language
+                )
+            )
             return command_pay(msg, *price)
 
     def command_pay(msg, prices, n_months:int=None):
@@ -1163,7 +1172,6 @@ def buy_subscription(msg):
             prices=prices,
             invoice_payload=f"{n_months}"
         )
-        return start_bot(msg, to_show_commands=False)
 
     if not user.is_pro:
         bot.send_message(
@@ -1278,7 +1286,7 @@ def send_techsupport_message(msg):
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'send_message_to_techsupport')
-def ask_for_staff_rank(call):
+def send_message_to_techsupport(call):
     def send_message(msg):
         bot.send_message(msg.chat.id, _("Wait a little, please", user.language))
         text = msg.text
@@ -1310,9 +1318,11 @@ def ask_for_staff_rank(call):
         bot.send_message(
             user.user_id,
             _(
-                'Напишите ваше сообщение техподдержке ({} чтобы выйти в меню)',
+                'Напишите ваше сообщение техподдержке ({} чтобы выйти в меню);\
+                Чтобы получить обратную связь, вы должны иметь никнейм (к примеру, @{})',
                 user.language,
-            ).format('/menu')
+                parse_mode='newline'
+            ).format('/menu', bot.get_me().username)
         )
         bot.register_next_step_handler(call.message, send_message)
         # bot.answer_callback_query(
@@ -1376,18 +1386,16 @@ def verify_predictions():
     }
     while True:
         for prediction in DBCurrencyPrediction.get_unverified_predictions():
-            real_value = get_rate_safe(
+            pred_res = get_rate_safe(
                 prediction.iso_from, 
                 prediction.iso_to,
-                1,
+                prediction.value,
                 0.0000000001
-            ).get('new') 
+            )
+            real_value = pred_res.get('new') 
             prediction.update(real_value=real_value)
             user = DBUser(prediction.user_id)
-            perc_diff = round(
-                abs(prediction.value-prediction.real_value)/prediction.value*100,
-                settings.PERCENT_PRECISION_NUMBER
-            )
+            perc_diff = pred_res.get('percentage_difference')
             bot.send_message(
                 prediction.user_id, 
                 _(
@@ -1424,7 +1432,7 @@ def check_alarm_times():
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in DBUser.get_users_by_check_time(time_):
-            executor.submit(send_alarm, user)
+            executor.submit(send_alarm, user, time_)
 
 
 
@@ -1437,7 +1445,7 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
     try:
         if getattr(parser, 'iso', None) is not None:
             rate = parser.check_delta(
-                start_value=start_value,
+                old=start_value,
                 percent_delta=percent_delta
             )
         else:
@@ -1451,18 +1459,18 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
     except Exception:
         # if network can not be reached or somewhat
         default_value = get_default_values_from_config(iso_from)
-        rate = CurrencyParser.calculate_differences(
-            iso=iso_from,
+        rate = brent_parser.check_delta(
             old=start_value,
             new=default_value,
             percent=percent_delta
         )
+        rate['currency'] = iso_from
     return rate
 
 
 
-def send_alarm(user):
-    for k, v in user.rates.items():
+def send_alarm(user, t):
+    for k, v in user.get_currencies_by_check_time(t):
         rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')

@@ -1,5 +1,4 @@
 import json
-import abc
 
 import requests
 from bs4 import BeautifulSoup as bs
@@ -9,7 +8,7 @@ from utils import get_default_values_from_config, prettify_float
 
 
 
-class CurrencyParser(abc.ABC):
+class CurrencyParser(object):
     """
     Universal abstract class for parsing the currency
     All rates returned according to USD
@@ -55,29 +54,39 @@ class CurrencyParser(abc.ABC):
             return float(span[0].text.strip().replace(",", "."))
         raise ValueError(f'can not parse currency of "{self.iso}"')
 
-    def check_delta(self, start_value:float=None, percent_delta:float=1):
-        return self.calculate_differences(
-            self.iso,
-            start_value or self.start_value,
-            self.rate,
-            percent=percent_delta
+    def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
+        res = self.calculate_difference(
+            old or self.start_value,
+            new or self.get_rate()
         )
+        res['currency'] = self.iso
+        if abs(res.get('percentage_difference')) < percent_delta:
+            del res['new'], res['percentage_difference'], res['difference']
+        return res
 
     def update_start_value(self, start_value:float=None):
         start_value = start_value or self.get_rate()
         self.start_value = start_value
 
     @staticmethod
-    def calculate_differences(iso:str, old:float, new:float, percent:'not 23%, 0.23'):
-        lower_limit, upper_limit = old * (1 - percent), old * (1 + percent)
-        dct = {"old": old, "currency": iso}
-        if not (lower_limit < new < upper_limit):
-            dct["new"] = new
-            dct["percentage_difference"] = prettify_float(
-                (max(new, old) - min(new, old)) / min(new, old)
-            )
-            dct["difference"] = prettify_float(abs(old - new))
-        return dct
+    def calculate_difference(old:float, new:float):
+        # lower_limit, upper_limit = old * (1 - percent), old * (1 + percent)
+        # dct = {"old": old, "currency": iso}
+        # if not (lower_limit < new < upper_limit):
+        #     dct["new"] = new
+        #     dct["percentage_difference"] = prettify_float(
+        #         (max(new, old) - min(new, old)) / min(new, old)
+        #     )
+        #     dct["difference"] = prettify_float(abs(old - new))
+        # return dct
+        return {
+            'old': old,
+            'new': new,
+            'percentage_difference': -prettify_float(
+                (old - new) / old
+            ),
+            "difference": prettify_float(abs(old - new))
+        }
 
 
 class BrentParser(CurrencyParser):
@@ -155,7 +164,7 @@ class FreecurrencyratesParser(CurrencyParser):
                         .get("value")
                         .strip()
                         .replace(",", ".")
-                    ),
+                    )
                 }
             raise ValueError("second iso code is invalid")
         except Exception as e:    
@@ -171,9 +180,14 @@ class FreecurrencyratesParser(CurrencyParser):
         except Exception:
             return False
 
-    def check_delta(self, iso_from:str, iso_to:str, start_value:float=1, percent_delta:float=1):
+    def check_delta(self, iso_from:str, iso_to:str, start_value:float=1, percent_delta:float=0.01):
         old, new = start_value, self.get_rate(iso_from, iso_to).get(iso_to)
-        return self.calculate_differences(None, old, new, percent_delta)
+        res = self.calculate_difference(None, old, new, percent_delta)
+        del res['currency']
+        res['currency_from'] = iso_from
+        res['currency_to'] = iso_to
+        if abs(res.get('percentage_difference')) < percent_delta:
+            del res['new'], res['percentage_difference'], res['difference']
 
 
 if __name__ == "__main__":

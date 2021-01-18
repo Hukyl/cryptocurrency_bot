@@ -69,7 +69,11 @@ class User(object):
         return total_str
 
     def get_currencies_by_check_time(self, check_time):
-        return {k:v for k, v in self.rates if check_time in v.get('check_times')}
+        return {
+            k: v 
+            for k, v in self.rates.items() 
+            if check_time in v.get('check_times')
+        }
 
 
 
@@ -96,10 +100,12 @@ class DBUser(User):
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
 
     def create_prediction(self, up_to_date, iso_from, iso_to, value):
+        assert check_datetime_in_future(up_to_date, self.timezone)
         self.db.add_user_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
 
     def add_rate(self, iso, **kwargs):
         self.db.add_user_rate(self.user_id, iso, **kwargs)
+        self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
         return True
 
     @classmethod
@@ -211,12 +217,12 @@ class DBCurrencyPrediction(object):
     @classmethod
     def get_experts_predictions(cls, if_all:bool=False):
         for pred_data in cls.db.get_experts_predictions(if_all):
-            yield DBCurrencyPrediction(pred_data[0]) # id
+            yield cls(pred_data[0]) # id
 
     @classmethod
     def get_most_liked_predictions(cls):
         for pred_data in cls.db.get_max_liked_predictions_ids():
-            yield DBCurrencyPrediction(pred_data[0]) # id
+            yield cls(pred_data[0]) # id
 
     @classmethod
     def get_unverified_predictions(cls):
@@ -224,7 +230,7 @@ class DBCurrencyPrediction(object):
         Get predictions which `up_to_date` is expired and `real_value` is still None
         """
         for pred_data in cls.db.get_unverified_predictions():
-            yield DBCurrencyPrediction(pred_data[0]) # id
+            yield cls(pred_data[0]) # id
 
     @classmethod
     def get_all_prediction_number(cls):

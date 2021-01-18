@@ -182,9 +182,9 @@ translation_dict = {
         'en': 'Response not processed',
         'ru': 'Ответ не обработан'
     },
-    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}%': {
-        'en': 'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}%',
-        'ru': 'Результат `{}`:\n**Прогнозируемое значение:** {}\n**Настоящее значение:** {}\n**Разница в процентах:** {}%'
+    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}': {
+        'en': 'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
+        'ru': 'Результат `{}`:\n**Прогнозируемое значение:** {}\n**Настоящее значение:** {}\n**Разница в процентах:** {}'
     },
     'Russian 🇷🇺': {
         'en': 'Russian 🇷🇺', 
@@ -361,6 +361,10 @@ translation_dict = {
     "❗ I can't understand your request, please try again ❗": {
         'en': "❗ I can't understand your request, please try again ❗", 
         'ru': '❗ Не могу вас понять, попробуйте ещё раз ❗'
+    },
+    '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗': {
+        'en': '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗',
+        'ru': '❗ Оплатите как только получите выставленный счёт, иначе оплата может не засчитаться ❗'
     },
     '❗ Please enter only available dates ❗': {
         'en': '❗ Please enter only available dates ❗', 
