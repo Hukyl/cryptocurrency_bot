@@ -362,9 +362,19 @@ def see_users_currency_predicitions(msg):
             }
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
-            bot.send_message(msg.chat.id, _('You have no predictions so far, create one!', user.language))
+            bot.send_message(
+                msg.chat.id, 
+                _('You have no predictions so far, create one!', user.language)
+            )
         else:
-            bot.send_message(msg.chat.id, _('Here are your predictions', user.language), reply_markup=kb_inline)
+            bot.send_message(
+                msg.chat.id, 
+                _(
+                    'Here are your predictions', 
+                    user.language
+                ), 
+                reply_markup=kb_inline
+            )
         return see_users_currency_predicitions(msg)
 
     def see_other_users_predictions(msg):
