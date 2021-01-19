@@ -270,6 +270,10 @@ translation_dict = {
         'en': 'Yes, I want to!', 
         'ru': 'Да, я хочу!'
     },
+    'You cannot delete a verified prediction!': {
+        'en': 'You cannot delete a verified prediction!',
+        'ru': 'Вы не можете удалить произошедший прогноз!'
+    },
     'You have activated the Subscription until {}\nHappy trades!': {
         'en': 'You have activated the Subscription until {}\nHappy trades!',
         'ru': 'Вы активировали подписку до {}\nУдачных трейдов!'

@@ -565,19 +565,29 @@ def ask_delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
     prediction = DBCurrencyPrediction(pred_id)
     user = DBUser(prediction.user_id)
-    bot.edit_message_text(
-        chat_id=call.message.chat.id, 
-        message_id=call.message.message_id, 
-        text=_(
-            "Are you sure you want to delete this prediction:\n{}?",
-            user.language,
-            
-        ).format(repr(prediction)),
-        reply_markup=inline_kbs({
-            _('Yes', user.language): f'delete_prediction_{pred_id}',
-            _('No', user.language): f'get_user_predictions_{prediction.user_id}'
-        })
-    )
+    if prediction.is_actual:
+        bot.edit_message_text(
+            chat_id=call.message.chat.id, 
+            message_id=call.message.message_id, 
+            text=_(
+                "Are you sure you want to delete this prediction:\n{}?",
+                user.language,
+                
+            ).format(repr(prediction)),
+            reply_markup=inline_kbs({
+                _('Yes', user.language): f'delete_prediction_{pred_id}',
+                _('No', user.language): f'get_user_predictions_{prediction.user_id}'
+            })
+        )
+    else:
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=_('You cannot delete a verified prediction!', user.language),
+            reply_markup=inline_kbs({
+                    _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
+            })
+        )
 
 
 
@@ -589,15 +599,18 @@ def delete_prediction(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     if prediction.is_actual:
         prediction.delete()
+        answer_msg = _(
+            "Prediction ({}) was deleted",
+            user.language
+        ).format(repr(prediction))
+    else:
+        answer_msg = _('You cannot delete a verified prediction!', user.language)
     bot.answer_callback_query(
-        callback_query_id=call.id, 
+        callback_query_id=call.id,
         show_alert=False,
-        text=_(
-                "Prediction ({}) was deleted",
-                user.language
-            ).format(repr(prediction))
+        text=answer_msg
     )
-
+    
 
 
 @bot.callback_query_handler(lambda call: 'get_user_predictions_' in call.data)
@@ -708,8 +721,11 @@ def get_callback_for_change_currency_converter_amount(call):
                     {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
                 )
                 if change_amount == float(iso_from[0]): # if we try to set the same text as before, TG throws error
-                    return bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
-                    text=_(f"Amount is already {change_amount}", user.language))
+                    return bot.answer_callback_query(
+                        callback_query_id=call.id, 
+                        show_alert=False,
+                        text=_(f"Amount is already {change_amount}", user.language)
+                    )
                 else:
                     bot.edit_message_text(
                         chat_id=call.message.chat.id, 
