@@ -169,17 +169,17 @@ class InvestingParser(CurrencyParser):
     Parser for 'https://m.ru.investing.com/commodities/<some-market-product>'
     Can parse only from AVAILABLE_PRODUCTS list
     """
-    AVAILABLE_PRODUCTS = [
-        'gold', 
-        'silver', 
-        'palladium', 
-        'copper', 
-        'platinum', 
-        'brent-oil', 
-        'crude-oil',
-        'natural-gas',
-        'london-gas-oil'
-    ]
+    AVAILABLE_PRODUCTS = {
+        'gold': 'Gold', 
+        'silver': 'Silver', 
+        'palladium': 'Palladium', 
+        'copper': 'Copper', 
+        'platinum': 'Platinum', 
+        'brent-oil': 'BRENT', 
+        'crude-oil': 'CRUDE',
+        'natural-gas': 'GAS',
+        'london-gas-oil': 'GAS-OIL'
+    }
 
     def __init__(self, market_product:str, start_value:float=None):
         assert market_product in self.AVAILABLE_PRODUCTS, 'not supported market product - {}'.format(repr(market_product))
@@ -189,7 +189,7 @@ class InvestingParser(CurrencyParser):
                         section.boxItemInstrument.boxItem > \
                         div.quotesBox > div.quotesBoxTop > span.lastInst'
         # css_selector = "#value_BRTUSD"
-        super().__init__(link, css_selector, start_value, market_product)
+        super().__init__(link, css_selector, start_value, self.AVAILABLE_PRODUCTS[market_product])
 
     def get_rate(self):
         try:

@@ -1497,7 +1497,7 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
 
 
 def send_alarm(user, t):
-    for k, v in user.get_currencies_by_check_time(t):
+    for k, v in user.get_currencies_by_check_time(t).items():
         rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
