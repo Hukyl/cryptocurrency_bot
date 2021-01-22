@@ -51,7 +51,9 @@ class CurrencyParser(object):
         soup = self.get_soup()
         span = soup.select(self.css_selector)
         if len(span) != 0:
-            return float(span[0].text.strip().replace(",", "."))
+            rate = span[0].text.strip()
+            # support both `1,812.35` and `1812,34` formats
+            return float(rate.replace(",", ".") if '.' not in rate else rate.replace(",", "")) 
         raise ValueError(f'can not parse currency of "{self.iso}"')
 
     def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
@@ -70,15 +72,6 @@ class CurrencyParser(object):
 
     @staticmethod
     def calculate_difference(old:float, new:float):
-        # lower_limit, upper_limit = old * (1 - percent), old * (1 + percent)
-        # dct = {"old": old, "currency": iso}
-        # if not (lower_limit < new < upper_limit):
-        #     dct["new"] = new
-        #     dct["percentage_difference"] = prettify_float(
-        #         (max(new, old) - min(new, old)) / min(new, old)
-        #     )
-        #     dct["difference"] = prettify_float(abs(old - new))
-        # return dct
         return {
             'old': old,
             'new': new,
@@ -87,25 +80,6 @@ class CurrencyParser(object):
             ),
             "difference": prettify_float(abs(old - new))
         }
-
-
-class BrentParser(CurrencyParser):
-    iso = "BRENT"
-
-    def __init__(self, start_value:float=None):
-        # link = "https://m.investing.com/commodities/brent-oil"
-        link = "https://www.exchangerates.org.uk/commodities/live-oil-prices/BRT-USD.html"
-        # css_selector = "#siteWrapper > div.wrapper > \
-        #     section.boxItemInstrument.boxItem > div.quotesBox > \
-        #     div.quotesBoxTop > span.lastInst.pid-8833-last"
-        css_selector = "#value_BRTUSD"
-        super().__init__(link, css_selector, start_value, self.iso)
-
-    def get_rate(self):
-        try:
-            return super().get_rate()
-        except Exception:
-            return get_default_values_from_config(self.iso).get(self.iso)
 
 
 
@@ -188,6 +162,47 @@ class FreecurrencyratesParser(CurrencyParser):
         res['currency_to'] = iso_to
         if abs(res.get('percentage_difference')) < percent_delta:
             del res['new'], res['percentage_difference'], res['difference']
+
+
+class InvestingParser(CurrencyParser):
+    """
+    Parser for 'https://m.ru.investing.com/commodities/<some-market-product>'
+    Can parse only from AVAILABLE_PRODUCTS list
+    """
+    AVAILABLE_PRODUCTS = [
+        'gold', 
+        'silver', 
+        'palladium', 
+        'copper', 
+        'platinum', 
+        'brent-oil', 
+        'crude-oil',
+        'natural-gas',
+        'london-gas-oil'
+    ]
+
+    def __init__(self, market_product:str, start_value:float=None):
+        assert market_product in self.AVAILABLE_PRODUCTS, 'not supported market product - {}'.format(repr(market_product))
+        link = "https://m.investing.com/commodities/{}".format(market_product)
+        # link = "https://www.exchangerates.org.uk/commodities/live-oil-prices/BRT-USD.html"
+        css_selector = '#siteWrapper > div.wrapper > \
+                        section.boxItemInstrument.boxItem > \
+                        div.quotesBox > div.quotesBoxTop > span.lastInst'
+        # css_selector = "#value_BRTUSD"
+        super().__init__(link, css_selector, start_value, market_product)
+
+    def get_rate(self):
+        try:
+            return super().get_rate()
+        except Exception:
+            return get_default_values_from_config(self.iso).get(self.iso)
+
+    def to_string(self, to_update:bool=True):
+        iso_str = (self.iso or "").replace('-', ' ').title()
+        rate = self.get_rate() if to_update else self.start_value
+        return f"{iso_str} = ${rate}"
+
+    # TODO: override `get_rate` method
 
 
 if __name__ == "__main__":

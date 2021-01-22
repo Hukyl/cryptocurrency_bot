@@ -4,7 +4,7 @@ import datetime as dt
 
 def add_offset(d:dt.datetime, utcoffset:int=0):
     """
-    Adds tzinfo to `dt` according to `utcoffset` offset
+    Adds tzinfo to `d` according to `utcoffset` offset
     """
     return d.replace(
             tzinfo=dt.timezone(dt.timedelta(0, utcoffset*60*60)) 

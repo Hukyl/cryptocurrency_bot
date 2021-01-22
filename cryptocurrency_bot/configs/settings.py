@@ -3,7 +3,7 @@ DEFAULT_CHECK_TIMES = ['9:00', '15:00', '21:00']
 PERCENTAGES = ['0.2', '0.4', '0.6', '0.8', '1.0', '1.2', '1.4', '1.6', '1.8', '2.0']
 CURRENCIES = ['BTC', 'BRENT', 'RTS']  # 'ALT' is not supported anymore
 ACCEPTABLE_CURRENCIES_CONVERTION = {
-    'BRENT futures':"BRENT-USD",
+    'BRENT futures': "BRENT-USD",
     'RTS futures': "RTS-USD"
 }
 CURRENCY_RATES_CHANGE_AMOUNTS = ['Reset', '...']

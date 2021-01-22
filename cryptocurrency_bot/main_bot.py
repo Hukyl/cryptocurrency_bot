@@ -46,7 +46,7 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-brent_parser = BrentParser()
+brent_parser = InvestingParser('brent-oil')
 bitcoin_parser = BitcoinParser()
 rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
@@ -1093,7 +1093,8 @@ def add_new_currency(msg):
     bot.send_message(
         msg.chat.id,
         _('Enter the iso-code of the new currency', user.language),
-        reply_markup=kbs(['UAH', 'RUB', 'EUR'])
+        # reply_markup=kbs(['UAH', 'RUB', 'EUR'])
+        reply_markup=kbs(['RUB', 'EUR', 'UAH', 'BYN', 'Gold', ''])
     )
     bot.register_next_step_handler(msg, ask_new_iso)
 
