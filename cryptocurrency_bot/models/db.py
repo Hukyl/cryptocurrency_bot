@@ -102,7 +102,7 @@ class TelegramUserDBHandler(object):
                 conn.commit()
                 return res
 
-    def add_user(self, user_id, is_active=False, is_pro:bool=False, is_staff:bool=False, timezone:int=0, language:str='en'):
+    def add_user(self, user_id, is_active=True, is_pro:bool=False, is_staff:bool=False, timezone:int=0, language:str='en'):
         self.execute_and_commit(
             "INSERT INTO users\
             (user_id, is_active, is_pro, is_staff, timezone, language) \
