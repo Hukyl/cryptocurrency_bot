@@ -52,10 +52,12 @@ class TelegramUserDBHandler(object):
                     id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
                     user_id INTEGER NOT NULL,
                     is_pro DATETIME DEFAULT NULL, 
-                    is_active BOOLEAN DEFAULT FALSE,
-                    is_staff BOOLEAN DEFAULT FALSE,
-                    timezone INTEGER DEFAULT 0,
-                    language TEXT DEFAULT "en", 
+                    is_active BOOLEAN DEFAULT 0,
+                    is_staff BOOLEAN DEFAULT 0,
+                    timezone TINYINT DEFAULT 0 CHECK (
+                        timezone in (-11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+                    ),
+                    language VARCHAR(2) DEFAULT "en", 
                     UNIQUE(user_id) ON CONFLICT REPLACE
                 )
             '''
@@ -63,25 +65,27 @@ class TelegramUserDBHandler(object):
         self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS users_rates( 
                     user_id INTEGER NOT NULL,
-                    iso VARCHAR,
+                    iso VARCHAR(5),
                     start_value DOUBLE DEFAULT 0,
                     percent_delta REAL DEFAULT 1,
                     check_times VARCHAR DEFAULT '10:00,15:00,19:00',
-                    UNIQUE(user_id, iso) ON CONFLICT REPLACE
+                    UNIQUE(user_id, iso) ON CONFLICT REPLACE,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 )
             '''
         )
         self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS currency_predictions(
                     id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
-                    user_id INTEGER NOT NULL,
-                    iso_from VARCHAR,
-                    iso_to VARCHAR,
+                    user_id INTEGER,
+                    iso_from VARCHAR(5),
+                    iso_to VARCHAR(5),
                     value DOUBLE,
                     up_to_date DATETIME,
                     is_by_experts BOOLEAN DEFAULT FALSE,
-                    real_value REAL DEFAULT NULL,
-                    UNIQUE(user_id, iso_from, iso_to, up_to_date) ON CONFLICT REPLACE
+                    real_value DOUBLE DEFAULT NULL,
+                    UNIQUE(user_id, iso_from, iso_to, up_to_date) ON CONFLICT REPLACE,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
             '''
         )
@@ -89,7 +93,9 @@ class TelegramUserDBHandler(object):
             '''CREATE TABLE IF NOT EXISTS predictions_reactions(
                 pred_id INTEGER,
                 user_id INTEGER,
-                reaction BOOLEAN
+                reaction BOOLEAN,
+                FOREIGN KEY (pred_id) REFERENCES currency_predictions(pred_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             )
             '''
         )
