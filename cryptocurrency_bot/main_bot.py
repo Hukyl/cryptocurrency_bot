@@ -1457,21 +1457,25 @@ def send_alarm(user, t):
             user.update_rates(k, start_value=new)
             perc_delta = prettify_float(rate.get('percentage_difference'))
             delta = prettify_float(rate.get('difference'))
-            bot.send_message(
-                user.user_id,
-                _(
-                    '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
-                    user.language
-                ).format(
-                    k, 
-                    prettify_float(new), 
-                    delta, 
-                    prettify_percent(perc_delta), 
-                    k, 
-                    prettify_float(old)
-                ),
-                parse_mode='markdown'
-            )
+            try:
+                bot.send_message(
+                    user.user_id,
+                    _(
+                        '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
+                        user.language
+                    ).format(
+                        k, 
+                        prettify_float(new), 
+                        delta, 
+                        prettify_percent(perc_delta), 
+                        k, 
+                        prettify_float(old)
+                    ),
+                    parse_mode='markdown'
+                )
+            except telebot.apihelper.ApiTelegramException:
+                # from traceback: "Bad Request: chat not found"
+                user.update(is_active=0) # not to sent notifications, since, chat is not reachable
 
 
 
