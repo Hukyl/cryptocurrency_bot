@@ -164,10 +164,11 @@ class FreecurrencyratesParser(CurrencyParser):
             del res['new'], res['percentage_difference'], res['difference']
 
 
+
 class InvestingParser(CurrencyParser):
     """
     Parser for 'https://m.ru.investing.com/commodities/<some-market-product>'
-    Can parse only from AVAILABLE_PRODUCTS list
+    Can parse only from AVAILABLE_PRODUCTS dict's keys
     """
     AVAILABLE_PRODUCTS = {
         'gold': 'Gold', 

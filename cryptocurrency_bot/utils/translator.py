@@ -142,9 +142,13 @@ translation_dict = {
         'en': 'Notifications', 
         'ru': 'Оповещения'
     },
-    'Notifications {}': {
-        'en': 'Notifications {}',
-        'ru': 'Оповещения {}'
+    'Notifications enabled': {
+        'en': 'Notifications enabled',
+        'ru': 'Оповещения включены'
+    },
+    'Notifications disabled': {
+        'en': 'Notifications disabled',
+        'ru': 'Оповещения выключены'
     },
     'Now your time zone is {}': {
         'en': 'Now your time zone is {}',

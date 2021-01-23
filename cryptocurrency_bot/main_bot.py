@@ -261,28 +261,37 @@ def make_user_currency_prediction(msg):
     def get_iso(msg):
         nonlocal iso_from, iso_to
         msg.text = settings.ACCEPTABLE_CURRENCIES_CONVERTION.get(msg.text, msg.text)
-        iso_from, iso_to = [x.strip() for x in msg.text.split('-')] 
-        if currency_parser.check_currency_exists(iso_from) and currency_parser.check_currency_exists(iso_to) or (
-                msg.text in settings.ACCEPTABLE_CURRENCIES_CONVERTION.values()
-            ):
+        try:
+            iso_from, iso_to = [x.strip() for x in msg.text.split('-')]
+        except ValueError:
             bot.send_message(
                 msg.chat.id,
                 _(
-                    "Enter the forecast result (for example, 27.50, 22300)", # Enter predictable value
+                    '❗ Enter currency iso codes only in the specified format ❗',
                     user.language
                 )
             )
-            bot.register_next_step_handler(msg, get_value)
         else:
-            bot.send_message(
-                msg.chat.id,
-                _(
-                    "❗ This currency does not exist or is not supported, please try another one ❗",
-                    user.language
+            if currency_parser.check_currency_exists(iso_from) and currency_parser.check_currency_exists(iso_to) or (
+                    msg.text in settings.ACCEPTABLE_CURRENCIES_CONVERTION.values()
+                ):
+                bot.send_message(
+                    msg.chat.id,
+                    _(
+                        "Enter the forecast result (for example, 27.50, 22300)",
+                        user.language
+                    )
                 )
-            )
-            bot.register_next_step_handler(msg, get_iso)
-
+                return bot.register_next_step_handler(msg, get_value)
+            else:
+                bot.send_message(
+                    msg.chat.id,
+                    _(
+                        "❗ This currency does not exist or is not supported, please try another one ❗",
+                        user.language
+                    )
+                )
+        return bot.register_next_step_handler(msg, get_iso)
 
     def get_value(msg):
         nonlocal value
@@ -464,10 +473,10 @@ def see_users_currency_predicitions(msg):
             bot.register_next_step_handler(msg, choose_option_inner)
 
     buttons = {
-        _('My predictions', user.language): see_self_predictions, # My prediction
-        _('Other predictions', user.language): see_other_users_predictions, # Other predictions
+        _('My predictions', user.language): see_self_predictions,
+        _('Other predictions', user.language): see_other_users_predictions, 
         # _('Учавствовать в оценивании', user.language): like_system,
-        _('Main menu', user.language): start_bot # main menu
+        _('Main menu', user.language): start_bot
     }
     bot.send_message(
         msg.chat.id,
@@ -639,7 +648,6 @@ def convert_currency(msg):
     iso_from = None
     iso_to = None
 
-
     def get_isos(msg):
         nonlocal iso_from, iso_to
         try:
@@ -665,7 +673,6 @@ def convert_currency(msg):
                 msg.chat.id, 
                 _(
                     "❗ The converter did not find such currencies, please try again ❗",
-                    # Converter has not found these currencies, try again
                     user.language
                 )
             )
@@ -720,7 +727,8 @@ def get_callback_for_change_currency_converter_amount(call):
                 markup = inline_kbs(
                     {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
                 )
-                if change_amount == float(iso_from[0]): # if we try to set the same text as before, TG throws error
+                if change_amount == float(iso_from[0]): 
+                    # if we try to set the same text as before, an error occurs
                     return bot.answer_callback_query(
                         callback_query_id=call.id, 
                         show_alert=False,
@@ -786,7 +794,7 @@ def get_callback_for_change_currency_converter_amount(call):
             msg_to_delete = bot.send_message(
                     call.message.chat.id, 
                     _(
-                        'Enter new amount', # Enter new amount
+                        'Enter new amount',
                         user.language
                     )
                 )
@@ -803,7 +811,6 @@ def change_alarms(msg, user, buttons):
             msg.chat.id,
             _(
                 "❗ I can't understand your request, please try again ❗", 
-                # Cant respond, try again
                 user.language
             ),
             reply_markup=kbs(list(buttons), row_width=2)
@@ -826,10 +833,9 @@ def toggle_user_alarms(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            "Notifications {}",
-            # Notifications enabled/disabled
+            f"Notifications {'en' if user.is_active else 'dis'}abled",
             user.language
-        ).format('включены' if user.is_active else 'отключены')
+        )
     )
     return start_bot(msg)
 
@@ -1093,8 +1099,7 @@ def add_new_currency(msg):
     bot.send_message(
         msg.chat.id,
         _('Enter the iso-code of the new currency', user.language),
-        # reply_markup=kbs(['UAH', 'RUB', 'EUR'])
-        reply_markup=kbs(['RUB', 'EUR', 'UAH', 'BYN', 'Gold', ''])
+        reply_markup=kbs(['RUB', 'EUR', 'UAH', 'BYN'])
     )
     bot.register_next_step_handler(msg, ask_new_iso)
 
