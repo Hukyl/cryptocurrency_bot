@@ -67,11 +67,12 @@ def check_if_command(bot_instance, message):
 
 
 
+@catch_exc
 @bot.message_handler(commands=['start'])
 def start_message(msg):
-    tech_support_recognizer = TECHSUPPORT_TOKEN.ACCESSIBLE_LINK.split('=')[1]
-    args = msg.text.split()[1:]
     user = DBUser(msg.chat.id)
+    tech_support_recognizer = TECHSUPPORT_TOKEN.ACCESSIBLE_LINK.split('=')[1]
+    add_info = msg.text.split()[1:]
     bot.send_message(
         msg.chat.id,
         _(
@@ -83,20 +84,19 @@ def start_message(msg):
         msg.chat.id,
         _(
             "I am <b>{}</b>, your personal shareholder bot, and I will keep you updated on important trading events!", 
-            # I'm Bot, your personal shareholder bot, and I'm going to keep you in touch with all importnant trading events
             user.language
         ).format(bot.get_me().first_name),
         parse_mode='html'
     )
-    if args and tech_support_recognizer in args or not list(DBUser.get_staff_users()):
-        # if user got in bot with techsupport link or there are not support users
+    if (add_info and (tech_support_recognizer in add_info)) or not list(DBUser.get_staff_users()):
+        # if user started bot with techsupport link or there are not support users
         user.init_staff()
         bot.send_message(
             msg.chat.id,
             _(
                 '⚙ You have received a technical support status ⚙',
                 user.language
-            ) # "You recieved staff status"
+            )
         )    
     return start_bot(msg)
 
@@ -139,15 +139,15 @@ def choose_option(msg, user=None, buttons=None):
     elif buttons[1] == msg.text:
         # go to notifications section
         buttons = {
-            _("View info", user.language): see_user_info, # See your info
-            _('Change alarm time', user.language): change_user_rate_check_times, # change notifications time
-            _('Change alarm percent', user.language):change_user_rate_percent_delta, # change percent delta
+            _("View info", user.language): see_user_info, 
+            _('Change alarm time', user.language): change_user_rate_check_times, 
+            _('Change alarm percent', user.language):change_user_rate_percent_delta,
             _('Toggle alarms', user.language): toggle_user_alarms,
-            _('Change time zone', user.language): change_user_timezone, # change time zone
-            _('Main menu', user.language): start_bot # main menu
+            _('Change time zone', user.language): change_user_timezone,
+            _('Main menu', user.language): start_bot 
         }
         if user.is_pro:
-            buttons[_('⚜ Add your own currency ⚜', user.language)] = add_new_currency # add your currency
+            buttons[_('⚜ Add your own currency ⚜', user.language)] = add_new_currency
         kb = kbs(list(buttons), one_time_keyboard=False, row_width=2)
         bot.send_message(
             msg.chat.id,
@@ -163,14 +163,6 @@ def choose_option(msg, user=None, buttons=None):
     elif buttons[-1] == msg.text:
         return send_techsupport_message(msg)
     else:
-        # bot.send_message(
-        #     msg.chat.id,
-        #     _(
-        #         "❗ Я не понял ваш ответ, попробуйте что-то другое ❗",
-        #         user.language
-        #     ),
-        #     reply_markup=kbs(list(buttons))
-        # )
         return bot.register_next_step_handler(msg, choose_option, user, buttons)
 
 
@@ -190,7 +182,7 @@ def get_currency_rates_today(msg, user=None):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    '❗ Choose only from the suggestions ❗', # choose only from offered
+                    '❗ Choose only from the suggestions ❗',
                     user.language
                 )
             )
@@ -300,10 +292,7 @@ def make_user_currency_prediction(msg):
         except ValueError:
             bot.send_message(
                 msg.chat.id,
-                _(
-                    '❗ Enter only numbers ❗', # Enter only numbers
-                    user.language
-                )
+                _('❗ Enter only numbers ❗', user.language)
             )
             bot.register_next_step_handler(msg, get_value)
         else:
@@ -337,10 +326,7 @@ def make_user_currency_prediction(msg):
 
     bot.send_message(
         msg.chat.id,
-        _(
-            'To exit anywhere, enter {}',
-            user.language
-        ).format('/menu')
+        _('To exit anywhere, enter {}', user.language).format('/menu')
     )
     datetime_check_str = 'ДД.ММ.ГГГГ ЧЧ:ММ' if user.language ==  'ru' else 'MM-DD-YYYY HH:ММ AM/PM'
     datetime_example = convert_to_country_format(
@@ -365,10 +351,7 @@ def see_users_currency_predicitions(msg):
     user = DBUser(msg.chat.id)
 
     def see_self_predictions(msg):
-        preds = {
-                repr(x): f'get_prediction_{x.id}'
-                for x in user.get_predictions()
-            }
+        preds = {repr(x): f'get_prediction_{x.id}' for x in user.get_predictions()}
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
             bot.send_message(
@@ -378,10 +361,7 @@ def see_users_currency_predicitions(msg):
         else:
             bot.send_message(
                 msg.chat.id, 
-                _(
-                    'Here are your predictions', 
-                    user.language
-                ), 
+                _('Here are your predictions', user.language), 
                 reply_markup=kb_inline
             )
         return see_users_currency_predicitions(msg)
@@ -400,11 +380,7 @@ def see_users_currency_predicitions(msg):
                 experts_str += ' none'
             bot.send_message(
                 msg.chat.id, 
-                _(
-                    experts_str.replace('\n', ';'),
-                    user.language,
-                    parse_mode='newline'
-                ),
+                _(experts_str.replace('\n', ';'), user.language, parse_mode='newline'),
             )
 
         # predictions_str = 'Most liked predictions are:'
@@ -430,7 +406,8 @@ def see_users_currency_predicitions(msg):
     def like_system(msg):
         try:
             random_id = DBCurrencyPrediction.get_random_prediction()
-        except IndexError: # if no prediction are there
+        except IndexError: 
+            # if no prediction are there
             bot.send_message(msg.chat.id, _('There are no predictions to like yet, you can create one!', user.language))
             return start_bot(msg)
         else:
@@ -448,11 +425,7 @@ def see_users_currency_predicitions(msg):
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg.chat.id,
-                _(
-                    str(prediction).replace('\n', ';'),
-                    user.language,
-                    parse_mode='newline'
-                ),
+                _(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
                 reply_markup=inline_kb
             )
             return see_users_currency_predicitions(msg)
@@ -464,10 +437,7 @@ def see_users_currency_predicitions(msg):
         else:
             bot.send_message(
                 msg.chat.id,
-                _(
-                    '❗ Choose only from the suggestions ❗',
-                    user.language
-                ),
+                _('❗ Choose only from the suggestions ❗', user.language),
                 reply_markup=kbs(list(buttons))
             )
             bot.register_next_step_handler(msg, choose_option_inner)
@@ -513,11 +483,7 @@ def get_closest_prediction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(
-                    str(prediction).replace('\n', ';'),
-                    user.language,
-                    parse_mode='newline'
-                ),
+            text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
             reply_markup=inline_kb
         )
 
@@ -533,11 +499,7 @@ def toggle_user_reaction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(
-                    str(prediction).replace('\n', ';'),
-                    user.language,
-                    parse_mode='newline'
-                ),
+            text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
             reply_markup=__get_prediction_inline_kb_for_liking(prediction)
         )
     bot.answer_callback_query(
@@ -556,11 +518,7 @@ def get_prediction_details(call):
     bot.edit_message_text(
         chat_id=call.message.chat.id, 
         message_id=call.message.message_id, 
-        text=_(
-            str(prediction).replace('\n', ';'),
-            user.language,
-            parse_mode='newline'
-        ),
+        text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
             _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -580,8 +538,7 @@ def ask_delete_prediction(call):
             message_id=call.message.message_id, 
             text=_(
                 "Are you sure you want to delete this prediction:\n{}?",
-                user.language,
-                
+                user.language
             ).format(repr(prediction)),
             reply_markup=inline_kbs({
                 _('Yes', user.language): f'delete_prediction_{pred_id}',
@@ -633,10 +590,7 @@ def get_user_predictions(call):
     return bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(
-                    'Here are your predictions',
-                    user.language
-                ),
+            text=_('Here are your predictions', user.language),
             reply_markup=kb_inline
         )
 
@@ -655,10 +609,7 @@ def convert_currency(msg):
         except ValueError:
             bot.send_message(
                 msg.chat.id, 
-                _(
-                    '❗ Enter currency iso codes only in the specified format ❗',
-                    user.language
-                )
+                _('❗ Enter currency iso codes only in the specified format ❗', user.language)
             )
             return bot.register_next_step_handler(msg, get_isos)
         else:
@@ -703,8 +654,7 @@ def convert_currency(msg):
         msg.chat.id,
         _(
             'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB',
-            user.language,
-            
+            user.language
         ),
         parse_mode='markdown'
     )
@@ -858,6 +808,7 @@ def see_user_info(msg):
 
 
 
+@catch_exc
 @bot.message_handler(commands=['change_delta'])
 def change_user_rate_percent_delta(msg, user=None):
     user = user or DBUser(msg.chat.id)
@@ -916,6 +867,7 @@ def change_user_rate_percent_delta(msg, user=None):
 
 
 
+@catch_exc
 @bot.message_handler(commands=['change_checktime'])
 def change_user_rate_check_times(msg, user=None):
     user = user or DBUser(msg.chat.id)
@@ -923,7 +875,6 @@ def change_user_rate_check_times(msg, user=None):
     chosen_times = []
     start = settings.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else settings.SUBSCIRBED_USER_CHECK_TIMES
     currency = None
-
 
     def inner1(msg):
         nonlocal currency
@@ -1016,6 +967,7 @@ def change_user_rate_check_times(msg, user=None):
 
 
 
+@catch_exc
 @bot.message_handler(commands=['change_timezone'])
 def change_user_timezone(msg):
     user = DBUser(msg.chat.id)
@@ -1059,9 +1011,9 @@ def change_user_timezone(msg):
 
 
 
+@catch_exc
 def add_new_currency(msg):
     user = DBUser(msg.chat.id)
-
 
     def ask_new_iso(msg):
         iso = msg.text
@@ -1105,6 +1057,7 @@ def add_new_currency(msg):
 
 
 
+@catch_exc
 @bot.message_handler(commands=['subscription'])
 def buy_subscription(msg):
     user = DBUser(msg.chat.id)
@@ -1116,13 +1069,13 @@ def buy_subscription(msg):
             LabeledPrice(
                 label=f"Cost of subscription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
                 amount=int(round(start_price * price.get('period'), 2) * 100)
-                # * 100 because amount in cents
+                
             )
         ] + ([
             LabeledPrice(
                 label=f'Discount {price.get("discount")*100}%',
                 amount=-int(round(start_price * price.get('period') * price.get('discount') * 100, 2))
-                # * 100 because amount in cents
+                # * 100 because `amount` is interpreted in cents
             )
         ] if price.get('discount') > 0 else [])
         for price in prices_json_list
@@ -1307,11 +1260,7 @@ def send_techsupport_message(msg):
     else:
         bot.send_message(
             msg.chat.id, 
-            _(
-                f'⚙ You are already a staff member ⚙',
-                user.language,
-                
-            )
+            _(f'⚙ You are already a staff member ⚙', user.language)
         )
     return start_bot(msg)
 
@@ -1357,27 +1306,20 @@ def send_message_to_techsupport(call):
             ).format('/menu', bot.get_me().username)
         )
         bot.register_next_step_handler(call.message, send_message)
-        # bot.answer_callback_query(
-        #     callback_query_id=call.id,
-        #     show_alert=False,
-        #     text=_(msg, user.language)
-        # )
 
 
 
 @bot.message_handler(commands=['help'])
 def send_bot_help(msg):
     user = DBUser(msg.chat.id)
-    help_message = 'Bot\'s commands:;'
-    for k, v in bot.full_bot_commands.items():
-        help_message += '{} - %s;' % v
+    help_message = 'Bot\'s commands:;' + ';'.join(['{} - %s' % v for k, v in bot.full_bot_commands.items()])
     bot.send_message(
         msg.chat.id,
         _(
             help_message,
             user.language,
             parse_mode='newline'
-        ).replace('{ }', '{}').format(*list(bot.full_bot_commands))
+        ).replace('{ }', '{}').format(*list(bot.full_bot_commands.keys()))
     )
     return start_bot(msg, to_show_commands=False)
 
@@ -1394,6 +1336,7 @@ def update_rates():
 
 
 
+@catch_exc
 def check_premium_ended():
     def check_user_premium_ended(user):
         if get_current_datetime(utcoffset=user.timezone) > user.is_pro:
@@ -1411,6 +1354,7 @@ def check_premium_ended():
 
 
 
+@catch_exc
 def verify_predictions():
     parsers = {
         parser.iso: parser
@@ -1444,6 +1388,7 @@ def verify_predictions():
 
 
 
+@catch_exc
 def check_alarm_times():
     previous_time = ''
     while True:
@@ -1461,6 +1406,7 @@ def check_alarm_times():
 
 
 
+@catch_exc
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in DBUser.get_users_by_check_time(time_):
@@ -1468,6 +1414,7 @@ def start_alarms(time_):
 
 
 
+@catch_exc
 def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
     parsers = {
         parser.iso: parser
@@ -1501,6 +1448,7 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
 
 
 
+@catch_exc
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
         rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))

@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 from configs import settings
 
@@ -45,3 +46,14 @@ def prettify_float(num:float):
 def prettify_percent(n:float):
     res = round(n*100, settings.PRECISION_NUMBER)
     return str(int(res) if res % 1 == 0 else res) + '%'
+
+
+def catch_exc(func):
+    def inner(*args, **kwargs):
+        try:
+            res = func(*args, **kwargs)
+        except Exception:
+            print(f'\nException\nFunc name: {func.__name__}\nType: {sys.exc_info()[0].__name__}\nMessage: {str(sys.exc_info()[1])}\n')
+        else:
+            return res
+    return inner
