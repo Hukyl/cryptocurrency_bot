@@ -4,7 +4,7 @@ from time import sleep
 import datetime
 
 import main_bot
-from utils._datetime import get_current_datetime
+from utils.dt import get_current_datetime
 
 
 

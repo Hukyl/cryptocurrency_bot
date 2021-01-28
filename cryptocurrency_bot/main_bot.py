@@ -9,12 +9,12 @@ from telebot.types import LabeledPrice
 
 
 from configs import settings, MAIN_TOKEN, TECHSUPPORT_TOKEN
-from models._parser import *
+from models.parsers import *
 from models.user import DBUser, DBCurrencyPrediction
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
-from utils._datetime import *
+from utils.dt import *
 from utils.mail import send_mail
 
 ###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
@@ -24,7 +24,7 @@ telebot.apihelper.ENABLE_MIDDLEWARE = True
 bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=False) # RecursionError
 bot.full_bot_commands = {
     '/start': 'запустить бота', # Start the bot
-    '/me': 'просмотреть вашу информация', # See your info
+    '/me': 'ваша информация', # Your info
     '/today': 'котировки', # Quotes
     '/change_checktime': 'сменить время оповещений', # Change check times
     '/change_delta': 'сменить разницу в процентах, при которой оповещать',
@@ -139,7 +139,7 @@ def choose_option(msg, user=None, buttons=None):
     elif buttons[1] == msg.text:
         # go to notifications section
         buttons = {
-            _("View info", user.language): see_user_info, 
+            _("Your info", user.language): see_user_info, 
             _('Change alarm time', user.language): change_user_rate_check_times, 
             _('Change alarm percent', user.language):change_user_rate_percent_delta,
             _('Toggle alarms', user.language): toggle_user_alarms,
@@ -1036,8 +1036,7 @@ def add_new_currency(msg):
             )
             return start_bot(msg)
         elif user.is_pro:
-            rate = prettify_float(currency_parser.get_rate(iso).get('USD'))
-            reverse_rate = prettify_float(1/rate)
+            rate = prettify_float(currency_parser.get_rate(iso, 'USD').get('USD'))
             user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
             bot.send_message(
                 msg.chat.id, 
@@ -1361,26 +1360,22 @@ def verify_predictions():
         for parser in [brent_parser, bitcoin_parser, rts_parser]
     }
     while True:
-        for prediction in DBCurrencyPrediction.get_unverified_predictions():
-            pred_res = get_rate_safe(
-                prediction.iso_from, 
-                prediction.iso_to,
-                prediction.value,
-                0.0000000001
-            )
-            real_value = pred_res.get('new') 
-            prediction.update(real_value=real_value)
-            user = DBUser(prediction.user_id)
-            perc_diff = pred_res.get('percentage_difference')
+        for pred in DBCurrencyPrediction.get_unverified_predictions():
+            pred_res = get_rate_safe(pred.iso_from, pred.iso_to)
+            real_value = pred_res.get(pred.iso_to) 
+            pred.update(real_value=real_value)
+            user = DBUser(pred.user_id)
+            diff = CurrencyParser.calculate_difference(old=pred.value, new=real_value)
+            perc_diff = diff.get('percentage_difference')
             bot.send_message(
-                prediction.user_id, 
+                pred.user_id, 
                 _(
                     'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
                     user.language
                 ).format(
-                    repr(prediction),
-                    prediction.value,
-                    prediction.real_value,
+                    repr(pred),
+                    pred.value,
+                    pred.real_value,
                     prettify_percent(perc_diff)
                 ),
                 parse_mode='markdown'
@@ -1415,7 +1410,7 @@ def start_alarms(time_):
 
 
 @catch_exc
-def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
+def get_rate_safe(iso_from, iso_to):
     parsers = {
         parser.iso: parser
         for parser in [brent_parser, bitcoin_parser, rts_parser]
@@ -1423,35 +1418,32 @@ def get_rate_safe(iso_from, iso_to, start_value, percent_delta):
     parser = parsers.get(iso_from, currency_parser)
     try:
         if getattr(parser, 'iso', None) is not None:
-            rate = parser.check_delta(
-                old=start_value,
-                percent_delta=percent_delta
-            )
+            rate = parser.get_rate()
         else:
             # if parser is `FreecurrencyratesParser`
-            rate = parser.check_delta(
-                iso_from=iso_from,
-                iso_to=iso_to,
-                start_value=start_value, 
-                percent_delta=percent_delta
-            )
+            rate = parser.get_rate(iso_from=iso_from, iso_to=iso_to)
     except Exception:
         # if network can not be reached or somewhat
-        default_value = get_default_values_from_config(iso_from)
-        rate = brent_parser.check_delta(
-            old=start_value,
-            new=default_value,
-            percent=percent_delta
-        )
-        rate['currency'] = iso_from
+        default_value = get_default_values_from_config(iso_to).get(iso_to)
+        rate = {iso_from: 1, iso_to: default_value}
     return rate
+
+
+
+@catch_exc
+def check_delta_safe(iso_from, iso_to, start_value, percent_delta):
+    rate = get_rate_safe(iso_from, iso_to)
+    diff = CurrencyParser.calculate_difference(old=start_value, new=rate.get(iso_to))
+    if abs(diff.get('percentage_difference')) < percent_delta:
+            del diff['new'], diff['percentage_difference'], diff['difference']
+    return merge_dicts(diff, {'currency_from': iso_from, 'currency_to': iso_to})
 
 
 
 @catch_exc
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
-        rate = get_rate_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
+        rate = check_delta_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
             user.update_rates(k, start_value=new)

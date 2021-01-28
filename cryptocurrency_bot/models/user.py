@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from .db import TelegramUserDBHandler
 from configs import settings
 from utils import get_json_config, prettify_percent
-from utils._datetime import (
+from utils.dt import (
     convert_to_country_format,
     convert_from_country_format,
     check_datetime_in_future,
@@ -45,7 +45,7 @@ class User(object):
     def normalize_rates(rates):
         return {
             rate[0]: {                                  # iso code
-                'check_times': rate[-1].split(','),     # check_times
+                'check_times': rate[-1],                # check_times
                 'percent_delta': rate[2],               # percent_delta
                 'start_value': rate[1]                  # start_value
             }
@@ -78,7 +78,7 @@ class User(object):
 
 
 class DBUser(User):
-    db = TelegramUserDBHandler()
+    db = TelegramUserDBHandler(settings.DB_NAME)
 
     def __init__(self, user_id):
         self.init_user(user_id)
@@ -96,12 +96,12 @@ class DBUser(User):
             yield DBCurrencyPrediction(pred_data[0])
 
     def update_rates(self, iso, **kwargs):
-        self.db.change_user_rates(self.user_id, iso, **kwargs)
+        self.db.change_user_rate(self.user_id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
 
     def create_prediction(self, up_to_date, iso_from, iso_to, value):
         assert check_datetime_in_future(up_to_date, self.timezone)
-        self.db.add_user_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
+        self.db.add_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
 
     def add_rate(self, iso, **kwargs):
         self.db.add_user_rate(self.user_id, iso, **kwargs)
@@ -169,11 +169,10 @@ class DBUser(User):
 
 
 class DBCurrencyPrediction(object):
-    db = TelegramUserDBHandler()
+    db = TelegramUserDBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
         self.id, self.user_id, self.iso_from, self.iso_to, self.value, self.up_to_date, self.is_by_experts, self.real_value = self.db.get_prediction(pred_id)
-        self.up_to_date = datetime.strptime(self.up_to_date, '%Y-%m-%d %H:%M:%S%z')
 
     def toggle_like(self, user_id, if_like=True):
         """
@@ -185,10 +184,10 @@ class DBCurrencyPrediction(object):
         self.db.toggle_prediction_reaction(self.id, user_id, if_like)
 
     def delete(self):
-        self.db.delete_user_prediction(self.id)
+        self.db.delete_prediction(self.id)
 
     def update(self, **kwargs):
-        self.db.change_user_prediction(self.id, **kwargs)
+        self.db.change_prediction(self.id, **kwargs)
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v

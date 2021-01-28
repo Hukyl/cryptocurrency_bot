@@ -5,18 +5,23 @@ import sys
 from configs import settings
 
 
+__all__ = [
+    'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
+    'get_default_values_from_config', 'prettify_float', 'prettify_percent', 'catch_exc'
+]
+
+
 def merge_dicts(*dcts):
     assert len(dcts) > 0, 'you must pass minimum one dictionary'
     start_dct = dcts[0]
     for dct in dcts[1:]:
-            for k, v in dct.items():
-                    start_dct[k] = v
+        start_dct = {**start_dct, **dct}
     return start_dct
 
 
 def prettify_utcoffset(utcoffset:int=0):
     assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
-    return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}00'.format(utcoffset))
+    return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}:00'.format(utcoffset))
 
 
 def get_json_config():

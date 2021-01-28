@@ -4,6 +4,8 @@ from models.user import DBUser
 from .translator import translate as _
 
 
+__all__ = ['kbs', 'inline_kbs']
+
 
 def kbs(buttons, one_time_keyboard=True, row_width:int=None):
     """

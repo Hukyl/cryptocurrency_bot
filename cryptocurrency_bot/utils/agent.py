@@ -1,5 +1,6 @@
 import random
 
+__all__ = ['get_useragent']
 
 agents = [
     "Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",

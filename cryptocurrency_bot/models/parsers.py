@@ -7,25 +7,37 @@ from utils.agent import get_useragent
 from utils import get_default_values_from_config, prettify_float
 
 
+__all__ = ['RTSParser', 'BitcoinParser', 'InvestingParser', 'FreecurrencyratesParser', 'CurrencyParser']
+
 
 class CurrencyParser(object):
     """
     Universal abstract class for parsing the currency
     All rates returned according to USD
+
+    Methods returning format:
+        get_rate:
+            {`iso`: 1, 'USD': `rate`}
+        check_delta:
+            {'currency_from': `iso`, 'currency_to': 'USD', 'old':`old`}
+            Optional keys:
+                'new': `new`,
+                'percentage_difference': `percentage_difference`,
+                'difference': `difference`
     """
 
-    def __init__(self, link:str, css_selector:str, start_value:float=None, iso:str=None):
+    def __init__(self, link:str, css_selector:str, iso:str, start_value:float=None):
         self.link = link
         self.css_selector = css_selector
         self.iso = iso
         try:
-            self.start_value = start_value or self.get_rate()
+            self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
             self.start_value = get_default_values_from_config(iso or '')
 
     def to_string(self, to_update:bool=True):
         iso_str = self.iso or ""
-        rate = self.get_rate() if to_update else self.start_value
+        rate = self.get_rate().get('USD') if to_update else self.start_value
         if iso_str:
             return f"{iso_str} = ${rate}"
         return f"${rate}"
@@ -48,26 +60,34 @@ class CurrencyParser(object):
         return bs(self.get_html(link), "html.parser")
 
     def get_rate(self):
-        soup = self.get_soup()
-        span = soup.select(self.css_selector)
-        if len(span) != 0:
-            rate = span[0].text.strip()
-            # support both `1,812.35` and `1812,34` formats
-            return float(rate.replace(",", ".") if '.' not in rate else rate.replace(",", "")) 
-        raise ValueError(f'can not parse currency of "{self.iso}"')
+        try:
+            soup = self.get_soup()
+            span = soup.select_one(self.css_selector)
+            if span is not None:
+                rate = span.text.strip()
+                rate = rate.replace('$', '')  # since default is USD, sometimes $ sign occurs
+                # support both `1,812.35` and `1812,34` formats
+                number = float(rate.replace(",", ".") if '.' not in rate else rate.replace(",", ""))
+            else:
+                raise ValueError(f'can not parse currency of "{self.iso}"')
+        except Exception:
+            number = get_default_values_from_config(self.iso).get(self.iso)
+        finally:
+            return {self.iso: 1, 'USD': number}
 
     def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
         res = self.calculate_difference(
             old or self.start_value,
-            new or self.get_rate()
+            new or self.get_rate().get('USD')
         )
-        res['currency'] = self.iso
+        res['currency_from'] = self.iso
+        res['currency_to'] = 'USD'
         if abs(res.get('percentage_difference')) < percent_delta:
             del res['new'], res['percentage_difference'], res['difference']
         return res
 
     def update_start_value(self, start_value:float=None):
-        start_value = start_value or self.get_rate()
+        start_value = start_value or self.get_rate().get('USD')
         self.start_value = start_value
 
     @staticmethod
@@ -76,7 +96,7 @@ class CurrencyParser(object):
             'old': old,
             'new': new,
             'percentage_difference': -prettify_float(
-                (old - new) / old
+                (old - new) / max(old, new)
             ),
             "difference": prettify_float(abs(old - new))
         }
@@ -89,13 +109,12 @@ class RTSParser(CurrencyParser):
     def __init__(self, start_value:float=None):
         link = "https://m.ru.investing.com/indices/rts-cash-settled-futures"
         css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
-        super().__init__(link, css_selector, start_value, self.iso)
-
-    def get_rate(self):
-        try:
-            return super().get_rate()
-        except Exception:
-            return get_default_values_from_config(self.iso).get(self.iso)
+        super().__init__(
+            link=link, 
+            css_selector=css_selector, 
+            iso=self.iso, 
+            start_value=start_value
+        )
 
 
 
@@ -104,21 +123,17 @@ class BitcoinParser(CurrencyParser):
 
     def __init__(self, start_value:float=None):
         link = "https://www.coindesk.com/price/bitcoin"
+        # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
         css_selector = "#export-chart-element > div > section > div.coin-info-list.price-list > \
                              div:nth-child(1) > div.data-definition > div"
-        super().__init__(link, css_selector, start_value, self.iso)
+        # css_selector = "#amount2"
+        super().__init__(
+            link=link, 
+            css_selector=css_selector, 
+            iso=self.iso, 
+            start_value=start_value
+        )
 
-    def get_rate(self):
-        try:
-            soup = self.get_soup()
-            span = soup.select(self.css_selector)
-            if span is not None:
-                sign, *number = span[0].text.strip()
-                number = float("".join(number).replace(",", ""))
-                return number
-            raise ValueError(f'can not parse currency of "{self.iso}"')
-        except Exception:
-            return get_default_values_from_config(self.iso).get(self.iso)
 
 
 class FreecurrencyratesParser(CurrencyParser):
@@ -126,26 +141,21 @@ class FreecurrencyratesParser(CurrencyParser):
         self.link = "https://freecurrencyrates.com/ru/%s-exchange-rate-calculator"
 
     def get_rate(self, iso_from:str, iso_to:str="USD"):
+        iso_from, iso_to = iso_from.upper(), iso_to.upper()
         try:
-            link = self.link % iso_from.upper()
+            link = self.link % iso_from
             soup = self.get_soup(link)
-            rate = soup.select(f"#rate-iso-{iso_to.upper()}")
-            if rate:
-                return {
-                    iso_from: 1,
-                    iso_to: float(
-                        soup.find("input", {"id": f"rate-iso-{iso_to}"})
-                        .get("value")
-                        .strip()
-                        .replace(",", ".")
-                    )
-                }
-            raise ValueError("second iso code is invalid")
+            rate = soup.select_one(f"#rate-iso-{iso_to}")
+            if rate is not None:
+                number = float(rate.get("value").strip().replace(",", "."))
+            else:
+                raise ValueError("second iso code is invalid")
         except Exception as e:    
             if str(e) == "second iso code is invalid":
                 raise ValueError(e)
             else:
-                return get_default_values_from_config(iso_from).get(iso_from)
+                number = get_default_values_from_config(iso_from).get(iso_from)
+        return {iso_from: 1, iso_to: number}
 
     def check_currency_exists(self, currency:str):
         try:
@@ -156,12 +166,19 @@ class FreecurrencyratesParser(CurrencyParser):
 
     def check_delta(self, iso_from:str, iso_to:str, start_value:float=1, percent_delta:float=0.01):
         old, new = start_value, self.get_rate(iso_from, iso_to).get(iso_to)
-        res = self.calculate_difference(None, old, new, percent_delta)
-        del res['currency']
+        res = self.calculate_difference(old, new)
         res['currency_from'] = iso_from
         res['currency_to'] = iso_to
         if abs(res.get('percentage_difference')) < percent_delta:
             del res['new'], res['percentage_difference'], res['difference']
+        return res
+
+    def update_start_value(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def to_string(iso_from, iso_to):
+        rate = self.get_rate(iso_from, iso_to)
+        return f"{iso_from} - {rate.get(iso_to)} {iso_to}"
 
 
 
@@ -185,25 +202,16 @@ class InvestingParser(CurrencyParser):
     def __init__(self, market_product:str, start_value:float=None):
         assert market_product in self.AVAILABLE_PRODUCTS, 'not supported market product - {}'.format(repr(market_product))
         link = "https://m.investing.com/commodities/{}".format(market_product)
-        # link = "https://www.exchangerates.org.uk/commodities/live-oil-prices/BRT-USD.html"
         css_selector = '#siteWrapper > div.wrapper > \
                         section.boxItemInstrument.boxItem > \
                         div.quotesBox > div.quotesBoxTop > span.lastInst'
-        # css_selector = "#value_BRTUSD"
-        super().__init__(link, css_selector, start_value, self.AVAILABLE_PRODUCTS[market_product])
+        super().__init__(
+            link=link, 
+            css_selector=css_selector, 
+            iso=self.AVAILABLE_PRODUCTS[market_product], 
+            start_value=start_value
+        )
 
-    def get_rate(self):
-        try:
-            return super().get_rate()
-        except Exception:
-            return get_default_values_from_config(self.iso).get(self.iso)
-
-    def to_string(self, to_update:bool=True):
-        iso_str = (self.iso or "").replace('-', ' ').title()
-        rate = self.get_rate() if to_update else self.start_value
-        return f"{iso_str} = ${rate}"
-
-    # TODO: override `get_rate` method
 
 
 if __name__ == "__main__":

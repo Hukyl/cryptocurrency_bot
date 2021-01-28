@@ -4,7 +4,7 @@ import threading
 
 from configs import settings
 
-from utils._datetime import check_datetime_in_future
+from utils.dt import check_datetime_in_future
 
 
 
@@ -26,6 +26,7 @@ class TelegramUserDBHandler(object):
         start_value: A value from which to calculate difference
         percent_delta: A percent delta at which to notify
         check_times: Times at which to check (in user's time zone)
+        !!! Checking of rate is by `iso`-USD rate !!!
 
     currency_predictions: predict rate at some date
         id: just an id
@@ -43,7 +44,7 @@ class TelegramUserDBHandler(object):
         reaction: like/dislike (1/0 respectively)
     """
     def __init__(self, db_name:str=None):
-        self.db_name = db_name or 'db.sqlite3'
+        self.db_name = db_name or settings.DB_NAME
         self.setup_db()
 
     def setup_db(self):
@@ -57,7 +58,7 @@ class TelegramUserDBHandler(object):
                     timezone TINYINT DEFAULT 0 CHECK (
                         timezone in (-11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
                     ),
-                    language VARCHAR(2) DEFAULT "en", 
+                    language VARCHAR(2) DEFAULT "en" CHECK (LENGTH(language) = 3 OR LENGTH(language) = 2), 
                     UNIQUE(user_id) ON CONFLICT REPLACE
                 )
             '''
@@ -68,7 +69,7 @@ class TelegramUserDBHandler(object):
                     iso VARCHAR(5),
                     start_value DOUBLE DEFAULT 0,
                     percent_delta REAL DEFAULT 1,
-                    check_times VARCHAR DEFAULT '10:00,15:00,19:00',
+                    check_times VARCHAR,
                     UNIQUE(user_id, iso) ON CONFLICT REPLACE,
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 )
@@ -84,7 +85,6 @@ class TelegramUserDBHandler(object):
                     up_to_date DATETIME,
                     is_by_experts BOOLEAN DEFAULT FALSE,
                     real_value DOUBLE DEFAULT NULL,
-                    UNIQUE(user_id, iso_from, iso_to, up_to_date) ON CONFLICT REPLACE,
                     FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
             '''
@@ -108,7 +108,7 @@ class TelegramUserDBHandler(object):
                 conn.commit()
                 return res
 
-    def add_user(self, user_id, is_active=True, is_pro:bool=False, is_staff:bool=False, timezone:int=0, language:str='en'):
+    def add_user(self, user_id:int, is_active:bool=True, is_pro=False, is_staff:bool=False, timezone:int=0, language:str='en'):
         self.execute_and_commit(
             "INSERT INTO users\
             (user_id, is_active, is_pro, is_staff, timezone, language) \
@@ -126,13 +126,16 @@ class TelegramUserDBHandler(object):
         )
         return True
 
-    def add_user_prediction(self, user_id, iso_from, iso_to, value, up_to_date:datetime, is_by_experts=False):
-        self.execute_and_commit(
-            "INSERT INTO currency_predictions(user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
-            VALUES (?, ?, ?, ?, ?, ?)", 
-            (user_id, iso_from, iso_to, value, up_to_date, is_by_experts)
-        )
-        return True
+    def add_prediction(self, user_id, iso_from:str, iso_to:str, value:float, up_to_date:datetime, is_by_experts=False):
+        if self.check_user_exists(user_id):
+            assert value > 0, 'can\'t create prediction with negative `value`'
+            assert check_datetime_in_future(up_to_date, utcoffset=self.get_user(user_id)[-2]), 'can\'t create prediction with past `up_to_date`'
+            self.execute_and_commit(
+                "INSERT INTO currency_predictions(user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
+                VALUES (?, ?, ?, ?, ?, ?)", 
+                (user_id, iso_from, iso_to, value, str(up_to_date), is_by_experts)
+            )
+            return True
 
     def check_user_exists(self, user_id):
         res = self.execute_and_commit('SELECT user_id FROM users WHERE user_id = ?', (user_id, ))
@@ -222,42 +225,63 @@ class TelegramUserDBHandler(object):
         ]
 
     def get_user_rates(self, user_id):
-        return self.execute_and_commit(
-            'SELECT \
-            users_rates.iso, users_rates.start_value, users_rates.percent_delta, users_rates.check_times \
-            FROM users JOIN users_rates WHERE users.user_id = users_rates.user_id AND users.user_id = ?',
-            (user_id, )
-        )
-
-    def get_actual_predictions(self):
-        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        return self.execute_and_commit(
-            'SELECT * FROM currency_predictions \
-            WHERE ' + current_datetime + ' < up_to_date \
-            ORDER BY up_to_date ASC'
-        )
-
-    def get_user_predictions(self, user_id, if_all:bool=False):
-        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        check_datetime_str = current_datetime + ' < up_to_date and ' if not if_all else ''
-        return self.execute_and_commit(
-            'SELECT * FROM currency_predictions \
-            WHERE ' + check_datetime_str + 'user_id = ? \
-            ORDER BY up_to_date ASC',
-            (user_id, )
-        )
+        return [
+            tuple(list(rate[:-1]) + [rate[-1].split(',')])
+            for rate in self.execute_and_commit(
+                'SELECT \
+                users_rates.iso, users_rates.start_value, users_rates.percent_delta, users_rates.check_times \
+                FROM users JOIN users_rates ON users.user_id = users_rates.user_id AND users.user_id = ?',
+                (user_id, )
+            )
+        ]
 
     def get_prediction(self, pred_id):
         if self.check_prediction_exists(pred_id):
-            return self.execute_and_commit(
-                    'SELECT * FROM currency_predictions WHERE id = ?', 
+            *other_data, up_to_date, is_by_experts, real_value = self.execute_and_commit(
+                    'SELECT \
+                    id, user_id, iso_from, iso_to, value, up_to_date, is_by_experts, real_value \
+                    FROM currency_predictions WHERE id = ?', 
                     (pred_id, )
                 )[0]
+            return [*other_data, datetime.strptime(up_to_date, '%Y-%m-%d %H:%M:%S%z'), is_by_experts, real_value]
+
+    def get_actual_predictions(self):
+        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
+        return [
+            self.get_prediction(data[0])
+            for data in self.execute_and_commit(
+                'SELECT \
+                id \
+                FROM currency_predictions \
+                WHERE %s < datetime(up_to_date) \
+                ORDER BY up_to_date ASC' % current_datetime
+            )
+        ]
+
+    def get_user_predictions(self, user_id, if_all:bool=False):
+        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
+        check_datetime_str = current_datetime + ' < datetime(up_to_date) and ' if not if_all else ''
+        return [
+            self.get_prediction(data[0])
+            for data in self.execute_and_commit(
+                'SELECT \
+                id \
+                FROM currency_predictions \
+                WHERE %s user_id = ? \
+                ORDER BY up_to_date ASC' % check_datetime_str,
+                (user_id, )
+            )
+        ]
 
     def get_random_prediction(self):
-        res = self.execute_and_commit(
-            'SELECT * FROM currency_predictions WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1;'
-        )
+        res = [
+            self.get_prediction(data[0])
+            for data in self.execute_and_commit(
+                'SELECT \
+                id \
+                FROM currency_predictions WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1;'
+            )
+        ]
         return res[0] if res else -1
 
     def get_closest_neighbours_of_prediction(self, pred_id):
@@ -266,17 +290,27 @@ class TelegramUserDBHandler(object):
         :return: dict(previous=X, current=pred_id, next=Y)
         """
         def get_next():
-            res = self.execute_and_commit(
-                    "SELECT * FROM currency_predictions WHERE id > ? AND is_by_experts = FALSE ORDER BY id ASC LIMIT 1",
+            res = [
+                self.get_prediction(data[0])
+                for data in self.execute_and_commit(
+                    "SELECT \
+                    id\
+                    FROM currency_predictions WHERE id > ? AND is_by_experts = FALSE ORDER BY id ASC LIMIT 1",
                     (pred_id,)
                 )
+            ]
             return res[0] if res else None
 
         def get_previous():
-            res = self.execute_and_commit(
-                    "SELECT * FROM currency_predictions WHERE id < ? AND is_by_experts = FALSE ORDER BY id DESC LIMIT 1",
+            res = [
+                self.get_prediction(data[0])
+                for data in self.execute_and_commit(
+                    "SELECT \
+                    id \
+                    FROM currency_predictions WHERE id < ? AND is_by_experts = FALSE ORDER BY id DESC LIMIT 1",
                     (pred_id,)
                 )
+            ]
             return res[0] if res else None
 
         prev = get_previous()
@@ -289,18 +323,29 @@ class TelegramUserDBHandler(object):
 
     def get_experts_predictions(self, if_all:bool=False):
         select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        check_datetime_str = select_datetime + ' < up_to_date and ' if not if_all else ''
-        return self.execute_and_commit(
-                'SELECT * FROM currency_predictions WHERE ' + (
-                    check_datetime_str
-                ) + 'is_by_experts = TRUE ORDER BY up_to_date DESC'
+        check_datetime_str = select_datetime + ' < datetime(up_to_date) and ' if not if_all else ''
+        return [
+            self.get_prediction(data[0])
+            for data in self.execute_and_commit(
+                'SELECT \
+                id \
+                FROM currency_predictions \
+                WHERE %s is_by_experts = TRUE \
+                ORDER BY up_to_date DESC' % check_datetime_str
             )
+        ]
 
     def get_unverified_predictions(self):
         select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        return self.execute_and_commit(
-                'SELECT * FROM currency_predictions WHERE ' + select_datetime + ' > up_to_date AND real_value is NULL'
+        return [
+            self.get_prediction(data[0])
+            for data in self.execute_and_commit(
+                'SELECT \
+                id \
+                FROM currency_predictions \
+                WHERE %s > datetime(up_to_date) AND real_value is NULL' % select_datetime
             )
+        ]
 
     def change_user(self, user_id, **kwargs):
         if self.check_user_exists(user_id):
@@ -310,10 +355,10 @@ class TelegramUserDBHandler(object):
                 try:
                     self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {k} or value {v}')
+                    raise ValueError(f'invalid argument {k} or value {v}') from None
             return True
 
-    def change_user_rates(self, user_id, iso, **kwargs):
+    def change_user_rate(self, user_id, iso, **kwargs):
         if self.check_user_exists(user_id):
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
@@ -324,40 +369,39 @@ class TelegramUserDBHandler(object):
                         (v, user_id, iso)
                     )
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {k} or value {v}')
+                    raise ValueError(f'invalid argument {k} or value {v}') from None
             return True
 
     def delete_user_rate(self, user_id, iso):
-        if self.check_user_exists(user_id):
-            try:
-                self.execute_and_commit(
-                        'DELETE FROM users_rates WHERE user_id = ? AND iso = ?',
-                        (user_id, iso)
-                    )
-            except sqlite3.OperationalError:
-                return False
-            else:
-                return True
+        self.execute_and_commit(
+            'DELETE FROM users_rates WHERE user_id = ? AND iso = ?',
+            (user_id, iso)
+        )
+        return True
 
-    def change_user_prediction(self, pred_id, **kwargs):
-        if self.check_prediction_exists(pred_id):
+    def change_prediction(self, id, **kwargs):
+        if self.check_prediction_exists(id):
+            assert 'user_id' not in kwargs, 'cant\'t change `user_id` of prediction'
             for k, v in kwargs.items():
-                if isinstance(v, datetime):
-                    v = v.strftime('%Y-%m-%d %H:%M:%S%z')
+                if k == 'up_to_date' and isinstance(v, datetime):
+                    assert check_datetime_in_future(v), 'can\'t change `up_to_date` to past datetime'
+                    v = str(v)
+                elif k == 'value' or k == 'real_value':
+                    assert v > 0, 'can\'t change `value` to negative'
                 try:
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
-                        (v, pred_id,)
+                        (v, id,)
                     )
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument `{k}` or value `{v}`')
+                    raise ValueError(f'invalid argument `{k}` or value `{v}`') from None
             return True
 
-    def delete_user_prediction(self, pred_id):
+    def delete_prediction(self, pred_id):
         self.execute_and_commit(
-                'DELETE FROM currency_predictions WHERE id = ?',
-                (pred_id, )
-            )
+            'DELETE FROM currency_predictions WHERE id = ?',
+            (pred_id, )
+        )
         return True
 
     def toggle_prediction_reaction(self, pred_id, user_id, if_like=True):
@@ -403,7 +447,6 @@ class TelegramUserDBHandler(object):
                 )[0][0]
 
     def get_max_liked_predictions_ids(self):
-        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = currency_predictions.user_id) || ' hours' )"
         return self.execute_and_commit('''
                 SELECT DISTINCT currency_predictions.id 
                 FROM currency_predictions JOIN predictions_reactions

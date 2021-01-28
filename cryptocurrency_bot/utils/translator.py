@@ -242,9 +242,9 @@ translation_dict = {
         'en': 'Toggle alarms', 
         'ru': 'Включить/выключить оповещения'
     },
-    'View info': {
-        'en': 'View info', 
-        'ru': 'Посмотреть информацию'
+    'Your info': {
+        'en': 'Your info', 
+        'ru': 'Ваша информацию'
     },
     'View predictions': {
         'en': 'View predictions', 

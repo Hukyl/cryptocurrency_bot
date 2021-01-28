@@ -1,6 +1,7 @@
 import os
-
-os.system('del db.sqlite3')
+import sys
+import sqlite3
+import unittest
 
 import main_bot
 import main
@@ -8,170 +9,175 @@ import models
 import configs
 import utils
 
-#################### WARNING: DELETE DB BEFORE TESTING ############################
-
-# utils/__init__.py
-assert utils.merge_dicts({'1': 1, '2':2, '3':3}, {'2':4}) == {'1': 1, '2':4, '3':3}, 'wrong merging in merge_dicts'
-assert utils.merge_dicts({'1': 1}) == {'1':1}, 'wrong merging for one dict in merge_dicts'
-try:
-    utils.merge_dicts()
-except AssertionError:
-    pass
-else:
-    assert False, 'merge_dicts works with no dictionaries'
-
-assert utils.prettify_utcoffset(3) == 'UTC+0300', 'wrong normalizing utcoffset'
-assert utils.prettify_utcoffset(0) == 'UTC', 'wrong normalizing utcoffset'
-assert utils.prettify_utcoffset(-11) == 'UTC-1100', 'wrong normalizing utcoffset'
-try:
-    utils.prettify_utcoffset(-15)
-    utils.prettify_utcoffset(18)
-except AssertionError:
-    pass
-else:
-    assert False, 'prettify_utcoffset works with invalid parameters'
-
-assert isinstance(utils.get_json_config(), dict), 'can\'t get json config'
-
-assert all(
-    x != 1 
-    for x in utils.get_default_values_from_config(*configs.settings.CURRENCIES).values()
-), 'can\'t get default values for currencies that ARE present in config'
-assert all(
-    x == 1 
-    for x in utils.get_default_values_from_config('UAH', 'RUB', 'EUR').values()
-), 'doesn\'t get default values for currencies that ARE NOT present in config'
-
-assert utils.prettify_float(1.123456) == 1.123, 'wrong prettify_float'
-assert utils.prettify_float(0.1234567) == 0.123457, 'wrong prettify_float'
-
-assert utils.prettify_percent(0.15) == '15%'
-assert utils.prettify_percent(0.155) == '15.5%'
-assert utils.prettify_percent(0.001) == '0.1%'
-
-print('Passed utils/__init__.py tests')
-
-# utils/translator.py
-assert utils.translator.translate('Back', 'ru') == 'Назад' # written
-assert utils.translator.translate('Path', 'ru') == 'Путь' # api
-
-print('Passed utils/translator.py tests')
-
-# models/_parser.py
-assert models._parser.CurrencyParser.calculate_difference( 
-        old=55, new=54.85
-    ).get('percentage_difference') == -0.002727
-
-print('Passed models/_parser.py tests')
 
 
-# models/user.py
-user = models.user.DBUser(0)
-assert len(user.rates) == len(configs.settings.CURRENCIES)
-assert sorted(user.get_currencies_by_check_time(configs.settings.DEFAULT_CHECK_TIMES[0])) == sorted(configs.settings.CURRENCIES)
-user.update(language='oops')
-assert user.language == 'oops'
-assert user.db.get_user(user.user_id)[-1] == 'oops'
+class DBTestCase(unittest.TestCase):
+    def setUp(self):
+        self.db = models.db.TelegramUserDBHandler(configs.settings.DB_NAME)
 
-user.update(is_active=True)
+    def tearDown(self):
+        os.remove(configs.settings.DB_NAME)
 
-user.create_prediction(
-    utils._datetime.get_current_datetime().replace(hour=23, minute=59, second=59),
-    'BRENT', 
-    'USD',
-    50
-)
-try:
-    user.create_prediction(
-        utils._datetime.get_current_datetime().replace(hour=0, minute=0),
-        'BRENT', 
-        'USD',
-        50
-    )
-except AssertionError:
-    pass
-else:
-    assert False
+    def test_add_user(self):
+        self.assertFalse(self.db.check_user_exists(0))
+        self.db.add_user(0)
+        self.assertTrue(self.db.check_user_exists(0))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.add_user(-1, timezone=20) # timezone not in range(-11, 13)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.add_user(-1, timezone=-14)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.add_user(-1, language='English') # 'en', 'ru', 'ua' etc.
+        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
+        self.assertEqual(id, 1)
+        self.assertEqual(user_id, 0)
+        self.assertEqual(is_pro, 0)
+        self.assertEqual(is_active, 1)
+        self.assertEqual(is_staff, 0)
+        self.assertEqual(timezone, 0)
+        self.assertEqual(language, 'en')
 
-predictions = list(user.get_predictions(if_all=True))
-assert len(predictions) == 1
-pred = predictions[0]
+    def test_change_user(self):
+        self.db.add_user(1)
+        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        self.assertEqual(is_active, 1)
+        self.assertEqual(language, 'en')
+        self.db.change_user(1, language='ru', is_active=False)
+        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        self.assertEqual(is_active, 0)
+        self.assertEqual(language, 'ru')
+        with self.assertRaises(ValueError):
+            self.db.change_user(1, ababagalamaga='1212302')
 
-user.update_rates(
-    configs.settings.CURRENCIES[0], 
-    check_times=['00:01', '00:02', '00:03']
-)
-assert user.rates[configs.settings.CURRENCIES[0]]['check_times'] == ['00:01', '00:02', '00:03']
-assert len(
-        [
-            rate 
-            for rate in user.db.get_user(user.user_id)[-3] 
-            if rate[-1].split(',') == ['00:01', '00:02', '00:03']
-        ]
-    ) == 1
-user.add_rate('UAH')
-assert len(user.rates) == len(configs.settings.CURRENCIES) + 1
-assert len(user.db.get_user(user.user_id)[-3]) == len(configs.settings.CURRENCIES) + 1
-assert list(user.db.get_users_by_check_time('00:01'))[0][1] == user.user_id
+    def test_add_user_rate(self):
+        self.db.add_user(2)
+        self.db.add_user_rate(2, 'BRENT', 55.0)
+        rates = self.db.get_user_rates(2)
+        self.assertEqual(len(rates), 1)
+        self.assertEqual(len(rates[0]), 4)
+        iso, start_value, percent_delta, check_times = rates[0]
+        self.assertEqual(iso, 'BRENT')
+        self.assertEqual(start_value, 55.0)
+        self.assertEqual(percent_delta, 0.01)
+        self.assertEqual(check_times, configs.settings.DEFAULT_CHECK_TIMES)
 
-user.init_premium(
-    utils._datetime.get_current_datetime().replace(hour=23, minute=59, second=59)
-)
-assert user.is_pro != None
-assert len(list(user.db.get_pro_users())) == 1
+    def test_change_user_rate(self):
+        self.db.add_user(0)
+        self.db.add_user_rate(0, 'BRENT', 55.0)
+        self.db.change_user_rate(0, 'BRENT', start_value=52, percent_delta=0.08)
+        iso, start_value, percent_delta, check_times = self.db.get_user_rates(0)[0]
+        self.assertEqual(start_value, 52.0)
+        self.assertEqual(percent_delta, 0.08)
+        with self.assertRaises(ValueError):
+            self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
+        self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) # not user is found, so returns None
 
-user.delete_premium()
-assert user.is_pro == None
-assert len(list(user.db.get_pro_users())) == 0
+    def test_delete_user_rate(self):
+        self.db.add_user(0)
+        self.db.add_user_rate(0, 'BRENT', 55.0)
+        self.assertTrue(self.db.delete_user_rate(0, 'BRENT')) # deletion succeded, so returns True
+        rates = self.db.get_user_rates(0)
+        self.assertEqual(rates, [])
 
-user.init_staff()
-assert user.is_pro != None and user.is_staff == True
-assert len(list(user.db.get_pro_users())) == 1
-assert len(list(user.db.get_users_by_check_time(configs.settings.CHECK_TIMES[-1]))) == 1
+    def test_add_user_prediction(self):
+        self.db.add_user(0)
+        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
+        self.assertFalse(self.db.check_prediction_exists(1))
+        self.assertTrue(
+            self.db.add_prediction(
+                user_id, 
+                'BRENT', 
+                'USD', 
+                55, 
+                utils.dt.get_current_datetime(utcoffset=2).replace(year=2120)
+            )
+        )
+        self.assertTrue(self.db.check_prediction_exists(1))
+        self.assertIsNone(
+            self.db.add_prediction(
+                -1, 
+                'BRENT', 
+                'USD', 
+                55, 
+                utils.dt.get_current_datetime(utcoffset=2).replace(year=2120)
+            )
+        )
+        with self.assertRaises(AssertionError):
+            self.db.add_prediction(user_id, 'BRENT', 'USD', -55, utils.dt.get_current_datetime().replace(year=2120))
+        with self.assertRaises(AssertionError):
+            self.db.add_prediction(user_id, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(hour=0))
+        pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(1)
+        self.assertEqual(pid, 1)
+        self.assertEqual(puser_id, user_id)
+        self.assertEqual(piso_from, 'BRENT')
+        self.assertEqual(piso_to, 'USD')
+        self.assertEqual(pvalue, 55.0)
+        self.assertTrue(utils.dt.check_datetime_in_future(pup_to_date, utcoffset=timezone))
+        self.assertIsNone(preal_value)
 
-user.delete_staff()
-assert user.is_pro == None and user.is_staff == False
-assert len(list(user.db.get_pro_users())) == 0
-assert len(list(user.db.get_users_by_check_time(configs.settings.CHECK_TIMES[-1]))) == 0
+    def test_change_user_prediction(self):
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'BRENT', 'USD', 55, utils.dt.get_current_datetime(utcoffset=2).replace(year=2120))
+        pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(1)
+        self.assertEqual(pvalue, 55.0)
+        self.assertFalse(pis_by_experts)
+        self.db.change_prediction(pid, value=59.5, is_by_experts=True)
+        pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(pid)
+        self.assertEqual(pvalue, 59.5)
+        self.assertTrue(pis_by_experts)
+        with self.assertRaises(AssertionError):
+            self.db.change_prediction(pid, user_id=-1)
+        with self.assertRaises(AssertionError):
+            self.db.change_prediction(pid, value=-55)
+        with self.assertRaises(AssertionError):
+            self.db.change_prediction(pid, up_to_date=utils.dt.get_current_datetime().replace(hour=0))
 
-pred.toggle_like(0, True)
-assert pred.likes == 1
+    def test_check_actual_predictions(self):
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(len(self.db.get_actual_predictions()), 1)
+
+    def test_check_experts_predictions(self):
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        self.db.change_prediction(1, is_by_experts=True)
+        self.assertEqual(len(self.db.get_experts_predictions()), 1)
+        self.db.change_prediction(1, is_by_experts=False)
+        self.assertEqual(len(self.db.get_experts_predictions()), 0)
+
+    def test_check_prediction_neighbours(self):
+        user_id = 0
+        prev_pred = None
+        curr_pred = 1
+        next_pred = None
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        self.assertDictEqual(
+            self.db.get_closest_neighbours_of_prediction(curr_pred), 
+            {'previous': prev_pred, 'current': curr_pred, 'next': next_pred}
+        )
+        self.db.add_prediction(user_id, 'UAH', 'USD', 0.036, utils.dt.get_current_datetime().replace(year=2120))
+        self.db.add_prediction(user_id, 'BRENT', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        prev_pred, curr_pred, next_pred = 1, 2, 3
+        self.assertDictEqual(
+            self.db.get_closest_neighbours_of_prediction(curr_pred), 
+            {'previous': prev_pred, 'current': curr_pred, 'next': next_pred}
+        )
+
+    def test_check_random_prediction(self):
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(self.db.get_random_prediction()[0], 1)
+
+    def test_delete_user_prediction(self):
+        self.db.add_user(0)
+        self.assertFalse(self.db.check_prediction_exists(1))
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        self.assertTrue(self.db.check_prediction_exists(1))
+        self.db.delete_prediction(1)
+        self.assertFalse(self.db.check_prediction_exists(1))
 
 
-pred.toggle_like(0, False)
-assert pred.likes == 0 and pred.dislikes == 1
-assert pred.db.get_number_likes(pred.id) == 0 and pred.db.get_number_dislikes(pred.id) == 1
 
-assert pred.is_actual
-
-pred.update(
-    up_to_date=utils._datetime.get_current_datetime().replace(
-        hour=0, 
-        minute=0, 
-        second=0
-    )
-)
-assert len(list(models.user.DBCurrencyPrediction.get_unverified_predictions())) == 1
-
-assert models.user.DBCurrencyPrediction.get_all_prediction_number() == 1
-
-assert models.user.DBCurrencyPrediction.get_random_prediction() == pred.id
-
-assert not pred.is_actual
-
-assert pred.real_value == None
-assert pred.db.get_prediction(pred.id)[-1] == None
-pred.update(real_value=51)
-assert pred.real_value == 51
-assert pred.db.get_prediction(pred.id)[-1] == 51
-
-
-pred.update(is_by_experts=True)
-assert len(list(pred.get_experts_predictions(True))) == 1
-assert len(list(models.user.DBCurrencyPrediction.get_experts_predictions(True))) == 1
-
-pred.delete()
-
-assert len(list(user.get_predictions(if_all=True))) == 0
-
-print('Passed models/user.py tests')
+if __name__ == '__main__':
+    unittest.main()
