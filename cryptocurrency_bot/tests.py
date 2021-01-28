@@ -2,6 +2,8 @@ import os
 import sys
 import sqlite3
 import unittest
+import time
+import datetime as dt
 
 import main_bot
 import main
@@ -13,7 +15,7 @@ import utils
 
 class DBTestCase(unittest.TestCase):
     def setUp(self):
-        self.db = models.db.TelegramUserDBHandler(configs.settings.DB_NAME)
+        self.db = models.db.DBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
         os.remove(configs.settings.DB_NAME)
@@ -134,8 +136,19 @@ class DBTestCase(unittest.TestCase):
 
     def test_check_actual_predictions(self):
         self.db.add_user(0)
-        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_actual_predictions()), 1)
+        time.sleep(1)
+        self.assertEqual(len(self.db.get_actual_predictions()), 0)
+
+    def test_check_unverified_predictions(self):
+        self.db.add_user(0)
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
+        self.assertEqual(len(self.db.get_unverified_predictions()), 0)
+        time.sleep(1.5)
+        self.assertEqual(len(self.db.get_unverified_predictions()), 1)        
 
     def test_check_experts_predictions(self):
         self.db.add_user(0)

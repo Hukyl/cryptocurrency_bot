@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from .db import TelegramUserDBHandler
+from .db import DBHandler
 from configs import settings
 from utils import get_json_config, prettify_percent
 from utils.dt import (
@@ -78,7 +78,7 @@ class User(object):
 
 
 class DBUser(User):
-    db = TelegramUserDBHandler(settings.DB_NAME)
+    db = DBHandler(settings.DB_NAME)
 
     def __init__(self, user_id):
         self.init_user(user_id)
@@ -90,6 +90,10 @@ class DBUser(User):
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
+
+    @property
+    def predictions(self):
+        return list(self.get_predictions())
 
     def get_predictions(self, if_all:bool=False):
         for pred_data in self.db.get_user_predictions(self.user_id, if_all):
@@ -169,7 +173,7 @@ class DBUser(User):
 
 
 class DBCurrencyPrediction(object):
-    db = TelegramUserDBHandler(settings.DB_NAME)
+    db = DBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
         self.id, self.user_id, self.iso_from, self.iso_to, self.value, self.up_to_date, self.is_by_experts, self.real_value = self.db.get_prediction(pred_id)

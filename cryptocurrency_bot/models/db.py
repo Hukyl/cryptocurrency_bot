@@ -8,7 +8,7 @@ from utils.dt import check_datetime_in_future
 
 
 
-class TelegramUserDBHandler(object):
+class DBHandler(object):
     """
     DB Format:
 
@@ -246,21 +246,19 @@ class TelegramUserDBHandler(object):
             return [*other_data, datetime.strptime(up_to_date, '%Y-%m-%d %H:%M:%S%z'), is_by_experts, real_value]
 
     def get_actual_predictions(self):
-        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
-                WHERE %s < datetime(up_to_date) \
-                ORDER BY up_to_date ASC' % current_datetime
+                WHERE datetime("now") < datetime(up_to_date) \
+                ORDER BY up_to_date ASC'
             )
         ]
 
     def get_user_predictions(self, user_id, if_all:bool=False):
-        current_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        check_datetime_str = current_datetime + ' < datetime(up_to_date) and ' if not if_all else ''
+        check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
@@ -322,8 +320,7 @@ class TelegramUserDBHandler(object):
         }
 
     def get_experts_predictions(self, if_all:bool=False):
-        select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
-        check_datetime_str = select_datetime + ' < datetime(up_to_date) and ' if not if_all else ''
+        check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
@@ -336,14 +333,13 @@ class TelegramUserDBHandler(object):
         ]
 
     def get_unverified_predictions(self):
-        select_datetime = "datetime('now', (SELECT timezone FROM users WHERE user_id = user_id) || ' hours' )"
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
-                WHERE %s > datetime(up_to_date) AND real_value is NULL' % select_datetime
+                WHERE datetime("now") > datetime(up_to_date) AND real_value is NULL'
             )
         ]
 
@@ -450,10 +446,7 @@ class TelegramUserDBHandler(object):
         return self.execute_and_commit('''
                 SELECT DISTINCT currency_predictions.id 
                 FROM currency_predictions JOIN predictions_reactions
-                WHERE currency_predictions.id = predictions_reactions.pred_id AND datetime(currency_predictions.up_to_date) > datetime('now', (
-                        SELECT timezone
-                        FROM users WHERE user_id = currency_predictions.user_id
-                    ) || ' hours' ) # select datetime according to user's timezone
+                WHERE currency_predictions.id = predictions_reactions.pred_id AND datetime(currency_predictions.up_to_date) > datetime('now')
                 ORDER BY
                 (
                     SELECT COUNT(reaction) 
@@ -468,4 +461,4 @@ class TelegramUserDBHandler(object):
 
 
 if __name__ == '__main__':
-    db = TelegramUserDBHandler()
+    db = DBHandler()
