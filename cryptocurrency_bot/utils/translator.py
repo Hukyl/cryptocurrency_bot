@@ -166,6 +166,10 @@ translation_dict = {
         'en': 'Other predictions', 
         'ru': 'Другие прогнозы'
     },
+    'Participate in the assessment': {
+        'en': 'Participate in the assessment',
+        'ru': 'Учавствовать в оценивании'
+    },
     'Prediction {} was deleted': {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'

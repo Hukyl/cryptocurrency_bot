@@ -7,7 +7,6 @@ import time
 import telebot
 from telebot.types import LabeledPrice
 
-
 from configs import settings, MAIN_TOKEN, TECHSUPPORT_TOKEN
 from models.parsers import *
 from models.user import DBUser, DBCurrencyPrediction
@@ -106,7 +105,7 @@ def start_message(msg):
 def start_bot(msg, to_show_commands:bool=True):
     user = DBUser(msg.chat.id)
     buttons = [
-        _('Quotes', user.language), # "quotes"
+        _('Quotes', user.language),
         _('Notifications', user.language),
         _('Subscription', user.language),
         _('Language', user.language),
@@ -383,24 +382,24 @@ def see_users_currency_predicitions(msg):
                 _(experts_str.replace('\n', ';'), user.language, parse_mode='newline'),
             )
 
-        # predictions_str = 'Most liked predictions are:'
-        # i = iter(DBCurrencyPrediction.get_most_liked_predictions())
-        # for _n in range(5):
-        #     try:
-        #         pred = next(i)
-        #     except StopIteration:
-        #         break
-        #     predictions_str += f'\n\n{str(pred)}'
-        # if predictions_str.endswith(':'):
-        #     predictions_str += ' none'
-        # bot.send_message(
-        #     msg.chat.id, 
-        #     _(
-        #         predictions_str.replace('\n', ';'),
-        #         user.language,
-        #         
-        #     ),
-        # )
+        predictions_str = 'Most liked predictions are:'
+        i = iter(DBCurrencyPrediction.get_most_liked_predictions())
+        for _n in range(5):
+            try:
+                pred = next(i)
+            except StopIteration:
+                break
+            predictions_str += f'\n\n{str(pred)}'
+        if predictions_str.endswith(':'):
+            predictions_str += ' none'
+        bot.send_message(
+            msg.chat.id, 
+            _(
+                predictions_str.replace('\n', ';'),
+                user.language,
+                
+            ),
+        )
         return see_users_currency_predicitions(msg)
 
     def like_system(msg):
@@ -445,7 +444,7 @@ def see_users_currency_predicitions(msg):
     buttons = {
         _('My predictions', user.language): see_self_predictions,
         _('Other predictions', user.language): see_other_users_predictions, 
-        # _('Учавствовать в оценивании', user.language): like_system,
+        _('Participate in the assessment', user.language): like_system,
         _('Main menu', user.language): start_bot
     }
     bot.send_message(

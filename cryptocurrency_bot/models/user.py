@@ -17,7 +17,6 @@ class User(object):
     """
     User base class
 
-    id:int: - id
     user_id:int: - user's id in Telegram
     is_pro:None or datetime.datetime: - has user bought the subscription
     is_active:bool: - if to send the notifications
@@ -31,8 +30,7 @@ class User(object):
     language:str: - user's language
     """
 
-    def __init__(self, id, user_id, is_pro, is_active, is_staff, rates, timezone, language):
-        self.id = id
+    def __init__(self, user_id, is_pro, is_active, is_staff, rates, timezone, language):
         self.user_id = user_id
         self.is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if is_pro else is_pro
         self.is_active = is_active
@@ -224,8 +222,8 @@ class DBCurrencyPrediction(object):
 
     @classmethod
     def get_most_liked_predictions(cls):
-        for pred_data in cls.db.get_max_liked_predictions_ids():
-            yield cls(pred_data[0]) # id
+        for pred_data in cls.db.get_max_liked_predictions():
+            yield cls(pred_data[0])
 
     @classmethod
     def get_unverified_predictions(cls):

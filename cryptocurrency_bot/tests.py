@@ -27,11 +27,10 @@ class DBTestCase(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.db.add_user(-1, timezone=20) # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, timezone=-14)
+            self.db.add_user(-1, timezone=-14) # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, language='English') # 'en', 'ru', 'ua' etc.
-        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
-        self.assertEqual(id, 1)
+            self.db.add_user(-1, language='English') # should be 'en', 'ru', 'ua' etc.
+        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
         self.assertEqual(user_id, 0)
         self.assertEqual(is_pro, 0)
         self.assertEqual(is_active, 1)
@@ -41,11 +40,11 @@ class DBTestCase(unittest.TestCase):
 
     def test_change_user(self):
         self.db.add_user(1)
-        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 1)
         self.assertEqual(language, 'en')
         self.db.change_user(1, language='ru', is_active=False)
-        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 0)
         self.assertEqual(language, 'ru')
         with self.assertRaises(ValueError):
@@ -83,7 +82,7 @@ class DBTestCase(unittest.TestCase):
 
     def test_add_user_prediction(self):
         self.db.add_user(0)
-        id, user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
         self.assertFalse(self.db.check_prediction_exists(1))
         self.assertTrue(
             self.db.add_prediction(
@@ -134,23 +133,23 @@ class DBTestCase(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.db.change_prediction(pid, up_to_date=utils.dt.get_current_datetime().replace(hour=0))
 
-    def test_check_actual_predictions(self):
+    def test_get_actual_predictions(self):
         self.db.add_user(0)
         d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_actual_predictions()), 1)
-        time.sleep(1)
+        time.sleep(2)
         self.assertEqual(len(self.db.get_actual_predictions()), 0)
 
-    def test_check_unverified_predictions(self):
+    def test_get_unverified_predictions(self):
         self.db.add_user(0)
         d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_unverified_predictions()), 0)
-        time.sleep(1.5)
+        time.sleep(2)
         self.assertEqual(len(self.db.get_unverified_predictions()), 1)        
 
-    def test_check_experts_predictions(self):
+    def test_get_experts_predictions(self):
         self.db.add_user(0)
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
         self.db.change_prediction(1, is_by_experts=True)
@@ -158,7 +157,7 @@ class DBTestCase(unittest.TestCase):
         self.db.change_prediction(1, is_by_experts=False)
         self.assertEqual(len(self.db.get_experts_predictions()), 0)
 
-    def test_check_prediction_neighbours(self):
+    def test_get_prediction_neighbours(self):
         user_id = 0
         prev_pred = None
         curr_pred = 1
@@ -177,7 +176,7 @@ class DBTestCase(unittest.TestCase):
             {'previous': prev_pred, 'current': curr_pred, 'next': next_pred}
         )
 
-    def test_check_random_prediction(self):
+    def test_get_random_prediction(self):
         self.db.add_user(0)
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
         self.assertEqual(self.db.get_random_prediction()[0], 1)
@@ -189,6 +188,34 @@ class DBTestCase(unittest.TestCase):
         self.assertTrue(self.db.check_prediction_exists(1))
         self.db.delete_prediction(1)
         self.assertFalse(self.db.check_prediction_exists(1))
+
+    def test_get_users_by_check_time(self):
+        self.db.add_user(0) # user's timezone is UTC
+        self.db.add_user_rate(0, 'BRENT', 55.0, check_times=['00:01', '15:10', '18:05'])
+        self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 1)
+        self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 0)
+        self.db.change_user(0, timezone=+2) # user's timezone is UTC+02:00
+        self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 0)
+        self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 1)
+
+    def test_predictions_reactions(self):
+        self.db.add_user(0)
+        self.db.add_prediction(0, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2120))
+        user1 = 0
+        pred1 = 1
+        self.assertEqual(self.db.get_number_likes(pred1), 0)
+        self.assertEqual(self.db.get_number_dislikes(pred1), 0)
+        self.db.toggle_prediction_reaction(pred1, user1, if_like=True)
+        self.assertEqual(self.db.get_number_likes(pred1), 1)
+        self.assertEqual(self.db.get_number_dislikes(pred1), 0)
+        self.db.toggle_prediction_reaction(pred1, user1, if_like=False)
+        self.assertEqual(self.db.get_number_likes(pred1), 0)
+        self.assertEqual(self.db.get_number_dislikes(pred1), 1)
+        self.db.add_prediction(0, 'RUB', 'USD', 0.007, utils.dt.get_current_datetime().replace(year=2120))
+        pred2 = 2
+        self.db.toggle_prediction_reaction(pred2, user1, if_like=True)
+        self.assertEqual([x[0] for x in self.db.get_max_liked_predictions()], [2, 1])
+
 
 
 
