@@ -30,7 +30,7 @@ class DBTestCase(unittest.TestCase):
             self.db.add_user(-1, timezone=-14) # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
             self.db.add_user(-1, language='English') # should be 'en', 'ru', 'ua' etc.
-        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
         self.assertEqual(user_id, 0)
         self.assertEqual(is_pro, 0)
         self.assertEqual(is_active, 1)
@@ -40,11 +40,11 @@ class DBTestCase(unittest.TestCase):
 
     def test_change_user(self):
         self.db.add_user(1)
-        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 1)
         self.assertEqual(language, 'en')
         self.db.change_user(1, language='ru', is_active=False)
-        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 0)
         self.assertEqual(language, 'ru')
         with self.assertRaises(ValueError):
@@ -82,7 +82,7 @@ class DBTestCase(unittest.TestCase):
 
     def test_add_user_prediction(self):
         self.db.add_user(0)
-        user_id, is_pro, is_active, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
         self.assertFalse(self.db.check_prediction_exists(1))
         self.assertTrue(
             self.db.add_prediction(

@@ -30,17 +30,17 @@ class User(object):
     language:str: - user's language
     """
 
-    def __init__(self, user_id, is_pro, is_active, is_staff, rates, timezone, language):
+    def __init__(self, user_id:int, is_active:bool, is_pro, is_staff:bool, rates:list, timezone:int, language:str):
         self.user_id = user_id
-        self.is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if is_pro else is_pro
         self.is_active = is_active
+        self.is_pro = is_pro
         self.is_staff = is_staff
         self.rates = self.normalize_rates(rates)
         self.timezone = timezone
         self.language = language
 
     @staticmethod
-    def normalize_rates(rates):
+    def normalize_rates(rates:list):
         return {
             rate[0]: {                                  # iso code
                 'check_times': rate[-1],                # check_times
@@ -51,7 +51,7 @@ class User(object):
         }
 
     @staticmethod
-    def prettify_rates(rates):
+    def prettify_rates(rates:list):
         total_str = ''
         for idx, pair in enumerate(rates.items(), start=1):
             k, v = pair
@@ -66,12 +66,10 @@ class User(object):
                 )
         return total_str
 
-    def get_currencies_by_check_time(self, check_time):
-        return {
-            k: v 
-            for k, v in self.rates.items() 
-            if check_time in v.get('check_times')
-        }
+    def __iter__(self):
+        # also implements list(User), because __iter__ is used by list()
+        for i in [self.user_id, self.is_active, self.is_pro, self.is_staff, self.rates, self.timezone, self.language]:
+            yield i
 
 
 
@@ -88,6 +86,13 @@ class DBUser(User):
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
+
+    def get_currencies_by_check_time(self, check_time:str):
+        return {
+            k: v 
+            for k, v in self.rates.items() 
+            if check_time in v.get('check_times')
+        }
 
     @property
     def predictions(self):

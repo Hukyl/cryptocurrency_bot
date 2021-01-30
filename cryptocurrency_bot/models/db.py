@@ -51,8 +51,8 @@ class DBHandler(object):
         self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS users( 
                     user_id INTEGER NOT NULL,
-                    is_pro DATETIME DEFAULT NULL, 
                     is_active BOOLEAN DEFAULT 0,
+                    is_pro DATETIME DEFAULT NULL, 
                     is_staff BOOLEAN DEFAULT 0,
                     timezone TINYINT DEFAULT 0 CHECK (
                         timezone in (-11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
@@ -180,11 +180,12 @@ class DBHandler(object):
 
     def get_user(self, user_id):
         if self.check_user_exists(user_id):
-            user_id, is_pro, is_active, is_staff, timezone, language = list(
+            user_id, is_active, is_pro, is_staff, timezone, language = list(
                 self.execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
             )
             rates = self.get_user_rates(user_id)
-            return [user_id, is_pro, is_active, is_staff, rates, timezone, language]
+            is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if isinstance(is_pro, str) and is_pro is not None else is_pro
+            return [user_id, is_active, is_pro, is_staff, rates, timezone, language]
         return []
 
     def get_all_users(self):
