@@ -25,13 +25,8 @@ def prettify_utcoffset(utcoffset:int=0):
 
 
 def get_json_config():
-    return json.load(
-        open(
-            os.path.join('configs', 'config.json'), 
-            'r',
-            encoding='utf-8'
-        )
-    )
+    with open(os.path.join('configs', 'config.json'), 'r', encoding='utf-8') as f:
+        return json.load(f)
     
 
 def get_default_values_from_config(*args):

@@ -13,13 +13,16 @@ import utils
 
 
 
-class DBTestCase(unittest.TestCase):
+class BasicTestCase(unittest.TestCase):
     def setUp(self):
         self.db = models.db.DBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
-        os.remove(configs.settings.DB_NAME)
+        os.remove(configs.settings.DB_NAME)    
 
+
+
+class DBTestCase(BasicTestCase):
     def test_add_user(self):
         self.assertFalse(self.db.check_user_exists(0))
         self.db.add_user(0)
@@ -216,6 +219,98 @@ class DBTestCase(unittest.TestCase):
         self.db.toggle_prediction_reaction(pred2, user1, if_like=True)
         self.assertEqual([x[0] for x in self.db.get_max_liked_predictions()], [2, 1])
 
+
+
+class UserModelTestCase(BasicTestCase):
+    def test_add_user(self):
+        self.db.add_user(0, timezone=+2, language='ru', is_staff=True)
+        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['9:00', '18:00', '11:12']) 
+        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['7:00', '9:00', '10:30']) 
+        user = models.user.User(*self.db.get_user(0))
+        self.assertDictEqual(
+            user.rates, 
+            {
+                'BRENT': {
+                    'check_times': ['9:00', '18:00', '11:12'], 
+                    'percent_delta': 0.2,
+                    'start_value': 56.3
+                },
+                'BTC': {
+                    'check_times': ['7:00', '9:00', '10:30'], 
+                    'percent_delta': 0.01,
+                    'start_value': 31000 
+                }
+            }
+        )   
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 2, 'ru'])
+
+    def test_add_dbuser(self):
+        user = models.user.DBUser(0)
+        self.assertDictEqual(
+            user.rates, 
+            {
+                'BRENT': {
+                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
+                    'percent_delta': 0.01,
+                    'start_value': 55.0
+                },
+                'RTS': {
+                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
+                    'percent_delta': 0.01,
+                    'start_value': 145.0 
+                },
+                'BTC': {
+                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
+                    'percent_delta': 0.01,
+                    'start_value': 31000.0 
+                }
+            }
+        )
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 0, 'en'])
+
+    def test_change_dbuser(self):
+        user = models.user.DBUser(0)
+        self.assertEqual(self.db.get_user(0)[-2], 0) # timezone
+        self.assertEqual(user.timezone, 0)
+        user.update(timezone=+2)
+        self.assertEqual(self.db.get_user(0)[-2], 2) # timezone
+        self.assertEqual(user.timezone, 2)
+        with self.assertRaises(ValueError):
+            user.update(ababgalgamaga=123)
+        with self.assertRaises(ValueError):
+            user.update(timezone=+20)
+
+    def test_change_dbuser_rates(self):
+        user = models.user.DBUser(0)
+        self.assertListEqual(user.rates.get('BRENT').get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
+        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
+        self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['9:00', '10:00', '11:00'])
+        self.assertEqual(user.rates.get('BRENT').get('start_value'), 55)
+        user.update_rates('BRENT', start_value=58.2)
+        self.assertEqual(user.rates.get('BRENT').get('start_value'), 58.2)
+        self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.01)
+        user.update_rates('BRENT', percent_delta=0.2)
+        self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.2)
+        with self.assertRaises(ValueError):
+            user.update_rates('BRENT', ababgalamaga=123123123)
+        with self.assertRaises(AssertionError):
+            user.update_rates('BRENT', start_value='abcdef')
+
+    def test_premium_dbuser(self):
+        ...
+
+    def test_staff_dbuser(self):
+        ...
+
+
+# class PredictionModelTestCase(BasicTestCase)
+#     def test_add_dbprediction(self):
+#         user = DBUser(0)
+#         user.create_prediction('BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2120))
+#         pred = user.predictions[0]
+#         self.assertEqual(pred.iso_from, 'BRENT')
+#         self.assertEqual(pred.iso_to, 'USD')
+#         self.assertEqual(pred.)
 
 
 

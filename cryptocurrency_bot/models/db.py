@@ -118,6 +118,7 @@ class DBHandler(object):
 
     def add_user_rate(self, user_id, iso, start_value=1, percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES):
         check_times = ','.join(check_times)
+        assert start_value > 0, 'can\'t set negative start_value'
         self.execute_and_commit(
             "INSERT INTO users_rates \
             VALUES (?, ?, ?, ?, ?)", 
@@ -345,7 +346,9 @@ class DBHandler(object):
                 try:
                     self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {k} or value {v}') from None
+                    raise ValueError(f'invalid argument {repr(k)}') from None
+                except sqlite3.IntegrityError:
+                    raise ValueError(f"invalid value {repr(v)}") from None
             return True
 
     def change_user_rate(self, user_id, iso, **kwargs):
@@ -353,13 +356,17 @@ class DBHandler(object):
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
                     v = ','.join(v)
+                if k == 'start_value': 
+                    assert (isinstance(v, int) or isinstance(v, float)) and v > 0, 'can\'t change start_value to negative'
                 try:
                     self.execute_and_commit(
                         'UPDATE users_rates SET %s = ? WHERE user_id = ? and iso = ?' % k,
                         (v, user_id, iso)
                     )
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {k} or value {v}') from None
+                    raise ValueError(f'invalid argument {repr(k)}') from None
+                except sqlite3.IntegrityError:
+                    raise ValueError(f"invalid value {repr(v)}") from None
             return True
 
     def delete_user_rate(self, user_id, iso):
@@ -377,14 +384,16 @@ class DBHandler(object):
                     assert check_datetime_in_future(v), 'can\'t change `up_to_date` to past datetime'
                     v = str(v)
                 elif k == 'value' or k == 'real_value':
-                    assert v > 0, 'can\'t change `value` to negative'
+                    assert (isinstance(v, int) or isinstance(v, float)) and v > 0, 'can\'t change `value` to negative'
                 try:
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
                         (v, id,)
                     )
                 except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument `{k}` or value `{v}`') from None
+                    raise ValueError(f'invalid argument {repr(k)}') from None
+                except sqlite3.IntegrityError:
+                    raise ValueError(f"invalid value {repr(v)}") from None
             return True
 
     def delete_prediction(self, pred_id):
