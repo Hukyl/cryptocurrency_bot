@@ -11,4 +11,4 @@ UNSUBSCIRBED_USER_CHECK_TIMES = 3
 SUBSCIRBED_USER_CHECK_TIMES = len(CHECK_TIMES)
 PRECISION_NUMBER = 3
 PERCENT_PRECISION_NUMBER = 1
-DB_NAME = 'test.sqlite3' # production - 'db.sqlite3', tests - 'test.sqlite3'
+DB_NAME = 'db.sqlite3' # production - 'db.sqlite3', tests - 'test.sqlite3'
