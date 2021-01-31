@@ -57,3 +57,9 @@ def catch_exc(func):
         else:
             return res
     return inner
+
+
+def infinite_loop(func, *args, **kwargs):
+    func = catch_exc(func)
+    while True:
+        func(*args, **kwargs)
