@@ -6,7 +6,6 @@ import time
 import datetime as dt
 
 import main_bot
-import main
 import models
 import configs
 import utils
@@ -219,6 +218,18 @@ class DBTestCase(BasicTestCase):
         self.db.toggle_prediction_reaction(pred2, user1, if_like=True)
         self.assertEqual([x[0] for x in self.db.get_max_liked_predictions()], [2, 1])
 
+    @unittest.skip('NotImplemented')
+    def test_get_all_users(self):
+        ...
+
+    @unittest.skip('NotImplemented')
+    def test_get_pro_users(self):
+        ... 
+
+    @unittest.skip('NotImplemented')
+    def test_get_staff_users(self):
+        ...  
+
 
 
 class UserModelTestCase(BasicTestCase):
@@ -297,10 +308,117 @@ class UserModelTestCase(BasicTestCase):
             user.update_rates('BRENT', start_value='abcdef')
 
     def test_premium_dbuser(self):
-        ...
+        user = models.user.DBUser(0)
+        d1 = utils.dt.get_current_datetime().replace(year=2120)
+        self.assertEqual(user.is_pro, 0)
+        self.assertEqual(user.is_staff, 0)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
+        user.init_premium(d1)
+        self.assertEqual(user.is_pro, d1)
+        self.assertEqual(user.is_staff, 0)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.CHECK_TIMES)
+        user.delete_premium()
+        self.assertEqual(user.is_pro, 0)
+        self.assertEqual(user.is_staff, 0)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_staff_dbuser(self):
-        ...
+        user = models.user.DBUser(0)
+        d_test = utils.dt.get_current_datetime()
+        self.assertEqual(user.is_pro, 0)
+        self.assertEqual(user.is_staff, 0)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
+        user.init_staff()
+        self.assertGreater(user.is_pro, d_test.replace(year=d_test.year+2))
+        self.assertEqual(user.is_staff, 1)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.CHECK_TIMES)
+        user.delete_staff()
+        self.assertEqual(user.is_pro, 0)
+        self.assertEqual(user.is_staff, 0)
+        for k, v in user.rates.items():
+            self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
+
+    def test_add_dbuser_rates(self):
+        user = models.user.DBUser(0)
+        self.assertEqual(len(user.rates), 3)
+        user.add_rate('UAH', check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+        self.assertEqual(len(user.rates), 4)
+        self.assertDictEqual(
+            user.rates.get('UAH'), 
+            dict(check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+        )
+
+    def test_get_currencies_by_check_time_dbuser(self):
+        user = models.user.DBUser(0)
+        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
+        user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
+        user.update_rates('BRENT', check_times=['13:00', '14:00', '15:00'])
+        user.add_rate('UAH', check_times=['16:00', '17:00', '18:00'])
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('11:00'),
+            dict(BRENT=user.rates.get('BRENT'), RTS=user.rates.get("RTS"))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('13:00'),
+            dict(RTS=user.rates.get('RTS'), BTC=user.rates.get("BTC"))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('18:00'),
+            dict(UAH=user.rates.get('UAH'))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('20:00'),
+            dict()
+        )
+        user.update(timezone=+2)
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('9:00'),
+            dict(BRENT=user.rates.get('BRENT'), RTS=user.rates.get("RTS"))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('11:00'),
+            dict(RTS=user.rates.get('RTS'), BTC=user.rates.get("BTC"))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('16:00'),
+            dict(UAH=user.rates.get('UAH'))
+        )
+        self.assertDictEqual(
+            user.get_currencies_by_check_time('18:00'),
+            dict()
+        )
+
+    def test_get_pro_users(self):
+        user = models.user.DBUser(0)
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        user.init_premium(utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
+        user.delete_premium()
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+
+    def test_get_staff_users(self):
+        user = models.user.DBUser(0)
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+        user.init_staff()
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
+        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 1)
+        user.delete_staff()
+        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+
+    def test_get_all_users(self):
+        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
+        user = models.user.DBUser(0)
+        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 1)
+        self.db.execute_and_commit('DELETE FROM users')
+        self.db.execute_and_commit('DELETE FROM users_rates')
+        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
 
 
 # class PredictionModelTestCase(BasicTestCase)

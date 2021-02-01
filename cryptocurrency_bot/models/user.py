@@ -7,7 +7,8 @@ from utils.dt import (
     convert_to_country_format,
     convert_from_country_format,
     check_datetime_in_future,
-    get_current_datetime
+    get_current_datetime,
+    check_check_time_in_rate
 )
 from utils.translator import translate as _
 
@@ -91,7 +92,7 @@ class DBUser(User):
         return {
             k: v 
             for k, v in self.rates.items() 
-            if check_time in v.get('check_times')
+            if check_check_time_in_rate(v.get('check_times'), check_time, self.timezone)
         }
 
     @property
@@ -152,7 +153,7 @@ class DBUser(User):
             self.update_rates(k, check_times=settings.CHECK_TIMES)
 
     def delete_premium(self):
-        self.update(is_pro=None)
+        self.update(is_pro=0)
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
                 self.db.delete_user_rate(self.user_id, k)

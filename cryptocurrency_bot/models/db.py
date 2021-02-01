@@ -4,7 +4,7 @@ import threading
 
 from configs import settings
 
-from utils.dt import check_datetime_in_future
+from utils.dt import check_datetime_in_future, check_check_time_in_rate
 
 
 
@@ -52,7 +52,7 @@ class DBHandler(object):
             '''CREATE TABLE IF NOT EXISTS users( 
                     user_id INTEGER NOT NULL,
                     is_active BOOLEAN DEFAULT 0,
-                    is_pro DATETIME DEFAULT NULL, 
+                    is_pro DATETIME DEFAULT FALSE, 
                     is_staff BOOLEAN DEFAULT 0,
                     timezone TINYINT DEFAULT 0 CHECK (
                         timezone in (-11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
@@ -145,39 +145,17 @@ class DBHandler(object):
         res = self.execute_and_commit('SELECT id FROM currency_predictions WHERE id = ?', (pred_id, ))
         return len(res) > 0
 
-    def check_user_rates_in_check_time(self, user, check_time:str):
-        """
-        Check if `check_time` (in UTC) in some of user rates check times (converted to UTC)
-        """
-        *data, rates, timezone, language = user
-        all_user_check_times = [rate[-1] for rate in rates]
-        all_user_check_times = set(sum(all_user_check_times, [])) # unfold all list into outer list
-        all_user_check_times = {
-            '{:0>2}:{:0>2}'.format(
-                int(time_.split(':')[0]) - timezone, 
-                time_.split(":")[1]
-            )
-            for time_ in all_user_check_times
-        }
-        if check_time in all_user_check_times:
-            return all_user_check_times
-        return False
-
     def get_users_by_check_time(self, check_time:str):
         """
         Get all users, which checktimes, converted from their timezone to UTC,
         equals to `check_time` (which is in UTC)
         """
-        return [
-            self.get_user(user_id[0])
-            for user_id in self.execute_and_commit(
-                'SELECT DISTINCT user_id FROM users'
-            )
-            if self.check_user_rates_in_check_time(
-                self.get_user(user_id[0]),
-                check_time
-            )
-        ]
+        users_lst = list()
+        for user_id in self.execute_and_commit('SELECT DISTINCT user_id FROM users'):
+            user = self.get_user(user_id[0])
+            if any(check_check_time_in_rate(rate[-1], check_time, user[-2]) for rate in user[-3]):
+                users_lst.append(user)
+        return users_lst
 
     def get_user(self, user_id):
         if self.check_user_exists(user_id):
@@ -191,22 +169,22 @@ class DBHandler(object):
 
     def get_all_users(self):
         return [
-            self.get_user(user_date[0])
-            for user_data in self.execute_and_commit('SELECT id FROM users')
+            self.get_user(user_data[0])
+            for user_data in self.execute_and_commit('SELECT user_id FROM users')
         ]
 
     def get_staff_users(self):
         return [
             self.get_user(user_data[0])
             for user_data in self.execute_and_commit(
-                'SELECT id FROM users WHERE is_staff = 1'
+                'SELECT user_id FROM users WHERE is_staff = 1'
             )
         ]
 
     def get_active_users(self):
         return [
             self.get_user(user_data[0])
-            for user_data in self.execute_and_commit('SELECT id FROM users WHERE is_active = TRUE')
+            for user_data in self.execute_and_commit('SELECT user_id FROM users WHERE is_active = TRUE')
         ]
 
     def get_pro_users(self):
