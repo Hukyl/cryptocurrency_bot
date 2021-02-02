@@ -115,7 +115,7 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(piso_from, 'BRENT')
         self.assertEqual(piso_to, 'USD')
         self.assertEqual(pvalue, 55.0)
-        self.assertTrue(utils.dt.check_datetime_in_future(pup_to_date, utcoffset=timezone))
+        self.assertTrue(utils.dt.check_datetime_in_future(pup_to_date))
         self.assertIsNone(preal_value)
 
     def test_change_user_prediction(self):
@@ -218,17 +218,37 @@ class DBTestCase(BasicTestCase):
         self.db.toggle_prediction_reaction(pred2, user1, if_like=True)
         self.assertEqual([x[0] for x in self.db.get_max_liked_predictions()], [2, 1])
 
-    @unittest.skip('NotImplemented')
     def test_get_all_users(self):
-        ...
+        self.assertEqual(len(self.db.get_all_users()), 0)
+        self.db.add_user(0)
+        self.assertEqual(len(self.db.get_all_users()), 1)
+        self.db.add_user(1)
+        self.assertEqual(len(self.db.get_all_users()), 2)
+        self.db.execute_and_commit('DELETE FROM users')
+        self.db.execute_and_commit('DELETE FROM users_rates')
+        self.assertEqual(len(self.db.get_all_users()), 0)
 
-    @unittest.skip('NotImplemented')
     def test_get_pro_users(self):
-        ... 
+        self.assertEqual(len(self.db.get_pro_users()), 0)
+        self.db.add_user(0)
+        self.assertEqual(len(self.db.get_pro_users()), 0)
+        self.db.change_user(0, is_pro=utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(len(self.db.get_pro_users()), 1)
+        self.db.add_user(1, is_pro=utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(len(self.db.get_pro_users()), 2)
+        self.db.change_user(0, is_pro=0)   
+        self.assertEqual(len(self.db.get_pro_users()), 1)
 
-    @unittest.skip('NotImplemented')
     def test_get_staff_users(self):
-        ...  
+        self.assertEqual(len(self.db.get_staff_users()), 0)
+        self.db.add_user(0)
+        self.assertEqual(len(self.db.get_staff_users()), 0)
+        self.db.change_user(0, is_staff=1)
+        self.assertEqual(len(self.db.get_staff_users()), 1)
+        self.db.add_user(1, is_staff=1)
+        self.assertEqual(len(self.db.get_staff_users()), 2)
+        self.db.change_user(0, is_staff=0)   
+        self.assertEqual(len(self.db.get_staff_users()), 1)
 
 
 
@@ -252,7 +272,7 @@ class UserModelTestCase(BasicTestCase):
                     'start_value': 31000 
                 }
             }
-        )   
+        )
         self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 2, 'ru'])
 
     def test_add_dbuser(self):
@@ -421,14 +441,27 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
 
 
-# class PredictionModelTestCase(BasicTestCase)
-#     def test_add_dbprediction(self):
-#         user = DBUser(0)
-#         user.create_prediction('BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2120))
-#         pred = user.predictions[0]
-#         self.assertEqual(pred.iso_from, 'BRENT')
-#         self.assertEqual(pred.iso_to, 'USD')
-#         self.assertEqual(pred.)
+
+class PredictionModelTestCase(BasicTestCase):
+    def test_add_dbprediction(self):
+        user = models.user.DBUser(0)
+        d1 = utils.dt.get_current_datetime().replace(year=2120)
+        self.assertEqual(len(user.predictions), 0)
+        user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
+        self.assertEqual(len(user.predictions), 1)
+        pred = user.predictions[0]
+        self.assertEqual(pred.iso_from, 'BRENT')
+        self.assertEqual(pred.iso_to, 'USD')
+        self.assertEqual(pred.value, 55)
+        self.assertEqual(pred.up_to_date, d1)
+        self.assertEqual(pred.real_value, None)
+        with self.assertRaises(AssertionError):
+            user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1.replace(year=1990))
+        with self.assertRaises(AssertionError):
+            user.create_prediction('BRENT', 'USD', value=-55, up_to_date=d1)
+
+    def test_change_user(self):
+        ...
 
 
 

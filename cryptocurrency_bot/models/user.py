@@ -107,8 +107,8 @@ class DBUser(User):
         self.db.change_user_rate(self.user_id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
 
-    def create_prediction(self, up_to_date, iso_from, iso_to, value):
-        assert check_datetime_in_future(up_to_date, self.timezone)
+    def create_prediction(self, iso_from:str, iso_to:str, value:float, up_to_date:datetime):
+        assert check_datetime_in_future(up_to_date)
         self.db.add_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
 
     def add_rate(self, iso, **kwargs):
@@ -211,7 +211,7 @@ class DBCurrencyPrediction(object):
     @property
     def is_actual(self):
         user = DBUser(self.user_id)
-        return check_datetime_in_future(self.up_to_date, user.timezone)
+        return check_datetime_in_future(self.up_to_date)
 
     @property
     def likes(self):

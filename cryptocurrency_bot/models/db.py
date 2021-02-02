@@ -112,7 +112,11 @@ class DBHandler(object):
             "INSERT INTO users\
             (user_id, is_active, is_pro, is_staff, timezone, language) \
             VALUES (?, ?, ?, ?, ?, ?)", 
-            (user_id, is_active, is_pro, is_staff, timezone, language)
+            (
+                user_id, is_active, 
+                is_pro.strftime('%Y-%m-%d %H:%M:%S') if isinstance(is_pro, datetime) else is_pro, 
+                is_staff, timezone, language
+            )
         )
         return True
 
@@ -129,7 +133,7 @@ class DBHandler(object):
     def add_prediction(self, user_id, iso_from:str, iso_to:str, value:float, up_to_date:datetime, is_by_experts=False):
         if self.check_user_exists(user_id):
             assert value > 0, 'can\'t create prediction with negative `value`'
-            assert check_datetime_in_future(up_to_date, utcoffset=self.get_user(user_id)[-2]), 'can\'t create prediction with past `up_to_date`'
+            assert check_datetime_in_future(up_to_date), 'can\'t create prediction with past `up_to_date`'
             self.execute_and_commit(
                 "INSERT INTO currency_predictions(user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
                 VALUES (?, ?, ?, ?, ?, ?)", 
@@ -331,11 +335,11 @@ class DBHandler(object):
 
     def change_user_rate(self, user_id, iso, **kwargs):
         if self.check_user_exists(user_id):
+            start_value = kwargs.get('start_value', 1)
+            assert (isinstance(start_value, int) or isinstance(start_value, float)) and start_value > 0, 'can\'t change `start_value` to negative'
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
                     v = ','.join(v)
-                if k == 'start_value': 
-                    assert (isinstance(v, int) or isinstance(v, float)) and v > 0, 'can\'t change start_value to negative'
                 try:
                     self.execute_and_commit(
                         'UPDATE users_rates SET %s = ? WHERE user_id = ? and iso = ?' % k,
@@ -356,22 +360,27 @@ class DBHandler(object):
 
     def change_prediction(self, id, **kwargs):
         if self.check_prediction_exists(id):
+            pred_data = self.get_prediction(id)
+            assert check_datetime_in_future(pred_data[-3]), 'can\'t change passed prediction'
+            value = kwargs.get('value', 1)
+            assert (isinstance(value, int) or isinstance(value, float)) and value > 0, 'can\'t change `value` to negative'
+            real_value = kwargs.get('real_value', 1)
+            assert (isinstance(real_value, int) or isinstance(real_value, float)) and real_value > 0, 'can\'t change `real_value` to negative'
             assert 'user_id' not in kwargs, 'cant\'t change `user_id` of prediction'
-            for k, v in kwargs.items():
-                if k == 'up_to_date' and isinstance(v, datetime):
-                    assert check_datetime_in_future(v), 'can\'t change `up_to_date` to past datetime'
-                    v = str(v)
-                elif k == 'value' or k == 'real_value':
-                    assert (isinstance(v, int) or isinstance(v, float)) and v > 0, 'can\'t change `value` to negative'
-                try:
+            up_to_date = kwargs.get('up_to_date', None)
+            if up_to_date is not None and isinstance(up_to_date, datetime):
+                assert check_datetime_in_future(up_to_date), 'can\'t change `up_to_date` to past datetime'
+                kwargs['up_to_date'] = str(up_to_date)
+            try:
+                for k, v in kwargs.items():
                     self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
                         (v, id,)
                     )
-                except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {repr(k)}') from None
-                except sqlite3.IntegrityError:
-                    raise ValueError(f"invalid value {repr(v)}") from None
+            except sqlite3.OperationalError:
+                raise ValueError(f'invalid argument {repr(k)}') from None
+            except sqlite3.IntegrityError:
+                raise ValueError(f"invalid value {repr(v)}") from None
             return True
 
     def delete_prediction(self, pred_id):
@@ -395,9 +404,9 @@ class DBHandler(object):
             )
             if if_like is not None:
                 self.execute_and_commit(
-                        'INSERT INTO predictions_reactions VALUES (?, ?, ?)',
-                        (pred_id, user_id, if_like)
-                    )
+                    'INSERT INTO predictions_reactions VALUES (?, ?, ?)',
+                    (pred_id, user_id, if_like)
+                )
             return True
         return None
 

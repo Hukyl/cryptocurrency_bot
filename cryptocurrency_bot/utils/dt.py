@@ -23,10 +23,9 @@ def get_current_datetime(utcoffset:int=0):
     return add_offset(n, utcoffset)
 
 
-def check_datetime_in_future(up_to_date:dt.datetime, utcoffset:int=0):
+def check_datetime_in_future(up_to_date:dt.datetime):
     assert up_to_date.tzinfo is not None, 'can compare only timezone-aware datetime'
-    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
-    now = get_current_datetime(utcoffset=utcoffset) 
+    now = get_current_datetime() 
     return up_to_date >= now
 
 
