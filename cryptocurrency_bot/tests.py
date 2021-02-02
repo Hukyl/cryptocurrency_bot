@@ -137,18 +137,18 @@ class DBTestCase(BasicTestCase):
 
     def test_get_actual_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_actual_predictions()), 1)
-        time.sleep(2)
+        time.sleep(3)
         self.assertEqual(len(self.db.get_actual_predictions()), 0)
 
     def test_get_unverified_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 1) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_unverified_predictions()), 0)
-        time.sleep(2)
+        time.sleep(3)
         self.assertEqual(len(self.db.get_unverified_predictions()), 1)        
 
     def test_get_experts_predictions(self):
