@@ -108,7 +108,7 @@ class DBTestCase(BasicTestCase):
         with self.assertRaises(AssertionError):
             self.db.add_prediction(user_id, 'BRENT', 'USD', -55, utils.dt.get_current_datetime().replace(year=2120))
         with self.assertRaises(AssertionError):
-            self.db.add_prediction(user_id, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(hour=0))
+            self.db.add_prediction(user_id, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2020))
         pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(1)
         self.assertEqual(pid, 1)
         self.assertEqual(puser_id, user_id)
@@ -133,7 +133,7 @@ class DBTestCase(BasicTestCase):
         with self.assertRaises(AssertionError):
             self.db.change_prediction(pid, value=-55)
         with self.assertRaises(AssertionError):
-            self.db.change_prediction(pid, up_to_date=utils.dt.get_current_datetime().replace(hour=0))
+            self.db.change_prediction(pid, up_to_date=utils.dt.get_current_datetime().replace(year=2020))
 
     def test_get_actual_predictions(self):
         self.db.add_user(0)
@@ -357,7 +357,7 @@ class UserModelTestCase(BasicTestCase):
         user = models.user.DBUser(0)
         user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
         user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
-        user.update_rates('BRENT', check_times=['13:00', '14:00', '15:00'])
+        user.update_rates('BTC', check_times=['13:00', '14:00', '15:00'])
         user.add_rate('UAH', check_times=['16:00', '17:00', '18:00'])
         self.assertDictEqual(
             user.get_currencies_by_check_time('11:00'),

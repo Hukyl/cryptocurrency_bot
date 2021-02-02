@@ -193,7 +193,7 @@ class DBHandler(object):
             for user_id in self.execute_and_commit(
                 'SELECT user_id \
                 FROM users \
-                WHERE is_active = TRUE and is_pro is not NULL'
+                WHERE is_active = TRUE and is_pro != FALSE'
             )
         ]
 
