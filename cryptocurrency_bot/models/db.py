@@ -268,6 +268,7 @@ class DBHandler(object):
             res = [
                 self.get_prediction(data[0])
                 for data in self.execute_and_commit(
+                    # used `LIMIT` and `id > ?` because selection by certain id can cause errors
                     "SELECT \
                     id \
                     FROM currency_predictions WHERE id > ? AND is_by_experts = FALSE ORDER BY id ASC LIMIT 1",
@@ -280,6 +281,7 @@ class DBHandler(object):
             res = [
                 self.get_prediction(data[0])
                 for data in self.execute_and_commit(
+                    # used `LIMIT` and `id < ?` because selection by certain id can cause errors
                     "SELECT \
                     id \
                     FROM currency_predictions WHERE id < ? AND is_by_experts = FALSE ORDER BY id DESC LIMIT 1",
@@ -288,7 +290,7 @@ class DBHandler(object):
             ]
             return res[0] if res else None
 
-        prev = get_previous()
+        prev = get_previous() 
         next = get_next()
         return {
             'previous': prev[0] if prev else None,  # prev_id
@@ -322,21 +324,23 @@ class DBHandler(object):
 
     def change_user(self, user_id, **kwargs):
         if self.check_user_exists(user_id):
-            for k, v in kwargs.items():
-                if isinstance(v, datetime):
-                    v = v.strftime('%Y-%m-%d %H:%M:%S')
-                try:
+            try:
+                for k, v in kwargs.items():
+                    if isinstance(v, datetime):
+                        v = v.strftime('%Y-%m-%d %H:%M:%S')
                     self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
-                except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {repr(k)}') from None
-                except sqlite3.IntegrityError:
-                    raise ValueError(f"invalid value {repr(v)}") from None
-            return True
+            except sqlite3.OperationalError:
+                raise ValueError(f'invalid argument {repr(k)}') from None
+            except sqlite3.IntegrityError:
+                raise ValueError(f"invalid value {repr(v)}") from None
+            else:
+                return True
 
     def change_user_rate(self, user_id, iso, **kwargs):
         if self.check_user_exists(user_id):
             start_value = kwargs.get('start_value', 1)
             assert (isinstance(start_value, int) or isinstance(start_value, float)) and start_value > 0, 'can\'t change `start_value` to negative'
+            del start_value
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
                     v = ','.join(v)
@@ -360,8 +364,11 @@ class DBHandler(object):
 
     def change_prediction(self, id, **kwargs):
         if self.check_prediction_exists(id):
+            # if up_to_date of prediction has already passed, you cannot change the prediction
             pred_data = self.get_prediction(id)
             assert check_datetime_in_future(pred_data[-3]), 'can\'t change passed prediction'
+            # validation of parameters
+            assert (kwargs.get('iso_from') or kwargs.get('iso_to')) is None, "can't change isos of prediction"
             value = kwargs.get('value', 1)
             assert (isinstance(value, int) or isinstance(value, float)) and value > 0, 'can\'t change `value` to negative'
             real_value = kwargs.get('real_value', 1)
@@ -371,6 +378,8 @@ class DBHandler(object):
             if up_to_date is not None and isinstance(up_to_date, datetime):
                 assert check_datetime_in_future(up_to_date), 'can\'t change `up_to_date` to past datetime'
                 kwargs['up_to_date'] = str(up_to_date)
+            del up_to_date, real_value, value, pred_data
+            # end of validation
             try:
                 for k, v in kwargs.items():
                     self.execute_and_commit(

@@ -192,6 +192,7 @@ class DBCurrencyPrediction(object):
         self.db.toggle_prediction_reaction(self.id, user_id, if_like)
 
     def delete(self):
+        assert self.is_actual, "can't delete a past prediction"
         self.db.delete_prediction(self.id)
 
     def update(self, **kwargs):
@@ -210,7 +211,6 @@ class DBCurrencyPrediction(object):
 
     @property
     def is_actual(self):
-        user = DBUser(self.user_id)
         return check_datetime_in_future(self.up_to_date)
 
     @property
@@ -247,7 +247,8 @@ class DBCurrencyPrediction(object):
 
     @classmethod
     def get_random_prediction(cls):
-        return cls.db.get_random_prediction()[0] # id
+        pred_data = cls.db.get_random_prediction() or [None]
+        return pred_data[0]
 
     def __repr__(self):
         user = DBUser(self.user_id)
@@ -260,9 +261,8 @@ class DBCurrencyPrediction(object):
             ;Currencies: {}-{} \
             ;Up to:{} \
             ;Exchange Rate: {} ' + (
-                    # ";Likes: {};Dislikes: {}" if not self.is_by_experts else ''
-                    ''
-                ),
+                ";Likes: {};Dislikes: {}" if not self.is_by_experts else ''
+            ),
             user.language,
             parse_mode='newline'
         ).format(

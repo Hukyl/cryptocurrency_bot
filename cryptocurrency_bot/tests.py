@@ -460,8 +460,125 @@ class PredictionModelTestCase(BasicTestCase):
         with self.assertRaises(AssertionError):
             user.create_prediction('BRENT', 'USD', value=-55, up_to_date=d1)
 
-    def test_change_user(self):
-        ...
+    def test_change_future_dbprediction(self):
+        user = models.user.DBUser(0)
+        d1 = utils.dt.get_current_datetime().replace(year=2120)
+        user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
+        pred = user.predictions[0]
+        self.assertEqual(pred.value, 55)
+        pred.update(value=58)
+        self.assertEqual(pred.value, 58)
+        self.assertEqual(pred.is_by_experts, False)
+        pred.update(is_by_experts=True)
+        self.assertEqual(pred.is_by_experts, True)
+        with self.assertRaises(AssertionError):
+            pred.update(iso_from='RTS')
+        with self.assertRaises(AssertionError):
+            pred.update(iso_to='UAH')
+        with self.assertRaises(AssertionError):
+            pred.update(value=-10)
+        with self.assertRaises(AssertionError):
+            pred.update(real_value=-20)
+
+    def test_change_past_dbprediction(self):
+        user = models.user.DBUser(0)
+        d1 = utils.dt.get_current_datetime() + dt.timedelta(0, 1)
+        user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
+        pred = user.predictions[0]
+        time.sleep(2)
+        with self.assertRaises(AssertionError):
+            pred.update(value=58)
+        with self.assertRaises(AssertionError):
+            pred.update(is_by_experts=True)
+
+    def test_toggle_like_dbprediction(self):
+        u1 = models.user.DBUser(0)
+        u2 = models.user.DBUser(1)
+        u1.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
+        pred = u1.predictions[0]
+        self.assertEqual(pred.likes, 0)
+        self.assertEqual(pred.dislikes, 0)
+        pred.toggle_like(u1.user_id, True)
+        self.assertEqual(pred.likes, 1)
+        self.assertEqual(pred.dislikes, 0)
+        pred.toggle_like(u2.user_id, False)
+        self.assertEqual(pred.likes, 1)
+        self.assertEqual(pred.dislikes, 1)
+        pred.toggle_like(u2.user_id, True)
+        self.assertEqual(pred.likes, 2)
+        self.assertEqual(pred.dislikes, 0)
+
+    def test_all_predictions_number(self):
+        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
+        user = models.user.DBUser(0)
+        user.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 1)
+        user.create_prediction('UAH', 'USD', value=0.036, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
+        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 2)
+        pred1, pred2 = user.predictions
+        pred1.delete()
+        pred2.delete()
+        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
+
+
+class UtilsTestCase(unittest.TestCase):
+    def test_merge_dicts(self):
+        self.assertDictEqual(
+            utils.merge_dicts({'one':1, 'two':2}), 
+            {'one':1, 'two': 2}
+        )
+        self.assertDictEqual(
+            utils.merge_dicts({'one': 1, 'two': 3}, {'two': 2}),
+            {'one':1, 'two': 2}
+        )
+        with self.assertRaises(AssertionError):
+            utils.merge_dicts()
+
+    def test_prettify_utcoffset(self):
+        self.assertEqual(utils.prettify_utcoffset(0), 'UTC')
+        self.assertEqual(utils.prettify_utcoffset(2), 'UTC+02:00')
+        self.assertEqual(utils.prettify_utcoffset(-5), 'UTC-05:00')
+        self.assertEqual(utils.prettify_utcoffset(11), 'UTC+11:00')
+        self.assertEqual(utils.prettify_utcoffset(-10), 'UTC-10:00')
+        with self.assertRaises(AssertionError):
+            utils.prettify_utcoffset(15)
+        with self.assertRaises(AssertionError):
+            utils.prettify_utcoffset(-18)
+
+    def test_catch_exc(self):
+        def raise_exc():
+            return 1/0
+
+        with self.assertRaises(ZeroDivisionError):
+            raise_exc()
+        raise_exc = utils.catch_exc(raise_exc)
+        self.assertIsNone(raise_exc())
+
+    def test_add_offset(self):
+        d = dt.datetime.now()
+        self.assertIsNone(d.tzinfo)
+        d = utils.dt.add_offset(d, 2)
+        self.assertEqual(d.tzinfo.utcoffset(d), dt.timedelta(0, 2*60*60))
+        d = utils.dt.add_offset(d, 0)
+        self.assertEqual(d.tzinfo.utcoffset(d), dt.timedelta(0, 0))
+
+    def test_check_datetime_in_future(self):
+        d = utils.dt.get_current_datetime().replace(year=2120)
+        self.assertTrue(utils.dt.check_datetime_in_future(d))
+        d = d.replace(year=2000)
+        self.assertFalse(utils.dt.check_datetime_in_future(d))
+        with self.assertRaises(AssertionError):
+            utils.dt.check_datetime_in_future(dt.datetime.now().replace(year=2120))
+        with self.assertRaises(AssertionError):
+            utils.dt.check_datetime_in_future(dt.datetime.now().replace(year=2000))
+
+    def test_check_check_time_in_rate(self):
+        f = utils.dt.check_check_time_in_rate
+        self.assertTrue(f(['15:00', '17:00', '19:00'], '19:00', 0))
+        self.assertTrue(f(['21:00'], '19:00', 2))
+        self.assertFalse(f(['15:00', '17:00', '19:00'], '11:00', 0))
+        self.assertFalse(f(['15:00', '17:00', '19:00'], '19:00', 2))
+        self.assertFalse(f([], '19:00'))
 
 
 
