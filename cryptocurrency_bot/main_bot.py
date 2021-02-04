@@ -794,7 +794,6 @@ def toggle_user_alarms(msg):
 def see_user_info(msg):
     user = DBUser(msg.chat.id)
     info = f"Пользователь @{msg.from_user.username}\
-            ;ID на сервисе: {user.id}\
             ;Telegram ID: {user.user_id}\
             ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
             ;Персонал: {'да' if user.is_staff else 'нет'}\
