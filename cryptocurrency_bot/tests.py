@@ -226,8 +226,8 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(len(self.db.get_all_users()), 1)
         self.db.add_user(1)
         self.assertEqual(len(self.db.get_all_users()), 2)
-        self.db.execute_and_commit('DELETE FROM users')
-        self.db.execute_and_commit('DELETE FROM users_rates')
+        self.db.__execute_and_commit('DELETE FROM users')
+        self.db.__execute_and_commit('DELETE FROM users_rates')
         self.assertEqual(len(self.db.get_all_users()), 0)
 
     def test_get_pro_users(self):
@@ -438,8 +438,8 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
         user = models.user.DBUser(0)
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 1)
-        self.db.execute_and_commit('DELETE FROM users')
-        self.db.execute_and_commit('DELETE FROM users_rates')
+        self.db.__execute_and_commit('DELETE FROM users')
+        self.db.__execute_and_commit('DELETE FROM users_rates')
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
 
 

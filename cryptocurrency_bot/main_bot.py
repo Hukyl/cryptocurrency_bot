@@ -402,29 +402,27 @@ def see_users_currency_predicitions(msg):
         )
         return see_users_currency_predicitions(msg)
 
-    def like_system(msg):
-        try:
-            random_id = DBCurrencyPrediction.get_random_prediction()
-        except IndexError: 
-            # if no prediction are there
+    def liking_system(msg):
+        random_pred = DBCurrencyPrediction.get_random_prediction()
+        if random_pred is None:
+            # if no predictions are there
             bot.send_message(msg.chat.id, _('There are no predictions to like yet, you can create one!', user.language))
             return start_bot(msg)
         else:
-            prediction = DBCurrencyPrediction(random_id)
-            closest = prediction.get_closest_neighbours()
+            closest = random_pred.get_closest_neighbours()
             previous, next = closest['previous'], closest['next']
             inline_buttons = {
-                '👍': f'like_prediction_{prediction.id}',
-                '👎': f'dislike_prediction_{prediction.id}'
+                '👍': f'like_prediction_{random_pred.id}',
+                '👎': f'dislike_prediction_{random_pred.id}'
             }
             if previous:
-                inline_buttons['<<'] = f'previous_prediction_to_{prediction.id}'
+                inline_buttons['<<'] = f'previous_prediction_to_{random_pred.id}'
             if next:
-                inline_buttons['>>'] = f'next_prediction_to_{prediction.id}'
+                inline_buttons['>>'] = f'next_prediction_to_{random_pred.id}'
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg.chat.id,
-                _(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
+                _(str(random_pred).replace('\n', ';'), user.language, parse_mode='newline'),
                 reply_markup=inline_kb
             )
             return see_users_currency_predicitions(msg)
@@ -444,7 +442,7 @@ def see_users_currency_predicitions(msg):
     buttons = {
         _('My predictions', user.language): see_self_predictions,
         _('Other predictions', user.language): see_other_users_predictions, 
-        _('Participate in the assessment', user.language): like_system,
+        _('Participate in the assessment', user.language): liking_system,
         _('Main menu', user.language): start_bot
     }
     bot.send_message(
@@ -475,14 +473,14 @@ def __get_prediction_inline_kb_for_liking(pred):
 @bot.callback_query_handler(lambda call: 'next_prediction_to_' in call.data or 'previous_prediction_to_' in call.data)
 def get_closest_prediction(call):
     action, *data, pred_id = call.data.split('_')
-    pred_id = int(pred_id) - (-1 if action == 'next' else 1)
-    prediction = DBCurrencyPrediction(pred_id)
+    start_pred = DBCurrencyPrediction(int(pred_id))
+    following_pred = start_pred.get_closest_neighbours()[action]
     user = DBUser(call.message.chat.id)
-    inline_kb = __get_prediction_inline_kb_for_liking(prediction)
+    inline_kb = __get_prediction_inline_kb_for_liking(following_pred)
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
+            text=_(str(following_pred).replace('\n', ';'), user.language, parse_mode='newline'),
             reply_markup=inline_kb
         )
 

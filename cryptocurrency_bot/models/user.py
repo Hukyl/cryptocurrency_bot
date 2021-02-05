@@ -241,14 +241,14 @@ class DBCurrencyPrediction(object):
 
     @classmethod
     def get_all_prediction_number(cls):
-        return cls.db.execute_and_commit(
+        return cls.db.__execute_and_commit(
                 'SELECT COUNT(id) FROM currency_predictions'
             )[0][0]
 
     @classmethod
     def get_random_prediction(cls):
-        pred_data = cls.db.get_random_prediction() or [None]
-        return pred_data[0]
+        pred_data = cls.db.get_random_prediction()
+        return cls(pred_data[0]) if isinstance(pred_data, list) or isinstance(pred_data, tuple) else None
 
     def __repr__(self):
         user = DBUser(self.user_id)
