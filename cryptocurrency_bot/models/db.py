@@ -364,9 +364,6 @@ class DBHandler(object):
 
     def change_prediction(self, id, **kwargs):
         if self.check_prediction_exists(id):
-            # if up_to_date of prediction has already passed, you cannot change the prediction
-            pred_data = self.get_prediction(id)
-            assert check_datetime_in_future(pred_data[-3]), 'can\'t change passed prediction'
             # validation of parameters
             assert (kwargs.get('iso_from') or kwargs.get('iso_to')) is None, "can't change isos of prediction"
             value = kwargs.get('value', 1)
@@ -378,7 +375,7 @@ class DBHandler(object):
             if up_to_date is not None and isinstance(up_to_date, datetime):
                 assert check_datetime_in_future(up_to_date), 'can\'t change `up_to_date` to past datetime'
                 kwargs['up_to_date'] = str(up_to_date)
-            del up_to_date, real_value, value, pred_data
+            del up_to_date, real_value, value
             # end of validation
             try:
                 for k, v in kwargs.items():

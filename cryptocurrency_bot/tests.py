@@ -73,6 +73,8 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(percent_delta, 0.08)
         with self.assertRaises(ValueError):
             self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
+        with self.assertRaises(AssertionError):
+            self.db.change_user_rate(0, 'BRENT', start_value=-5)
         self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) # not user is found, so returns None
 
     def test_delete_user_rate(self):
@@ -479,17 +481,6 @@ class PredictionModelTestCase(BasicTestCase):
             pred.update(value=-10)
         with self.assertRaises(AssertionError):
             pred.update(real_value=-20)
-
-    def test_change_past_dbprediction(self):
-        user = models.user.DBUser(0)
-        d1 = utils.dt.get_current_datetime() + dt.timedelta(0, 1)
-        user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
-        pred = user.predictions[0]
-        time.sleep(2)
-        with self.assertRaises(AssertionError):
-            pred.update(value=58)
-        with self.assertRaises(AssertionError):
-            pred.update(is_by_experts=True)
 
     def test_toggle_like_dbprediction(self):
         u1 = models.user.DBUser(0)

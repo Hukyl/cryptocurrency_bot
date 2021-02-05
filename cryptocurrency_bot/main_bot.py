@@ -1480,7 +1480,7 @@ def main():
     telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
     print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
-    bot.infinity_polling()
+    bot.polling()
     print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
 
 
