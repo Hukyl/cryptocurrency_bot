@@ -16,7 +16,7 @@ from utils.telegram import kbs, inline_kbs
 from utils.dt import *
 
 ###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
-########################################################################
+################################################################################################################
 telebot.apihelper.ENABLE_MIDDLEWARE = True
 
 bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=False) # RecursionError
@@ -36,7 +36,7 @@ bot.full_bot_commands = {
     '/subscription': 'перейти в раздел "Подписка"', # Go to "Subscription" section
     '/language': 'сменить язык', # Change language
     '/techsupport': 'перейти в раздел "Техподдержка"', # Go to "Techsupport" section
-    '/help': 'помощь по командам' # Help with commands
+    '/help': 'помощь по командам', # Help with commands
 }
 bot.short_bot_commands = {
     k: bot.full_bot_commands.get(k)
@@ -53,7 +53,8 @@ rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
 
 USERS = {}
-########################################################################
+
+################################################################################################################
 
 
 @bot.middleware_handler(update_types=['message'])
@@ -72,7 +73,7 @@ def check_if_command(bot_instance, message):
 def get_or_create_session(chat_id):
     global USERS
     try:
-        USERS[chat_id] = USERS.get(chat_id, {'user': DBUser(chat_id), 'state': start_bot})
+        USERS[chat_id] = USERS.get(chat_id, {'user': DBUser(chat_id)})
     except MemoryError:
         for i in range(50):
             USERS.pop()
@@ -87,12 +88,13 @@ def set_session(bot_instance, message):
     bot_instance.session = get_or_create_session(message.chat.id)
 
 
+# Used not to initialize the user every time, just save their state
 @bot.middleware_handler(update_types=['callback_query'])
 def set_session(bot_instance, call):
     bot_instance.session = get_or_create_session(call.message.chat.id)
 
 
-########################################################################
+################################################################################################################
 
 
 @catch_exc
@@ -1341,7 +1343,7 @@ def send_bot_help(msg):
 
 
 
-#########################################################################
+#################################################################################################################
 
 
 def update_rates():
@@ -1503,7 +1505,7 @@ def main():
     print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
 
 
-#######################################################################
+###############################################################################################################
 
 
 if __name__ == '__main__':
