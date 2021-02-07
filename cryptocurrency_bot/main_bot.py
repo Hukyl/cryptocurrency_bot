@@ -14,7 +14,6 @@ from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
 from utils.dt import *
-from utils.mail import send_mail
 
 ###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
 ########################################################################
@@ -1267,20 +1266,12 @@ def send_techsupport_message(msg):
 @bot.callback_query_handler(func=lambda call: call.data == 'send_message_to_techsupport')
 def send_message_to_techsupport(call):
     def send_message(msg):
-        bot.send_message(msg.chat.id, _("Wait a little, please", user.language))
-        text = msg.text
         try:
-            template = 'Feedback (@%s)\nFrom:%s\nMessage:%s'
-            username = msg.from_user.username
-            first_name = msg.from_user.first_name
-            message = template % (
-                bot.get_me().username,
-                f"@{username}" if username else first_name,
-                text
-            )
-            send_mail(message) # send email from self to self
+            for support_id in get_json_config().get('techsupportIds'):
+                bot.forward_message(chat_id=support_id, from_chat_id=msg.chat.id, message_id=msg.id)
         except Exception:
             answer_msg = _("Some error occurred", user.language)
+            print(f"ERROR: cannot send support message to {support_id}")
         else:
             answer_msg = _("Your message was recieved", user.language)
         finally:
