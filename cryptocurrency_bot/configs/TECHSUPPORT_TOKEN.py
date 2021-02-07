@@ -1,0 +1,1 @@
+ACCESSIBLE_LINK = "https://t.me/{}?start=support" # {} - bot username
