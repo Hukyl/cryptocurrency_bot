@@ -46,6 +46,9 @@ bot.short_bot_commands = {
 bot.skip_pending = True
 
 brent_parser = InvestingParser('brent-oil')
+gold_parser = InvestingParser('gold')
+gold_parser = InvestingParser('gold')
+gold_parser = InvestingParser('silver')
 bitcoin_parser = BitcoinParser()
 rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
@@ -1087,7 +1090,7 @@ def buy_subscription(msg):
                 period = price.get('period')
                 word_ending = '' if period == 1 else 'a' if period in range(2, 5) else 'ов'
                 total_sum = int(round(start_price * period * (100 - price.get('discount')) / 100, 2))
-                prices_str += f';{period} месяц{word_ending} - ${total_sum}'
+                prices_str += f';{period} месяц{word_ending} - {total_sum} USD'
             bot.send_message(
                 msg.chat.id,
                 _(
@@ -1366,7 +1369,7 @@ def verify_predictions():
             bot.send_message(
                 pred.user_id, 
                 _(
-                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
+                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {:+}',
                     user.language
                 ).format(
                     repr(pred),
@@ -1449,7 +1452,7 @@ def send_alarm(user, t):
                 bot.send_message(
                     user.user_id,
                     _(
-                        '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
+                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **',
                         user.language
                     ).format(
                         k, 

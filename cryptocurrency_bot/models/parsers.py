@@ -39,8 +39,8 @@ class CurrencyParser(object):
         iso_str = self.iso or ""
         rate = self.get_rate().get('USD') if to_update else self.start_value
         if iso_str:
-            return f"{iso_str} = ${rate}"
-        return f"${rate}"
+            return f"{iso_str} = {rate} USD"
+        return f"{rate} USD"
 
     @property
     def rate(self):
@@ -98,7 +98,7 @@ class CurrencyParser(object):
             'percentage_difference': -prettify_float(
                 (old - new) / max(old, new)
             ),
-            "difference": prettify_float(abs(old - new))
+            "difference": prettify_float(-(old - new))
         }
 
 

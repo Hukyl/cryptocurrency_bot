@@ -174,9 +174,9 @@ translation_dict = {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'
     },
-    '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **': {
-        'en': '**Notification**\n**{}** - **{} USD**\nThe change: **{}**, or **{}**\nPrevious: **{} - {} USD **',
-        'ru': "**Оповещение**\n**{}** - **{} USD**\nИзменение: **{}**, или **{}**\nПредыдущее: **{} - {} USD**"
+    '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **': {
+        'en': '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **',
+        'ru': "**Оповещение**\n**{}** = **{} USD**\nИзменение: **{:+}**, или **{:+}**\nПредыдущее: **{} = {} USD**"
     },
     'Quotes': {
         'en': 'Quotes', 
@@ -190,9 +190,9 @@ translation_dict = {
         'en': 'Response not processed',
         'ru': 'Ответ не обработан'
     },
-    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}': {
-        'en': 'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
-        'ru': 'Результат `{}`:\n**Прогнозируемое значение:** {}\n**Настоящее значение:** {}\n**Разница в процентах:** {}'
+    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {:+}': {
+        'en': 'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {:+}',
+        'ru': 'Результат `{}`:\n**Прогнозируемое значение:** {}\n**Настоящее значение:** {}\n**Разница в процентах:** {:+}'
     },
     'Russian 🇷🇺': {
         'en': 'Russian 🇷🇺', 
