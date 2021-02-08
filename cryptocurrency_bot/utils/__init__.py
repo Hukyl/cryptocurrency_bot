@@ -7,7 +7,7 @@ from configs import settings
 
 __all__ = [
     'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
-    'get_default_values_from_config', 'prettify_float', 'prettify_percent', 'catch_exc'
+    'get_default_rates', 'prettify_float', 'prettify_percent', 'catch_exc'
 ]
 
 
@@ -29,10 +29,11 @@ def get_json_config():
         return json.load(f)
     
 
-def get_default_values_from_config(*args):
+def get_default_rates(*args, to_print:bool=True):
     if len(args) == 0:
         return None
-    print('[ERROR] Default value was used for: ' + ', '.join(args))
+    if to_print:
+        print('[ERROR] Default value was used for: ' + ', '.join(args))
     json_config = get_json_config()
     return {curr: json_config.get('initialValue' + curr, 1) for curr in args}
 
@@ -48,15 +49,18 @@ def prettify_percent(n:float):
     return str(int(res) if res % 1 == 0 else res) + '%'
 
 
-def catch_exc(func):
-    def inner(*args, **kwargs):
-        try:
-            res = func(*args, **kwargs)
-        except Exception:
-            print(f'\nException\nFunc name: {func.__name__}\nType: {sys.exc_info()[0].__name__}\nMessage: {str(sys.exc_info()[1])}\n')
-        else:
-            return res
-    return inner
+def catch_exc(to_print:bool=True):
+    def onFunc(func):
+        def onArgs(*args, **kwargs):
+            try:
+                res = func(*args, **kwargs)
+            except Exception:
+                if to_print:
+                    print(f'\nException\nFunc name: {func.__name__}\nType: {sys.exc_info()[0].__name__}\nMessage: {str(sys.exc_info()[1])}\n')
+            else:
+                return res
+        return onArgs
+    return onFunc
 
 
 def infinite_loop(func, *args, **kwargs):

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from .db import DBHandler
 from configs import settings
-from utils import get_json_config, prettify_percent
+from utils import get_json_config, prettify_percent, get_default_rates
 from utils.dt import (
     convert_to_country_format,
     convert_from_country_format,
@@ -121,10 +121,9 @@ class DBUser(User):
         if not cls.db.check_user_exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
-            json_config = get_json_config()
+            defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
-                s_v = json_config.get('initialValue' + currency, 0.01) # start_value
-                cls.db.add_user_rate(user_id, currency, start_value=s_v) 
+                cls.db.add_user_rate(user_id, currency, start_value=defaults.get(currency)) 
 
     @classmethod
     def get_pro_users(cls):
@@ -241,7 +240,7 @@ class DBCurrencyPrediction(object):
 
     @classmethod
     def get_all_prediction_number(cls):
-        return cls.db.__execute_and_commit(
+        return cls.db.execute_and_commit(
                 'SELECT COUNT(id) FROM currency_predictions'
             )[0][0]
 

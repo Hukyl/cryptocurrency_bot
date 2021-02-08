@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
-from utils import get_default_values_from_config, prettify_float
+from utils import get_default_rates, prettify_float
 
 
 __all__ = ['RTSParser', 'BitcoinParser', 'InvestingParser', 'FreecurrencyratesParser', 'CurrencyParser']
@@ -33,7 +33,7 @@ class CurrencyParser(object):
         try:
             self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
-            self.start_value = get_default_values_from_config(iso or '')
+            self.start_value = get_default_rates(iso or '')
 
     def to_string(self, to_update:bool=True):
         iso_str = self.iso or ""
@@ -71,7 +71,7 @@ class CurrencyParser(object):
             else:
                 raise ValueError(f'can not parse currency of "{self.iso}"')
         except Exception:
-            number = get_default_values_from_config(self.iso).get(self.iso)
+            number = get_default_rates(self.iso).get(self.iso)
         finally:
             return {self.iso: 1, 'USD': number}
 
@@ -154,7 +154,7 @@ class FreecurrencyratesParser(CurrencyParser):
             if str(e) == "second iso code is invalid":
                 raise ValueError(e)
             else:
-                number = get_default_values_from_config(iso_from).get(iso_from)
+                number = get_default_rates(iso_from).get(iso_from)
         return {iso_from: 1, iso_to: number}
 
     def check_currency_exists(self, currency:str):

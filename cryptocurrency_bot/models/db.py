@@ -48,7 +48,7 @@ class DBHandler(object):
         self.setup_db()
 
     def setup_db(self):
-        self.__execute_and_commit(
+        self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS users( 
                     user_id INTEGER NOT NULL,
                     is_active BOOLEAN DEFAULT 0,
@@ -62,7 +62,7 @@ class DBHandler(object):
                 )
             '''
         )
-        self.__execute_and_commit(
+        self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS users_rates( 
                     user_id INTEGER NOT NULL,
                     iso VARCHAR(5),
@@ -74,7 +74,7 @@ class DBHandler(object):
                 )
             '''
         )
-        self.__execute_and_commit(
+        self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS currency_predictions(
                     id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
                     user_id INTEGER,
@@ -88,7 +88,7 @@ class DBHandler(object):
             )
             '''
         )
-        self.__execute_and_commit(
+        self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS predictions_reactions(
                 pred_id INTEGER,
                 user_id INTEGER,
@@ -99,7 +99,7 @@ class DBHandler(object):
             '''
         )
 
-    def __execute_and_commit(self, sql, params=tuple()):
+    def execute_and_commit(self, sql, params=tuple()):
         with threading.Lock():
             with sqlite3.connect(self.DB_NAME) as conn:
                 cur = conn.cursor()
@@ -108,7 +108,7 @@ class DBHandler(object):
                 return res
 
     def add_user(self, user_id:int, is_active:bool=True, is_pro=False, is_staff:bool=False, timezone:int=0, language:str='en'):
-        self.__execute_and_commit(
+        self.execute_and_commit(
             "INSERT INTO users\
             (user_id, is_active, is_pro, is_staff, timezone, language) \
             VALUES (?, ?, ?, ?, ?, ?)", 
@@ -123,7 +123,7 @@ class DBHandler(object):
     def add_user_rate(self, user_id, iso, start_value=1, percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES):
         check_times = ','.join(check_times)
         assert start_value > 0, 'can\'t set negative start_value'
-        self.__execute_and_commit(
+        self.execute_and_commit(
             "INSERT INTO users_rates \
             VALUES (?, ?, ?, ?, ?)", 
             (user_id, iso, start_value, percent_delta, check_times)
@@ -138,7 +138,7 @@ class DBHandler(object):
         if self.check_user_exists(user_id):
             assert value > 0, 'can\'t create prediction with negative `value`'
             assert check_datetime_in_future(up_to_date), 'can\'t create prediction with past `up_to_date`'
-            self.__execute_and_commit(
+            self.execute_and_commit(
                 "INSERT INTO currency_predictions(user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
                 VALUES (?, ?, ?, ?, ?, ?)", 
                 (user_id, iso_from, iso_to, value, str(up_to_date), is_by_experts)
@@ -146,11 +146,11 @@ class DBHandler(object):
             return True
 
     def check_user_exists(self, user_id:int):
-        res = self.__execute_and_commit('SELECT user_id FROM users WHERE user_id = ?', (user_id, ))
+        res = self.execute_and_commit('SELECT user_id FROM users WHERE user_id = ?', (user_id, ))
         return len(res) > 0
 
     def check_prediction_exists(self, pred_id:int):
-        res = self.__execute_and_commit('SELECT id FROM currency_predictions WHERE id = ?', (pred_id, ))
+        res = self.execute_and_commit('SELECT id FROM currency_predictions WHERE id = ?', (pred_id, ))
         return len(res) > 0
 
     def get_users_by_check_time(self, check_time:str):
@@ -159,7 +159,7 @@ class DBHandler(object):
         equals to `check_time` (which is in UTC)
         """
         users_lst = list()
-        for user_id in self.__execute_and_commit('SELECT DISTINCT user_id FROM users'):
+        for user_id in self.execute_and_commit('SELECT DISTINCT user_id FROM users'):
             user = self.get_user(user_id[0])
             if any(check_check_time_in_rate(rate[-1], check_time, user[-2]) for rate in user[-3]):
                 users_lst.append(user)
@@ -173,7 +173,7 @@ class DBHandler(object):
         """
         if self.check_user_exists(user_id):
             user_id, is_active, is_pro, is_staff, timezone, language = list(
-                self.__execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
+                self.execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
             )
             rates = self.get_user_rates(user_id)
             is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if isinstance(is_pro, str) and is_pro is not None else is_pro
@@ -183,7 +183,7 @@ class DBHandler(object):
     def get_all_users(self):
         return [
             self.get_user(user_data[0])
-            for user_data in self.__execute_and_commit('SELECT user_id FROM users')
+            for user_data in self.execute_and_commit('SELECT user_id FROM users')
         ]
 
     def get_staff_users(self):
@@ -192,7 +192,7 @@ class DBHandler(object):
         """
         return [
             self.get_user(user_data[0])
-            for user_data in self.__execute_and_commit(
+            for user_data in self.execute_and_commit(
                 'SELECT user_id FROM users WHERE is_staff = 1'
             )
         ]
@@ -203,7 +203,7 @@ class DBHandler(object):
         """
         return [
             self.get_user(user_data[0])
-            for user_data in self.__execute_and_commit('SELECT user_id FROM users WHERE is_active = TRUE')
+            for user_data in self.execute_and_commit('SELECT user_id FROM users WHERE is_active = TRUE')
         ]
 
     def get_pro_users(self):
@@ -212,7 +212,7 @@ class DBHandler(object):
         """
         return [
             self.get_user(user_id[0])
-            for user_id in self.__execute_and_commit(
+            for user_id in self.execute_and_commit(
                 'SELECT user_id \
                 FROM users \
                 WHERE is_active = TRUE and is_pro != FALSE'
@@ -227,7 +227,7 @@ class DBHandler(object):
         """
         return [
             tuple(list(rate[:-1]) + [rate[-1].split(',')])
-            for rate in self.__execute_and_commit(
+            for rate in self.execute_and_commit(
                 'SELECT \
                 users_rates.iso, users_rates.start_value, users_rates.percent_delta, users_rates.check_times \
                 FROM users JOIN users_rates ON users.user_id = users_rates.user_id AND users.user_id = ?',
@@ -242,7 +242,7 @@ class DBHandler(object):
         otherwise returns list(id, user_id, iso_from, iso_to, value, up_to_date, is_by_experts, real_value)
         """
         if self.check_prediction_exists(pred_id):
-            *other_data, up_to_date, is_by_experts, real_value = self.__execute_and_commit(
+            *other_data, up_to_date, is_by_experts, real_value = self.execute_and_commit(
                     'SELECT \
                     id, user_id, iso_from, iso_to, value, up_to_date, is_by_experts, real_value \
                     FROM currency_predictions WHERE id = ?', 
@@ -253,7 +253,7 @@ class DBHandler(object):
     def get_actual_predictions(self):
         return [
             self.get_prediction(data[0])
-            for data in self.__execute_and_commit(
+            for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
@@ -266,7 +266,7 @@ class DBHandler(object):
         check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
-            for data in self.__execute_and_commit(
+            for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
@@ -279,7 +279,7 @@ class DBHandler(object):
     def get_random_prediction(self):
         res = [
             self.get_prediction(data[0])
-            for data in self.__execute_and_commit(
+            for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1;'
@@ -295,7 +295,7 @@ class DBHandler(object):
         def get_next():
             res = [
                 self.get_prediction(data[0])
-                for data in self.__execute_and_commit(
+                for data in self.execute_and_commit(
                     # used `LIMIT` and `id > ?` because selection by certain id can cause errors
                     "SELECT \
                     id \
@@ -310,7 +310,7 @@ class DBHandler(object):
         def get_previous():
             res = [
                 self.get_prediction(data[0])
-                for data in self.__execute_and_commit(
+                for data in self.execute_and_commit(
                     # used `LIMIT` and `id < ?` because selection by certain id can cause errors
                     "SELECT \
                     id \
@@ -334,7 +334,7 @@ class DBHandler(object):
         check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
-            for data in self.__execute_and_commit(
+            for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
@@ -346,7 +346,7 @@ class DBHandler(object):
     def get_unverified_predictions(self):
         return [
             self.get_prediction(data[0])
-            for data in self.__execute_and_commit(
+            for data in self.execute_and_commit(
                 'SELECT \
                 id \
                 FROM currency_predictions \
@@ -360,7 +360,7 @@ class DBHandler(object):
                 for k, v in kwargs.items():
                     if isinstance(v, datetime):
                         v = v.strftime('%Y-%m-%d %H:%M:%S')
-                    self.__execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
+                    self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
             except sqlite3.OperationalError:
                 raise ValueError(f'invalid argument {repr(k)}') from None
             except sqlite3.IntegrityError:
@@ -377,7 +377,7 @@ class DBHandler(object):
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
                     v = ','.join(v)
                 try:
-                    self.__execute_and_commit(
+                    self.execute_and_commit(
                         'UPDATE users_rates SET %s = ? WHERE user_id = ? and iso = ?' % k,
                         (v, user_id, iso)
                     )
@@ -388,7 +388,7 @@ class DBHandler(object):
             return True
 
     def delete_user_rate(self, user_id, iso):
-        self.__execute_and_commit(
+        self.execute_and_commit(
             'DELETE FROM users_rates WHERE user_id = ? AND iso = ?',
             (user_id, iso)
         )
@@ -411,7 +411,7 @@ class DBHandler(object):
             # end of validation
             try:
                 for k, v in kwargs.items():
-                    self.__execute_and_commit(
+                    self.execute_and_commit(
                         'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
                         (v, id,)
                     )
@@ -422,7 +422,7 @@ class DBHandler(object):
             return True
 
     def delete_prediction(self, pred_id):
-        self.__execute_and_commit(
+        self.execute_and_commit(
             'DELETE FROM currency_predictions WHERE id = ?',
             (pred_id, )
         )
@@ -436,12 +436,12 @@ class DBHandler(object):
             None - delete any reaction
         """
         if self.check_prediction_exists(pred_id) and self.check_user_exists(user_id):
-            self.__execute_and_commit(
+            self.execute_and_commit(
                 'DELETE FROM predictions_reactions WHERE pred_id = ? and user_id = ?',
                 (pred_id, user_id)
             )
             if if_like is not None:
-                self.__execute_and_commit(
+                self.execute_and_commit(
                     'INSERT INTO predictions_reactions VALUES (?, ?, ?)',
                     (pred_id, user_id, if_like)
                 )
@@ -450,7 +450,7 @@ class DBHandler(object):
 
     def get_number_likes(self, pred_id):
         if self.check_prediction_exists(pred_id):
-            return self.__execute_and_commit(''' 
+            return self.execute_and_commit(''' 
                     SELECT COUNT(reaction) 
                     FROM predictions_reactions 
                     where pred_id = ? AND reaction = 1
@@ -460,7 +460,7 @@ class DBHandler(object):
 
     def get_number_dislikes(self, pred_id):
         if self.check_prediction_exists(pred_id):
-            return self.__execute_and_commit(''' 
+            return self.execute_and_commit(''' 
                     SELECT COUNT(reaction) 
                     FROM predictions_reactions 
                     where pred_id = ? AND reaction = 0
@@ -471,7 +471,7 @@ class DBHandler(object):
     def get_max_liked_predictions(self):
         return [
             self.get_prediction(pred_data[0])
-            for pred_data in self.__execute_and_commit('''
+            for pred_data in self.execute_and_commit('''
                 SELECT DISTINCT currency_predictions.id 
                 FROM currency_predictions JOIN predictions_reactions
                 WHERE currency_predictions.id = predictions_reactions.pred_id AND datetime(currency_predictions.up_to_date) > datetime('now')

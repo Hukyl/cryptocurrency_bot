@@ -226,8 +226,8 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(len(self.db.get_all_users()), 1)
         self.db.add_user(1)
         self.assertEqual(len(self.db.get_all_users()), 2)
-        self.db.__execute_and_commit('DELETE FROM users')
-        self.db.__execute_and_commit('DELETE FROM users_rates')
+        self.db.execute_and_commit('DELETE FROM users')
+        self.db.execute_and_commit('DELETE FROM users_rates')
         self.assertEqual(len(self.db.get_all_users()), 0)
 
     def test_get_pro_users(self):
@@ -279,25 +279,15 @@ class UserModelTestCase(BasicTestCase):
 
     def test_add_dbuser(self):
         user = models.user.DBUser(0)
-        self.assertDictEqual(
-            user.rates, 
-            {
-                'BRENT': {
+        self.assertTrue(
+            all([
+                {k: {
                     'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 55.0
-                },
-                'RTS': {
-                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 145.0 
-                },
-                'BTC': {
-                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 31000.0 
-                }
-            }
+                    'percent_delta': 0.01, 
+                    'start_value': utils.get_default_rates(k, to_print=False).get(k)
+                }} == {k: v}
+                for k, v in user.rates.items()
+            ])
         )
         self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 0, 'en'])
 
@@ -367,9 +357,9 @@ class UserModelTestCase(BasicTestCase):
 
     def test_add_dbuser_rates(self):
         user = models.user.DBUser(0)
-        self.assertEqual(len(user.rates), 3)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
         user.add_rate('UAH', check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
-        self.assertEqual(len(user.rates), 4)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
         self.assertDictEqual(
             user.rates.get('UAH'), 
             dict(check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
@@ -438,8 +428,8 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
         user = models.user.DBUser(0)
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 1)
-        self.db.__execute_and_commit('DELETE FROM users')
-        self.db.__execute_and_commit('DELETE FROM users_rates')
+        self.db.execute_and_commit('DELETE FROM users')
+        self.db.execute_and_commit('DELETE FROM users_rates')
         self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
 
 
@@ -542,7 +532,7 @@ class UtilsTestCase(unittest.TestCase):
 
         with self.assertRaises(ZeroDivisionError):
             raise_exc()
-        raise_exc = utils.catch_exc(raise_exc)
+        raise_exc = utils.catch_exc(raise_exc, to_print=False)
         self.assertIsNone(raise_exc())
 
     def test_add_offset(self):

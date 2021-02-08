@@ -1,7 +1,7 @@
 CHECK_TIMES = ['5:00', '7:00', '9:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00', '23:00']
 DEFAULT_CHECK_TIMES = ['9:00', '15:00', '21:00']
 PERCENTAGES = ['0.2', '0.4', '0.6', '0.8', '1.0', '1.2', '1.4', '1.6', '1.8', '2.0']
-CURRENCIES = ['BTC', 'BRENT', 'RTS'] 
+CURRENCIES = ['BTC', 'BRENT', 'RTS', 'Gold', 'Silver', 'Platinum'] 
 ACCEPTABLE_CURRENCIES_CONVERTION = {
     'BRENT futures': "BRENT-USD",
     'RTS futures': "RTS-USD"

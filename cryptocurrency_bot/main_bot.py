@@ -46,8 +46,8 @@ bot.skip_pending = True
 
 brent_parser = InvestingParser('brent-oil')
 gold_parser = InvestingParser('gold')
-gold_parser = InvestingParser('gold')
-gold_parser = InvestingParser('silver')
+silver_parser = InvestingParser('silver')
+platinum_parser = InvestingParser('platinum')
 bitcoin_parser = BitcoinParser()
 rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
@@ -97,7 +97,7 @@ def set_session(bot_instance, call):
 ################################################################################################################
 
 
-@catch_exc
+@catch_exc(to_print=True)
 @bot.message_handler(commands=['start'])
 def start_message(msg):
     user = bot.session['user']
@@ -222,9 +222,12 @@ def get_currency_rates_today(msg):
 
     bot.send_message(
         msg.chat.id,
-        f"{brent_parser.to_string(to_update=False)}\n"
-        f"{bitcoin_parser.to_string(to_update=False)}\n"
-        f"{rts_parser.to_string(to_update=False)}",
+        '\n'.join([
+            brent_parser.to_string(to_update=False), 
+            bitcoin_parser.to_string(to_update=False), 
+            rts_parser.to_string(to_update=False),
+            gold_parser.to_string(to_update=False)
+        ]),
         reply_markup=kbs(list(buttons_dct))
     )
     bot.register_next_step_handler(msg, choose_option_inner)
@@ -835,7 +838,7 @@ def see_user_info(msg):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 @bot.message_handler(commands=['change_delta'])
 def change_user_rate_percent_delta(msg):
     user = bot.session['user']
@@ -894,7 +897,7 @@ def change_user_rate_percent_delta(msg):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 @bot.message_handler(commands=['change_checktime'])
 def change_user_rate_check_times(msg):
     user = bot.session['user']
@@ -994,7 +997,7 @@ def change_user_rate_check_times(msg):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 @bot.message_handler(commands=['change_timezone'])
 def change_user_timezone(msg):
     user = bot.session['user']
@@ -1038,7 +1041,7 @@ def change_user_timezone(msg):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def add_new_currency(msg):
     user = bot.session['user']
 
@@ -1083,7 +1086,7 @@ def add_new_currency(msg):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 @bot.message_handler(commands=['subscription'])
 def buy_subscription(msg):
     user = bot.session['user']
@@ -1348,13 +1351,13 @@ def send_bot_help(msg):
 
 def update_rates():
     while True:
-        for parser in [brent_parser, bitcoin_parser, rts_parser]:
+        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]:
             parser.update_start_value()
         time.sleep(53)
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def check_premium_ended():
     def check_user_premium_ended(user):
         if get_current_datetime(utcoffset=user.timezone) > user.is_pro:
@@ -1372,11 +1375,11 @@ def check_premium_ended():
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def verify_predictions():
     parsers = {
         parser.iso: parser
-        for parser in [brent_parser, bitcoin_parser, rts_parser]
+        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]
     }
     while True:
         for pred in DBCurrencyPrediction.get_unverified_predictions():
@@ -1402,7 +1405,7 @@ def verify_predictions():
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def check_alarm_times():
     previous_time = ''
     while True:
@@ -1420,7 +1423,7 @@ def check_alarm_times():
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in DBUser.get_users_by_check_time(time_):
@@ -1428,11 +1431,11 @@ def start_alarms(time_):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def get_rate_safe(iso_from, iso_to):
     parsers = {
         parser.iso: parser
-        for parser in [brent_parser, bitcoin_parser, rts_parser]
+        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]
     }
     parser = parsers.get(iso_from, currency_parser)
     try:
@@ -1443,13 +1446,13 @@ def get_rate_safe(iso_from, iso_to):
             rate = parser.get_rate(iso_from=iso_from, iso_to=iso_to)
     except Exception:
         # if network can not be reached or somewhat
-        default_value = get_default_values_from_config(iso_to).get(iso_to)
+        default_value = get_default_rates(iso_to).get(iso_to)
         rate = {iso_from: 1, iso_to: default_value}
     return rate
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def check_delta_safe(iso_from, iso_to, start_value, percent_delta):
     rate = get_rate_safe(iso_from, iso_to)
     diff = CurrencyParser.calculate_difference(old=start_value, new=rate.get(iso_to))
@@ -1459,7 +1462,7 @@ def check_delta_safe(iso_from, iso_to, start_value, percent_delta):
 
 
 
-@catch_exc
+@catch_exc(to_print=True)
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
         rate = check_delta_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
