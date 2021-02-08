@@ -30,12 +30,12 @@ bot.full_bot_commands = {
     '/change_timezone': 'сменить ваш часовой пояс', # change your timezone
     '/toggle_alarms': 'включить/выключить оповещения', # Toggle alarms
     '/make_prediction': 'сделать прогноз', # Make a prediction
-    '/get_predictions': 'перейти в раздел "Прогнозы"', # Go to "Predictions" section
+    '/get_predictions': 'прогнозы', # Go to "Predictions" section
     '/convert': 'конвертер валют', # Currency Converter
     '/menu': 'главное меню', # Main menu
-    '/subscription': 'перейти в раздел "Подписка"', # Go to "Subscription" section
+    '/subscription': 'подписка', # Go to "Subscription" section
     '/language': 'сменить язык', # Change language
-    '/techsupport': 'перейти в раздел "Техподдержка"', # Go to "Techsupport" section
+    '/techsupport': 'техподдержка', # Go to "Techsupport" section
     '/help': 'помощь по командам', # Help with commands
 }
 bot.short_bot_commands = {
@@ -274,7 +274,7 @@ def make_user_currency_prediction(msg):
             bot.send_message(
                 msg.chat.id,
                 _(
-                    'Enter the iso-code of the forecast currency `<isocode> - <isocode>`\nFor example, USD-RUB',
+                    'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
                     user.language
                     
                 ),
@@ -684,7 +684,7 @@ def convert_currency(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB',
+            'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB',
             user.language
         ),
         parse_mode='markdown'
@@ -1079,7 +1079,7 @@ def add_new_currency(msg):
 
     bot.send_message(
         msg.chat.id,
-        _('Enter the iso-code of the new currency', user.language),
+        _('Enter the ISO-code of the new currency', user.language),
         reply_markup=kbs(['RUB', 'EUR', 'UAH', 'BYN'])
     )
     bot.register_next_step_handler(msg, ask_new_iso)

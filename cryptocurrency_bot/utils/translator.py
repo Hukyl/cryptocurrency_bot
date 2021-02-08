@@ -78,17 +78,17 @@ translation_dict = {
         'en': 'Enter the forecast result (for example, 27.50, 22300)', 
         'ru': 'Введите результат прогноза (например, 27.50, 22300)'
     },
-    'Enter the iso-code of the forecast currency `<isocode> - <isocode>`\nFor example, USD-RUB': {
-        'en': 'Enter the iso-code of the forecast currency `<isocode> - <isocode>`\nFor example, USD-RUB',
-        'ru': 'Введите iso-код валюты прогноза `<изо-код>-<изо-код>`\nНапример, USD-RUB'
+    'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB': {
+        'en': 'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
+        'ru': 'Введите ISO-коды валют прогноза `<ISO>-<ISO>`\nНапример, USD-RUB'
     },
-    'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB': {
-        'en': 'Enter the iso-codes of currencies `<isocode> - <isocode>`\nFor example, USD-RUB',
-        'ru': 'Введите iso-коды валют `<изо-код>-<изо-код>`\nНапример, USD-RUB'
+    'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB': {
+        'en': 'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB',
+        'ru': 'Введите ISO-коды валют `<ISO>-<ISO>`\nНапример, USD-RUB'
     },
-    'Enter the iso-code of the new currency': {
-        'en': 'Enter the iso-code of the new currency', 
-        'ru': 'Введите iso-код новой валюты'
+    'Enter the ISO-code of the new currency': {
+        'en': 'Enter the ISO-code of the new currency', 
+        'ru': 'Введите ISO-код новой валюты'
     },
     'Forecast not created': {
         'en': 'Forecast not created', 
@@ -174,9 +174,9 @@ translation_dict = {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'
     },
-    '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **': {
-        'en': '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **',
-        'ru': "**Оповещение**\n**{}** = **{} USD**\nИзменение: **{:+}**, или **{:+}**\nПредыдущее: **{} = {} USD**"
+    '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({:+})**\nPrevious: **{} = {} USD **': {
+        'en': '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({:+})**\nPrevious: **{} = {} USD **',
+        'ru': "**Оповещение**\n**{}** = **{} USD**\nИзменение: **{:+} ({:+})**\nПредыдущее: **{} = {} USD**"
     },
     'Quotes': {
         'en': 'Quotes', 
@@ -248,7 +248,7 @@ translation_dict = {
     },
     'Your info': {
         'en': 'Your info', 
-        'ru': 'Ваша информацию'
+        'ru': 'Ваша информация'
     },
     'View predictions': {
         'en': 'View predictions', 
@@ -292,7 +292,7 @@ translation_dict = {
     },
     'You have no predictions so far, create one!': {
         'en': 'You have no predictions so far, create one!', 
-        'ru': 'У вас ещё нету прогнозов, создайте их!'
+        'ru': 'У вас ещё нет прогнозов, создайте их!'
     },
     'You pay for a Subscription for {} month(s)': {
         'en': 'You pay for a Subscription for {} month(s)', 

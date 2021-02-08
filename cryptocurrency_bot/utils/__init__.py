@@ -64,6 +64,6 @@ def catch_exc(to_print:bool=True):
 
 
 def infinite_loop(func, *args, **kwargs):
-    func = catch_exc(func)
+    func = catch_exc(to_print=True)(func)
     while True:
         func(*args, **kwargs)
