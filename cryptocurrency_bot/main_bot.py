@@ -52,7 +52,7 @@ bitcoin_parser = BitcoinParser()
 rts_parser = RTSParser()
 currency_parser = FreecurrencyratesParser()
 
-USERS = {}
+USERS_SESSIONS = {}
 
 ################################################################################################################
 
@@ -71,15 +71,15 @@ def check_if_command(bot_instance, message):
 
 
 def get_or_create_session(chat_id):
-    global USERS
+    global USERS_SESSIONS
     try:
-        USERS[chat_id] = USERS.get(chat_id, {'user': DBUser(chat_id)})
+        USERS_SESSIONS[chat_id] = USERS_SESSIONS.get(chat_id, {'user': DBUser(chat_id)})
     except MemoryError:
         for i in range(50):
-            USERS.pop()
+            USERS_SESSIONS.pop()
         return get_or_create_session(chat_id)
     else:
-        return USERS[chat_id]
+        return USERS_SESSIONS[chat_id]
 
 
 # Used not to initialize the user every time, just save their state
@@ -361,7 +361,7 @@ def make_user_currency_prediction(msg):
         msg.chat.id,
         _('To exit anywhere, enter {}', user.language).format('/menu')
     )
-    datetime_check_str = 'ДД.ММ.ГГГГ ЧЧ:ММ' if user.language ==  'ru' else 'MM-DD-YYYY HH:ММ AM/PM'
+    datetime_check_str = get_country_dt_example(user.language)
     datetime_example = convert_to_country_format(
         get_current_datetime(utcoffset=user.timezone),
         user.language,
@@ -1475,7 +1475,7 @@ def send_alarm(user, t):
                 bot.send_message(
                     user.user_id,
                     _(
-                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+}**, or **{:+}**\nPrevious: **{} = {} USD **',
+                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({:+})**\nPrevious: **{} = {} USD **',
                         user.language
                     ).format(
                         k, 

@@ -418,13 +418,18 @@ translation_dict = {
 
 
 def translate(text:str, dest:str='ru', parse_mode:str='casual'):
-    res = translation_dict.get(text, None)
+    """
+    Translates text into language, by translation_dct or Google Translator
+
+    parse_modes:
+        casual: R"some text;some more<newline char>" -> translation... -> R"some text; some more<not newline char>"
+        newline: R"some text;some more;one more" -> translation... -> R"some text<newline char>some more<newline char>one more"
+    """
     assert parse_mode in ['casual', 'newline']
+    res = translation_dict.get(text, {}).get(dest, None)
     if res is None:
         try:
             res = gt_t.translate(text, lang_tgt=dest).strip()
         except google_new_transError:
             res = text
-    else:
-        res = res.get(dest, text)
     return res.replace('; ', '\n').replace(';', '\n') if parse_mode == 'newline' else res

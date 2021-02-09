@@ -59,3 +59,12 @@ def check_check_time_in_rate(user_check_times:list, check_time:str, user_timezon
         if check_time == t_no_offset:
             return True
     return False
+
+
+def get_country_dt_example(language:str='en'):
+    examples = {
+        'ru': 'ДД.ММ.ГГГГ ЧЧ:ММ',
+        'en': 'MM-DD-YYYY HH:МI AM/PM',
+        'default': 'YYYY-MM-DD HH:MI'
+    }
+    return examples.get(language, examples['default'])
