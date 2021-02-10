@@ -469,24 +469,20 @@ class DBHandler(object):
                 )[0][0]
 
     def get_max_liked_predictions(self):
-        return [
-            self.get_prediction(pred_data[0])
-            for pred_data in self.execute_and_commit('''
-                SELECT DISTINCT currency_predictions.id 
-                FROM currency_predictions JOIN predictions_reactions
-                WHERE currency_predictions.id = predictions_reactions.pred_id AND datetime(currency_predictions.up_to_date) > datetime('now')
-                ORDER BY
-                (
-                    SELECT COUNT(reaction) 
-                    FROM predictions_reactions 
-                    where pred_id = currency_predictions.id AND reaction = 1
-                ) - (
-                    SELECT COUNT(reaction) 
-                    FROM predictions_reactions 
-                    where pred_id = currency_predictions.id AND reaction = 0
-                ) DESC 
-            ''')
-        ]
+        return sorted(
+            [
+                self.get_prediction(pred_data[0])
+                for pred_data in self.execute_and_commit('''
+                    SELECT DISTINCT id 
+                    FROM currency_predictions 
+                    WHERE datetime(up_to_date) > datetime('now')
+                ''')
+            ], # only actual predictions
+            key=lambda x: self.get_number_likes(x[0]) - self.get_number_dislikes(x[0]), # difference between likes and dislikes
+            # (self.get_number_likes(x[0]) - self.get_number_dislikes(x[0])) / (x[-3] - get_current_datetime()).total_seconds() 
+            # Older predictions can have more likes, though they can be worse
+            reverse=True  # from biggest to smallest
+        )
 
 
 if __name__ == '__main__':

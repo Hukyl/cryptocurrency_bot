@@ -490,16 +490,16 @@ class PredictionModelTestCase(BasicTestCase):
         self.assertEqual(pred.dislikes, 0)
 
     def test_all_predictions_number(self):
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
+        self.assertEqual(models.user.DBPrediction.get_all_prediction_number(), 0)
         user = models.user.DBUser(0)
         user.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 1)
+        self.assertEqual(models.user.DBPrediction.get_all_prediction_number(), 1)
         user.create_prediction('UAH', 'USD', value=0.036, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 2)
+        self.assertEqual(models.user.DBPrediction.get_all_prediction_number(), 2)
         pred1, pred2 = user.predictions
         pred1.delete()
         pred2.delete()
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
+        self.assertEqual(models.user.DBPrediction.get_all_prediction_number(), 0)
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -532,7 +532,7 @@ class UtilsTestCase(unittest.TestCase):
 
         with self.assertRaises(ZeroDivisionError):
             raise_exc()
-        raise_exc = utils.catch_exc(raise_exc, to_print=False)
+        raise_exc = utils.catch_exc(to_print=False)(raise_exc)
         self.assertIsNone(raise_exc())
 
     def test_add_offset(self):

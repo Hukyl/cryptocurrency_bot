@@ -9,7 +9,7 @@ from telebot.types import LabeledPrice
 
 from configs import settings, MAIN_TOKEN, TECHSUPPORT_TOKEN
 from models.parsers import *
-from models.user import DBUser, DBCurrencyPrediction
+from models.user import DBUser, DBPrediction
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
@@ -401,43 +401,39 @@ def see_users_currency_predicitions(msg):
 
     def see_other_users_predictions(msg):
         if user.is_pro:
-            experts_str = '⚜ Experts predictions ⚜ are:'
-            experts_iter = iter(DBCurrencyPrediction.get_experts_predictions(if_all=True))
-            for _n in range(5):
-                try:
-                    expert_pred = next(experts_iter)
-                except StopIteration:
-                    break
-                experts_str += f'\n\n{str(expert_pred)}'
-            if experts_str.endswith(':'):
-                experts_str += ' none'
+            experts_str = (
+                '⚜ Experts predictions ⚜ are:\n'
+                +
+                ('\n\n'.join([str(x) for x in DBPrediction.get_experts_predictions()][:5]) or ' none')
+            )
+            if experts_str.endswith('none'):
+                # if no predictions were concatenated to prefix
+                experts_str = experts_str.replace('\n', '')
             bot.send_message(
                 msg.chat.id, 
                 _(experts_str.replace('\n', ';'), user.language, parse_mode='newline'),
             )
 
-        predictions_str = 'Most liked predictions are:'
-        i = iter(DBCurrencyPrediction.get_most_liked_predictions())
-        for _n in range(5):
-            try:
-                pred = next(i)
-            except StopIteration:
-                break
-            predictions_str += f'\n\n{str(pred)}'
-        if predictions_str.endswith(':'):
-            predictions_str += ' none'
+        liked_preds_str = (
+            'Most liked predictions are:\n'
+            +
+            ('\n\n'.join([str(x) for x in DBPrediction.get_most_liked_predictions()][:5]) or ' none')
+        )
+        if liked_preds_str.endswith('none'):
+            # if no predictions were concatenated to prefix
+            liked_preds_str = liked_preds_str.replace('\n', '')
         bot.send_message(
             msg.chat.id, 
             _(
-                predictions_str.replace('\n', ';'),
+                liked_preds_str.replace('\n', ';'),
                 user.language,
-                
+                parse_mode='newline'
             ),
         )
         return see_users_currency_predicitions(msg)
 
     def liking_system(msg):
-        random_pred = DBCurrencyPrediction.get_random_prediction()
+        random_pred = DBPrediction.get_random_prediction()
         if random_pred is None:
             # if no predictions are there
             bot.send_message(msg.chat.id, _('There are no predictions to like yet, you can create one!', user.language))
@@ -507,7 +503,7 @@ def __get_prediction_inline_kb_for_liking(pred):
 @bot.callback_query_handler(lambda call: 'next_prediction_to_' in call.data or 'previous_prediction_to_' in call.data)
 def get_closest_prediction(call):
     action, *data, pred_id = call.data.split('_')
-    start_pred = DBCurrencyPrediction(int(pred_id))
+    start_pred = DBPrediction(int(pred_id))
     following_pred = start_pred.get_closest_neighbours()[action]
     user = bot.session['user']
     inline_kb = __get_prediction_inline_kb_for_liking(following_pred)
@@ -523,7 +519,7 @@ def get_closest_prediction(call):
 @bot.callback_query_handler(lambda call: 'like_prediction_' in call.data or 'dislike_prediction_' in call.data)
 def toggle_user_reaction(call):
     action, *some_data, pred_id = call.data.split('_')
-    prediction = DBCurrencyPrediction(int(pred_id))
+    prediction = DBPrediction(int(pred_id))
     user = bot.session['user']
     reaction = True if action == 'like' else False
     prediction.toggle_like(call.message.chat.id, reaction)
@@ -544,7 +540,7 @@ def toggle_user_reaction(call):
 @bot.callback_query_handler(lambda call: 'get_prediction_' in call.data)
 def get_prediction_details(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBCurrencyPrediction(pred_id)
+    prediction = DBPrediction(pred_id)
     user = bot.session['user']
     bot.edit_message_text(
         chat_id=call.message.chat.id, 
@@ -561,7 +557,7 @@ def get_prediction_details(call):
 @bot.callback_query_handler(lambda call: 'ask_delete_prediction_' in call.data)
 def ask_delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBCurrencyPrediction(pred_id)
+    prediction = DBPrediction(pred_id)
     user = bot.session['user']
     if prediction.is_actual:
         bot.edit_message_text(
@@ -591,7 +587,7 @@ def ask_delete_prediction(call):
 @bot.callback_query_handler(lambda call: 'delete_prediction_' in call.data)
 def delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBCurrencyPrediction(pred_id)
+    prediction = DBPrediction(pred_id)
     user = bot.session['user']
     bot.delete_message(call.message.chat.id, call.message.message_id)
     if prediction.is_actual:
@@ -1382,23 +1378,22 @@ def verify_predictions():
         for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]
     }
     while True:
-        for pred in DBCurrencyPrediction.get_unverified_predictions():
+        for pred in DBPrediction.get_unverified_predictions():
             pred_res = get_rate_safe(pred.iso_from, pred.iso_to)
             real_value = pred_res.get(pred.iso_to) 
             pred.update(real_value=real_value)
             user = DBUser(pred.user_id)
             diff = CurrencyParser.calculate_difference(old=pred.value, new=real_value)
-            perc_diff = diff.get('percentage_difference')
             bot.send_message(
                 pred.user_id, 
                 _(
-                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {:+}',
+                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
                     user.language
                 ).format(
                     repr(pred),
                     pred.value,
                     pred.real_value,
-                    prettify_percent(perc_diff)
+                    prettify_percent(diff.get('percentage_difference'))
                 ),
                 parse_mode='markdown'
             )
@@ -1469,19 +1464,17 @@ def send_alarm(user, t):
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
             user.update_rates(k, start_value=new)
-            perc_delta = prettify_float(rate.get('percentage_difference'))
-            delta = prettify_float(rate.get('difference'))
             try:
                 bot.send_message(
                     user.user_id,
                     _(
-                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({:+})**\nPrevious: **{} = {} USD **',
+                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({})**\nPrevious: **{} = {} USD **',
                         user.language
                     ).format(
                         k, 
                         prettify_float(new), 
-                        delta, 
-                        prettify_percent(perc_delta), 
+                        prettify_float(rate.get('difference')), 
+                        prettify_percent(rate.get('percentage_difference')), 
                         k, 
                         prettify_float(old)
                     ),

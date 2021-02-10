@@ -101,7 +101,7 @@ class DBUser(User):
 
     def get_predictions(self, if_all:bool=False):
         for pred_data in self.db.get_user_predictions(self.user_id, if_all):
-            yield DBCurrencyPrediction(pred_data[0])
+            yield DBPrediction(pred_data[0])
 
     def update_rates(self, iso, **kwargs):
         self.db.change_user_rate(self.user_id, iso, **kwargs)
@@ -175,7 +175,7 @@ class DBUser(User):
 
 
 
-class DBCurrencyPrediction(object):
+class DBPrediction(object):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
@@ -204,8 +204,8 @@ class DBCurrencyPrediction(object):
         res = self.db.get_closest_neighbours_of_prediction(self.id)
         prev_id, next_id = res['previous'], res['next']
         return {
-            'previous': DBCurrencyPrediction(prev_id) if prev_id else None,
-            'next': DBCurrencyPrediction(next_id) if next_id else None
+            'previous': DBPrediction(prev_id) if prev_id else None,
+            'next': DBPrediction(next_id) if next_id else None
         }
 
     @property
@@ -254,24 +254,12 @@ class DBCurrencyPrediction(object):
         return f"{self.iso_from}-{self.iso_to}, {convert_to_country_format(self.up_to_date, user.language)}"
 
     def __str__(self):
-        user = DBUser(self.user_id)
-        return _(
-            'A prediction\
-            ;Currencies: {}-{} \
-            ;Up to:{} \
-            ;Exchange Rate: {} ' + (
-                ";Likes: {};Dislikes: {}" if not self.is_by_experts else ''
-            ),
-            user.language,
-            parse_mode='newline'
-        ).format(
-            self.iso_from,
-            self.iso_to,
-            convert_to_country_format(self.up_to_date, user.language),
-            self.value,
-            self.likes,
-            self.dislikes
+        return (
+            f"Prediction\nCurrencies: {self.iso_from}-{self.iso_to}\nUp to: {self.up_to_date}\nExchange Rate: {self.value}"
+            +
+            (f"\nLikes: {self.likes}\nDislikes: {self.dislikes}" if not self.is_by_experts else '')
         )
+
 
 
 if __name__ == '__main__':
