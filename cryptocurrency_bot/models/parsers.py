@@ -53,8 +53,7 @@ class CurrencyParser(object):
         return requests.get(link, headers=headers)
 
     def get_html(self, link:str=None):
-        link = link or self.link
-        return self.get_response(link).text
+        return self.get_response(link or self.link).text
 
     def get_soup(self, link:str=None):
         link = link or self.link
@@ -77,10 +76,7 @@ class CurrencyParser(object):
             return {self.iso: 1, 'USD': number}
 
     def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
-        res = self.calculate_difference(
-            old or self.start_value,
-            new or self.get_rate().get('USD')
-        )
+        res = self.calculate_difference(old or self.start_value, new or self.get_rate().get('USD'))
         res['currency_from'] = self.iso
         res['currency_to'] = 'USD'
         if abs(res.get('percentage_difference')) < percent_delta:
@@ -109,12 +105,11 @@ class RTSParser(CurrencyParser):
 
     def __init__(self, start_value:float=None):
         link = "https://m.ru.investing.com/indices/rts-cash-settled-futures"
-        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
+        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem \
+                        > div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.iso, 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.iso, start_value=start_value
         )
 
 
@@ -125,14 +120,13 @@ class BitcoinParser(CurrencyParser):
     def __init__(self, start_value:float=None):
         link = "https://www.coindesk.com/price/bitcoin"
         # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
-        css_selector = "#export-chart-element > div > section > div.coin-info-list.price-list > \
-                             div:nth-child(1) > div.data-definition > div"
+        css_selector = "#export-chart-element > div > section > \
+                        div.coin-info-list.price-list > div:nth-child(1) \
+                        > div.data-definition > div"
         # css_selector = "#amount2"
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.iso, 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.iso, start_value=start_value
         )
 
 
@@ -146,9 +140,7 @@ class FreecurrencyratesParser(CurrencyParser):
         if iso_from == iso_to:
             return {iso_from: 1}
         try:
-            link = self.link % iso_from
-            soup = self.get_soup(link)
-            rate = soup.select_one(f"#rate-iso-{iso_to}")
+            rate = self.get_soup(self.link % iso_from).select_one(f"#rate-iso-{iso_to}")
             if rate is not None:
                 number = float(rate.get("value").strip().replace(",", "."))
             else:
@@ -203,16 +195,16 @@ class InvestingParser(CurrencyParser):
     }
 
     def __init__(self, market_product:str, start_value:float=None):
-        assert market_product in self.AVAILABLE_PRODUCTS, 'not supported market product - {}'.format(repr(market_product))
+        assert (
+            market_product in self.AVAILABLE_PRODUCTS
+        ), 'not supported market product - {}'.format(repr(market_product))
         link = "https://m.investing.com/commodities/{}".format(market_product)
         css_selector = '#siteWrapper > div.wrapper > \
                         section.boxItemInstrument.boxItem > \
                         div.quotesBox > div.quotesBoxTop > span.lastInst'
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.AVAILABLE_PRODUCTS[market_product], 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.AVAILABLE_PRODUCTS[market_product], start_value=start_value
         )
 
 
@@ -220,7 +212,10 @@ class InvestingParser(CurrencyParser):
 class CurrencyExchangerInterface(CurrencyParser):
     PARSERS = merge_dicts(
         {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
-        {InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x) for x in list(InvestingParser.AVAILABLE_PRODUCTS)},
+        {
+            InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
+            for x in list(InvestingParser.AVAILABLE_PRODUCTS)
+        },
         {None: FreecurrencyratesParser()}
     )
 
@@ -228,17 +223,21 @@ class CurrencyExchangerInterface(CurrencyParser):
         pass
 
     def get_rate(self, iso_from, iso_to):
-        parser_from = self.PARSERS.get(iso_from, self.PARSERS.get(None))
-        parser_to = self.PARSERS.get(iso_to, self.PARSERS.get(None))
-        rate_from = parser_from.get_rate(iso_from) if getattr(parser_from, 'iso', None) is None else parser_from.get_rate()
-        rate_to = parser_to.get_rate(iso_to) if getattr(parser_to, 'iso', None) is None else parser_to.get_rate()
+        p_from = self.PARSERS.get(iso_from, self.PARSERS.get(None))
+        p_to = self.PARSERS.get(iso_to, self.PARSERS.get(None))
+        rate_from = (
+            p_from.get_rate(iso_from) if getattr(p_from, 'iso', None) is None else p_from.get_rate()
+        )
+        rate_to = p_to.get_rate(iso_to) if getattr(p_to, 'iso', None) is None else p_to.get_rate()
         try:
             return {
                 iso_from: 1, 
                 iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
             }
         except Exception:
-            raise ValueError("`iso_from` or `iso_to` is invalid or network cannot be reached") # from None
+            raise ValueError(
+                "`iso_from` or `iso_to` is invalid or network cannot be reached"
+            ) from None
 
     def update_start_value(self):
         for curr in self.PARSERS:

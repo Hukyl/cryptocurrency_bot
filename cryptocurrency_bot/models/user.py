@@ -31,7 +31,10 @@ class User(object):
     language:str: - user's language
     """
 
-    def __init__(self, user_id:int, is_active:bool, is_pro, is_staff:bool, rates:list, timezone:int, language:str):
+    def __init__(
+            self, user_id:int, is_active:bool, is_pro, is_staff:bool, 
+            rates:list, timezone:int, language:str
+        ):
         self.user_id = user_id
         self.is_active = is_active
         self.is_pro = is_pro
@@ -43,10 +46,10 @@ class User(object):
     @staticmethod
     def normalize_rates(rates:list):
         return {
-            rate[0]: {                                  # iso code
-                'check_times': rate[-1],                # check_times
-                'percent_delta': rate[2],               # percent_delta
-                'start_value': rate[1]                  # start_value
+            rate[0]: {  # iso code
+                'check_times': rate[-1],  # check_times
+                'percent_delta': rate[2],  # percent_delta
+                'start_value': rate[1]  # start_value
             }
             for rate in rates
         }
@@ -69,7 +72,10 @@ class User(object):
 
     def __iter__(self):
         # also implements list(User), because __iter__ is used by list()
-        for i in [self.user_id, self.is_active, self.is_pro, self.is_staff, self.rates, self.timezone, self.language]:
+        for i in [
+                self.user_id, self.is_active, self.is_pro, 
+                self.is_staff, self.rates, self.timezone, self.language
+            ]:
             yield i
 
 
@@ -109,7 +115,10 @@ class DBUser(User):
 
     def create_prediction(self, iso_from:str, iso_to:str, value:float, up_to_date:datetime):
         assert check_datetime_in_future(up_to_date)
-        self.db.add_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
+        self.db.add_prediction(
+            self.user_id, iso_from, iso_to, 
+            value, up_to_date, is_by_experts=self.is_staff
+        )
 
     def add_rate(self, iso, **kwargs):
         self.db.add_user_rate(self.user_id, iso, **kwargs)
@@ -179,7 +188,10 @@ class DBPrediction(object):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
-        self.id, self.user_id, self.iso_from, self.iso_to, self.value, self.up_to_date, self.is_by_experts, self.real_value = self.db.get_prediction(pred_id)
+        (
+            self.id, self.user_id, self.iso_from, self.iso_to, self.value, 
+            self.up_to_date, self.is_by_experts, self.real_value
+        ) = self.db.get_prediction(pred_id)
 
     def toggle_like(self, user_id, if_like=True):
         """
@@ -241,21 +253,23 @@ class DBPrediction(object):
     @classmethod
     def get_random_prediction(cls):
         pred_data = cls.db.get_random_prediction()
-        return cls(pred_data[0]) if isinstance(pred_data, list) or isinstance(pred_data, tuple) else None
+        return cls(pred_data[0]) if (
+            isinstance(pred_data, list) or isinstance(pred_data, tuple)
+        ) else None
 
     def __repr__(self):
-        user = DBUser(self.user_id)
-        return f"{self.iso_from}-{self.iso_to}, {convert_to_country_format(self.up_to_date, user.language)}"
+        return f"{self.iso_from}-{self.iso_to}, {self.up_to_date}"
 
     def __str__(self):
-        return (
-            f"Prediction\nCurrencies: {self.iso_from}-{self.iso_to}\nUp to: {self.up_to_date}\nExchange Rate: {self.value}"
-            +
-            (f"\nLikes: {self.likes}\nDislikes: {self.dislikes}" if not self.is_by_experts else '')
+        return '\n'.join(
+            [
+                "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
+                f"Up to: {self.up_to_date}", f"Exchange Rate: {self.value}"
+            ],
+            [f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else []
         )
 
 
 
 if __name__ == '__main__':
-    user = DBUser(729682451)
-    user.init_premium(datetime(year=2021, month=3, day=19))
+    pass

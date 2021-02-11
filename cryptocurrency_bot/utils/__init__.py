@@ -56,7 +56,11 @@ def catch_exc(to_print:bool=True):
                 res = func(*args, **kwargs)
             except Exception:
                 if to_print:
-                    print(f'\nException\nFunc name: {func.__name__}\nType: {sys.exc_info()[0].__name__}\nMessage: {str(sys.exc_info()[1])}\n')
+                    print('\n'.join([
+                        "Exception", f"Func name: {func.__name__}", 
+                        f"Type: {sys.exc_info()[0].__name__}",
+                        f"Message: {str(sys.exc_info()[1])}"
+                    ]))
             else:
                 return res
         return onArgs

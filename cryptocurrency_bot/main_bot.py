@@ -16,7 +16,7 @@ from utils.telegram import kbs, inline_kbs
 from utils.dt import *
 
 ###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
-################################################################################################################
+####################################################################################################
 telebot.apihelper.ENABLE_MIDDLEWARE = True
 
 bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=False) # RecursionError
@@ -48,7 +48,7 @@ currency_parser = CurrencyExchangerInterface()
 
 USERS_SESSIONS = {}
 
-################################################################################################################
+####################################################################################################
 
 
 @bot.middleware_handler(update_types=['message'])
@@ -88,7 +88,7 @@ def set_session(bot_instance, call):
     bot_instance.session = get_or_create_session(call.message.chat.id)
 
 
-################################################################################################################
+####################################################################################################
 
 
 @catch_exc(to_print=True)
@@ -283,7 +283,10 @@ def make_user_currency_prediction(msg):
             else:
                 bot.send_message(
                     msg.chat.id,
-                    _("❗ This currency does not exist or is not supported, please try another one ❗", user.language)
+                    _(
+                        "❗ This currency does not exist or is not supported, please try another one ❗", 
+                        user.language
+                    )
                 )
         return bot.register_next_step_handler(msg, get_iso)
 
@@ -402,7 +405,13 @@ def see_users_currency_predicitions(msg):
         random_pred = DBPrediction.get_random_prediction()
         if random_pred is None:
             # if no predictions are there
-            bot.send_message(msg.chat.id, _('There are no predictions to like yet, you can create one!', user.language))
+            bot.send_message(
+                msg.chat.id, 
+                _(
+                    'There are no predictions to like yet, you can create one!', 
+                    user.language
+                )
+            )
             return start_bot(msg)
         else:
             closest = random_pred.get_closest_neighbours()
@@ -466,7 +475,9 @@ def get_prediction_inline_kb_for_liking(pred):
 
 
 
-@bot.callback_query_handler(lambda call: 'next_prediction_to_' in call.data or 'previous_prediction_to_' in call.data)
+@bot.callback_query_handler(
+    lambda call: 'next_prediction_to_' in call.data or 'previous_prediction_to_' in call.data
+)
 def get_closest_prediction(call):
     action, *data, pred_id = call.data.split('_')
     start_pred = DBPrediction(int(pred_id))
@@ -482,7 +493,9 @@ def get_closest_prediction(call):
 
 
 
-@bot.callback_query_handler(lambda call: 'like_prediction_' in call.data or 'dislike_prediction_' in call.data)
+@bot.callback_query_handler(
+    lambda call: 'like_prediction_' in call.data or 'dislike_prediction_' in call.data
+)
 def toggle_user_reaction(call):
     action, *some_data, pred_id = call.data.split('_')
     prediction = DBPrediction(int(pred_id))
@@ -623,7 +636,10 @@ def convert_currency(msg):
             return bot.register_next_step_handler(msg, get_isos)
         else:
             markup = inline_kbs(
-                {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
+                {
+                    i: f"change_currency_converter_amount_to_{i}" 
+                    for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS
+                }
             )
             bot.send_message(
                 msg.chat.id,
@@ -668,7 +684,10 @@ def get_callback_for_change_currency_converter_amount(call):
                 rate = float(iso_to[0].replace(',', '.')) / float(iso_from[0].replace(',', '.'))
                 new_amount = round(rate * change_amount, settings.PRECISION_NUMBER)
                 markup = inline_kbs(
-                    {i: f"change_currency_converter_amount_to_{i}" for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS}
+                    {
+                        i: f"change_currency_converter_amount_to_{i}" 
+                        for i in settings.CURRENCY_RATES_CHANGE_AMOUNTS
+                    }
                 )
                 if change_amount == float(iso_from[0]): 
                     # if we try to set the same text as before, an error occurs
@@ -865,7 +884,11 @@ def change_user_rate_check_times(msg):
     user = bot.session['user']
     available_times = copy.deepcopy(settings.CHECK_TIMES)
     chosen_times = []
-    start = settings.UNSUBSCIRBED_USER_CHECK_TIMES if not user.is_pro else settings.SUBSCIRBED_USER_CHECK_TIMES
+    start = (
+        settings.UNSUBSCIRBED_USER_CHECK_TIMES 
+        if not user.is_pro else 
+        settings.SUBSCIRBED_USER_CHECK_TIMES
+    )
     currency = None
 
     def inner1(msg):
@@ -954,7 +977,11 @@ def change_user_rate_check_times(msg):
             )
             bot.register_next_step_handler(msg, inner2, iteration_num)        
     kb = kbs(list(user.rates))
-    bot.send_message(msg.chat.id, _("Select the currency of the alert time change", user.language), reply_markup=kb)
+    bot.send_message(
+        msg.chat.id, 
+        _("Select the currency of the alert time change", user.language), 
+        reply_markup=kb
+    )
     return bot.register_next_step_handler(msg, inner1)
 
 
@@ -1014,7 +1041,10 @@ def add_new_currency(msg):
         except ValueError:
             bot.send_message(
                 msg.chat.id,
-                _('❗ This currency does not exist or is not supported, please try another one ❗', user.language)
+                _(
+                    '❗ This currency does not exist or is not supported, please try another one ❗', 
+                    user.language
+                )
             )
             bot.register_next_step_handler(msg, ask_new_iso)
         else:
@@ -1055,8 +1085,7 @@ def buy_subscription(msg):
         [
             LabeledPrice(
                 label=f"Cost of subscription for {price.get('period')} month" + ('s' if price.get('period') > 1 else ''),
-                amount=int(round(start_price * price.get('period'), 2) * 100)
-                
+                amount=int(round(start_price * price.get('period'), 2) * 100)                
             )
         ] + ([
             LabeledPrice(
@@ -1098,7 +1127,10 @@ def buy_subscription(msg):
         else:
             bot.send_message(
                 msg.chat.id, 
-                _("I don't quite understand your answer, returning to the main menu...", user.language)
+                _(
+                    "I don't quite understand your answer, returning to the main menu...", 
+                    user.language
+                )
             )
             return start_bot(msg)
 
@@ -1181,7 +1213,10 @@ def checkout_handler(pre_checkout_query):
 def subscription_payment_success(msg):
     user = bot.session['user']
     n_months = int(msg.successful_payment.invoice_payload)
-    datetime_expires = get_current_datetime(utcoffset=user.timezone) + datetime.timedelta(days=n_months*31)
+    datetime_expires = (
+        get_current_datetime(utcoffset=user.timezone) + 
+        datetime.timedelta(days=n_months*31)
+    )
     user.init_premium(datetime_expires)
     bot.send_message(
         msg.chat.id,
@@ -1239,7 +1274,9 @@ def send_techsupport_message(msg):
                 '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always grateful for your help!',
                 user.language
             ).format(bot.get_me().username),
-            reply_markup=inline_kbs({_('Send message to Techsupport', user.language): 'send_message_to_techsupport'})
+            reply_markup=inline_kbs(
+                {_('Send message to Techsupport', user.language): 'send_message_to_techsupport'}
+            )
         )
     else:
         bot.send_message(
@@ -1255,7 +1292,11 @@ def send_message_to_techsupport(call):
     def send_message(msg):
         try:
             for support_id in get_json_config().get('techsupportIds'):
-                bot.forward_message(chat_id=support_id, from_chat_id=msg.chat.id, message_id=msg.id)
+                bot.forward_message(
+                    chat_id=support_id, 
+                    from_chat_id=msg.chat.id, 
+                    message_id=msg.id
+                )
         except Exception:
             answer_msg = _("Some error occurred", user.language)
             print(f"ERROR: cannot send support message to {support_id}")
@@ -1288,7 +1329,9 @@ def send_message_to_techsupport(call):
 @bot.message_handler(commands=['help'])
 def send_bot_help(msg):
     user = bot.session['user']
-    help_message = 'Bot\'s commands:;' + ';'.join(['{} - %s' % v for k, v in bot.full_bot_commands.items()])
+    help_message = 'Bot\'s commands:;' + ';'.join([
+        '{} - %s' % v for k, v in bot.full_bot_commands.items()
+    ])
     bot.send_message(
         msg.chat.id,
         _(
@@ -1418,12 +1461,12 @@ def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
-    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
+    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime())}")
     bot.polling()
-    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime(utcoffset=0).time().strftime('%H:%M:%S'))} UTC")
+    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime())}")
 
 
-###############################################################################################################
+####################################################################################################
 
 
 if __name__ == '__main__':

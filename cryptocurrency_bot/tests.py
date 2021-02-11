@@ -79,7 +79,8 @@ class DBTestCase(BasicTestCase):
             self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
         with self.assertRaises(AssertionError):
             self.db.change_user_rate(0, 'BRENT', start_value=-5)
-        self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) # not user is found, so returns None
+        self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) 
+        # not user is found, so returns None
 
     def test_delete_user_rate(self):
         self.db.add_user(0)
@@ -112,9 +113,17 @@ class DBTestCase(BasicTestCase):
             )
         )
         with self.assertRaises(AssertionError):
-            self.db.add_prediction(user_id, 'BRENT', 'USD', -55, utils.dt.get_current_datetime().replace(year=2120))
+            self.db.add_prediction(
+                user_id, 'BRENT', 
+                'USD', -55, 
+                utils.dt.get_current_datetime().replace(year=2120)
+            )
         with self.assertRaises(AssertionError):
-            self.db.add_prediction(user_id, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2020))
+            self.db.add_prediction(
+                user_id, 'BRENT', 
+                'USD', 55, 
+                utils.dt.get_current_datetime().replace(year=2020)
+            )
         pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(1)
         self.assertEqual(pid, 1)
         self.assertEqual(puser_id, user_id)

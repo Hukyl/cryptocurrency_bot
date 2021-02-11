@@ -57,9 +57,12 @@ class DBHandler(object):
                     is_pro DATETIME DEFAULT FALSE, 
                     is_staff BOOLEAN DEFAULT 0,
                     timezone TINYINT DEFAULT 0 CHECK (
-                        timezone in (-11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+                        timezone in (
+                            -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 
+                            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+                        )
                     ),
-                    language VARCHAR(2) DEFAULT "en" CHECK (LENGTH(language) = 3 OR LENGTH(language) = 2), 
+                    language VARCHAR(2) DEFAULT "en" CHECK (LENGTH(language) IN (2, 3)), 
                     UNIQUE(user_id) ON CONFLICT REPLACE
                 )
             '''
@@ -109,7 +112,10 @@ class DBHandler(object):
                 conn.commit()
                 return res
 
-    def add_user(self, user_id:int, is_active:bool=True, is_pro=False, is_staff:bool=False, timezone:int=0, language:str='en'):
+    def add_user(
+            self, user_id:int, is_active:bool=True, is_pro=False, 
+            is_staff:bool=False, timezone:int=0, language:str='en'
+        ):
         self.execute_and_commit(
             "INSERT INTO users\
             (user_id, is_active, is_pro, is_staff, timezone, language) \
@@ -122,7 +128,10 @@ class DBHandler(object):
         )
         return True
 
-    def add_user_rate(self, user_id, iso, start_value=1, percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES):
+    def add_user_rate(
+            self, user_id, iso, start_value=1, 
+            percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES
+        ):
         check_times = ','.join(check_times)
         assert start_value > 0, 'can\'t set negative start_value'
         self.execute_and_commit(
@@ -132,16 +141,22 @@ class DBHandler(object):
         )
         return True
 
-    def add_prediction(self, user_id, iso_from:str, iso_to:str, value:float, up_to_date:datetime, is_by_experts=False):
+    def add_prediction(
+            self, user_id, iso_from:str, iso_to:str, 
+            value:float, up_to_date:datetime, is_by_experts=False
+        ):
         """
         Add a prediction if user with `user_id` exists
         Returns True if succeded else None
         """
         if self.check_user_exists(user_id):
             assert value > 0, 'can\'t create prediction with negative `value`'
-            assert check_datetime_in_future(up_to_date), 'can\'t create prediction with past `up_to_date`'
+            assert check_datetime_in_future(
+                up_to_date
+            ), 'can\'t create prediction with past `up_to_date`'
             self.execute_and_commit(
-                "INSERT INTO currency_predictions(user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
+                "INSERT INTO currency_predictions\
+                (user_id, iso_from, iso_to, value, up_to_date, is_by_experts) \
                 VALUES (?, ?, ?, ?, ?, ?)", 
                 (user_id, iso_from, iso_to, value, str(up_to_date), is_by_experts)
             )
@@ -152,7 +167,10 @@ class DBHandler(object):
         return len(res) > 0
 
     def check_prediction_exists(self, pred_id:int):
-        res = self.execute_and_commit('SELECT id FROM currency_predictions WHERE id = ?', (pred_id, ))
+        res = self.execute_and_commit(
+            'SELECT id FROM currency_predictions WHERE id = ?',
+            (pred_id, )
+        )
         return len(res) > 0
 
     def get_users_by_check_time(self, check_time:str):
@@ -178,7 +196,9 @@ class DBHandler(object):
                 self.execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
             )
             rates = self.get_user_rates(user_id)
-            is_pro = datetime.strptime(is_pro, '%Y-%m-%d %H:%M:%S') if isinstance(is_pro, str) and is_pro is not None else is_pro
+            is_pro = datetime.strptime(
+                is_pro, '%Y-%m-%d %H:%M:%S'
+            ) if isinstance(is_pro, str) else is_pro
             return [user_id, is_active, is_pro, is_staff, rates, timezone, language]
         return None
 
@@ -205,7 +225,9 @@ class DBHandler(object):
         """
         return [
             self.get_user(user_data[0])
-            for user_data in self.execute_and_commit('SELECT user_id FROM users WHERE is_active = TRUE')
+            for user_data in self.execute_and_commit(
+                'SELECT user_id FROM users WHERE is_active = TRUE'
+            )
         ]
 
     def get_pro_users(self):
@@ -231,8 +253,10 @@ class DBHandler(object):
             tuple(list(rate[:-1]) + [rate[-1].split(',')])
             for rate in self.execute_and_commit(
                 'SELECT \
-                users_rates.iso, users_rates.start_value, users_rates.percent_delta, users_rates.check_times \
-                FROM users JOIN users_rates ON users.user_id = users_rates.user_id AND users.user_id = ?',
+                users_rates.iso, users_rates.start_value, \
+                users_rates.percent_delta, users_rates.check_times \
+                FROM users JOIN users_rates \
+                ON users.user_id = users_rates.user_id AND users.user_id = ?',
                 (user_id, )
             )
         ]
@@ -241,7 +265,10 @@ class DBHandler(object):
         """
         Get prediction by its id
         Returns None if prediction with this id does not exist
-        otherwise returns list(id, user_id, iso_from, iso_to, value, up_to_date, is_by_experts, real_value)
+        otherwise returns list(
+            id, user_id, iso_from, iso_to, 
+            value, up_to_date, is_by_experts, real_value
+        )
         """
         if self.check_prediction_exists(pred_id):
             *other_data, up_to_date, is_by_experts, real_value = self.execute_and_commit(
@@ -250,7 +277,10 @@ class DBHandler(object):
                     FROM currency_predictions WHERE id = ?', 
                     (pred_id, )
                 )[0]
-            return [*other_data, datetime.strptime(up_to_date, '%Y-%m-%d %H:%M:%S%z'), is_by_experts, real_value]
+            return [
+                *other_data, datetime.strptime(up_to_date, '%Y-%m-%d %H:%M:%S%z'), 
+                is_by_experts, real_value
+            ]
 
     def get_actual_predictions(self):
         return [
@@ -259,13 +289,13 @@ class DBHandler(object):
                 'SELECT \
                 id \
                 FROM currency_predictions \
-                WHERE datetime("now") < datetime(up_to_date) \
+                WHERE datetime() < datetime(up_to_date) \
                 ORDER BY up_to_date ASC'
             )
         ]
 
     def get_user_predictions(self, user_id, if_all:bool=False):
-        check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
+        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
@@ -302,7 +332,7 @@ class DBHandler(object):
                     "SELECT \
                     id \
                     FROM currency_predictions \
-                    WHERE id > ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime('now') \
+                    WHERE id > ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime() \
                     ORDER BY id ASC LIMIT 1",
                     (pred_id,)
                 )
@@ -317,7 +347,7 @@ class DBHandler(object):
                     "SELECT \
                     id \
                     FROM currency_predictions \
-                    WHERE id < ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime('now') \
+                    WHERE id < ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime() \
                     ORDER BY id DESC LIMIT 1",
                     (pred_id,)
                 )
@@ -333,7 +363,7 @@ class DBHandler(object):
         }
 
     def get_experts_predictions(self, if_all:bool=False):
-        check_datetime_str = 'datetime("now") < datetime(up_to_date) and ' if not if_all else ''
+        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if not if_all else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
@@ -352,7 +382,7 @@ class DBHandler(object):
                 'SELECT \
                 id \
                 FROM currency_predictions \
-                WHERE datetime("now") > datetime(up_to_date) AND real_value is NULL'
+                WHERE datetime() > datetime(up_to_date) AND real_value is NULL'
             )
         ]
 
@@ -362,7 +392,10 @@ class DBHandler(object):
                 for k, v in kwargs.items():
                     if isinstance(v, datetime):
                         v = v.strftime('%Y-%m-%d %H:%M:%S')
-                    self.execute_and_commit('UPDATE users SET %s = ? WHERE user_id = ?' % k, (v, user_id))
+                    self.execute_and_commit(
+                        'UPDATE users SET %s = ? WHERE user_id = ?' % k, 
+                        (v, user_id)
+                    )
             except sqlite3.OperationalError:
                 raise ValueError(f'invalid argument {repr(k)}') from None
             except sqlite3.IntegrityError:
@@ -373,7 +406,7 @@ class DBHandler(object):
     def change_user_rate(self, user_id, iso, **kwargs):
         if self.check_user_exists(user_id):
             start_value = kwargs.get('start_value', 1)
-            assert (isinstance(start_value, int) or isinstance(start_value, float)) and start_value > 0, 'can\'t change `start_value` to negative'
+            assert start_value > 0, 'can\'t change `start_value` to negative'
             del start_value
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
@@ -399,15 +432,17 @@ class DBHandler(object):
     def change_prediction(self, id, **kwargs):
         if self.check_prediction_exists(id):
             # validation of parameters
-            assert (kwargs.get('iso_from') or kwargs.get('iso_to')) is None, "can't change isos of prediction"
-            value = kwargs.get('value', 1)
-            assert (isinstance(value, int) or isinstance(value, float)) and value > 0, 'can\'t change `value` to negative'
-            real_value = kwargs.get('real_value', 1)
-            assert (isinstance(real_value, int) or isinstance(real_value, float)) and real_value > 0, 'can\'t change `real_value` to negative'
+            assert (
+                kwargs.get('iso_from') or kwargs.get('iso_to')
+            ) is None, "can't change isos of prediction"
+            assert kwargs.get('value', 1) > 0, 'can\'t change `value` to negative'
+            assert kwargs.get('real_value', 1) > 0, 'can\'t change `real_value` to negative'
             assert 'user_id' not in kwargs, 'cant\'t change `user_id` of prediction'
             up_to_date = kwargs.get('up_to_date', None)
             if up_to_date is not None and isinstance(up_to_date, datetime):
-                assert check_datetime_in_future(up_to_date), 'can\'t change `up_to_date` to past datetime'
+                assert check_datetime_in_future(
+                    up_to_date
+                ), 'can\'t change `up_to_date` to past datetime'
                 kwargs['up_to_date'] = str(up_to_date)
             del up_to_date, real_value, value
             # end of validation
@@ -480,8 +515,9 @@ class DBHandler(object):
                     WHERE datetime(up_to_date) > datetime('now')
                 ''')
             ], # only actual predictions
-            key=lambda x: self.get_number_likes(x[0]) - self.get_number_dislikes(x[0]), # difference between likes and dislikes
-            # (self.get_number_likes(x[0]) - self.get_number_dislikes(x[0])) / (x[-3] - get_current_datetime()).total_seconds() 
+            key=lambda x: self.get_number_likes(x[0]) - self.get_number_dislikes(x[0]), 
+            # difference between likes and dislikes
+            # pred.likes - pred.dislikes / (pred.up_to_date-get_current_datetime()).total_seconds() 
             # Older predictions can have more likes, though they can be worse
             reverse=True  # from biggest to smallest
         )
