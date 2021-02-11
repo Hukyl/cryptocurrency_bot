@@ -444,7 +444,7 @@ class DBHandler(object):
                     up_to_date
                 ), 'can\'t change `up_to_date` to past datetime'
                 kwargs['up_to_date'] = str(up_to_date)
-            del up_to_date, real_value, value
+            del up_to_date
             # end of validation
             try:
                 for k, v in kwargs.items():

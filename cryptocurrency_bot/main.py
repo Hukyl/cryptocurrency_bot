@@ -24,9 +24,7 @@ else:
     for target in targets:
         threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
 print(
-    "[INFO]" + (" [DEBUG]" if if_debug else '') +  " Bot started at {} UTC".format(
-        str(get_current_datetime(utcoffset=0).strftime('%Y-%m-%d %H:%M:%S'))
-    )
+    "[INFO]" + (" [DEBUG]" if if_debug else '') +  f" Bot started at {get_current_datetime()}"
 )
 while True:
     try:
@@ -34,8 +32,6 @@ while True:
     except KeyboardInterrupt:
         break
 print(
-    "[INFO]" + (" [DEBUG]" if if_debug else '') +  " Bot started at {} UTC".format(
-        str(get_current_datetime(utcoffset=0).strftime('%Y-%m-%d %H:%M:%S'))
-    )
+    "[INFO]" + (" [DEBUG]" if if_debug else '') +  f" Bot stopped at {get_current_datetime()}"
 )
 sys.exit(0)

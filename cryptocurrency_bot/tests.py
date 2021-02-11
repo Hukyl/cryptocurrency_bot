@@ -329,7 +329,7 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.2)
         with self.assertRaises(ValueError):
             user.update_rates('BRENT', ababgalamaga=123123123)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             user.update_rates('BRENT', start_value='abcdef')
 
     def test_premium_dbuser(self):

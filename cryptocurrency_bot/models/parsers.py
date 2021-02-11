@@ -105,8 +105,8 @@ class RTSParser(CurrencyParser):
 
     def __init__(self, start_value:float=None):
         link = "https://m.ru.investing.com/indices/rts-cash-settled-futures"
-        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem \
-                        > div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
+        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > \
+                        div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
         super().__init__(
             link=link, css_selector=css_selector, 
             iso=self.iso, start_value=start_value
@@ -121,8 +121,8 @@ class BitcoinParser(CurrencyParser):
         link = "https://www.coindesk.com/price/bitcoin"
         # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
         css_selector = "#export-chart-element > div > section > \
-                        div.coin-info-list.price-list > div:nth-child(1) \
-                        > div.data-definition > div"
+                        div.coin-info-list.price-list > div:nth-child(1) > \
+                        div.data-definition > div"
         # css_selector = "#amount2"
         super().__init__(
             link=link, css_selector=css_selector, 
