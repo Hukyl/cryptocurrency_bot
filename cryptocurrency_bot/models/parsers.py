@@ -4,10 +4,11 @@ import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
-from utils import get_default_rates, prettify_float
+from utils import get_default_rates, prettify_float, merge_dicts
 
 
-__all__ = ['RTSParser', 'BitcoinParser', 'InvestingParser', 'FreecurrencyratesParser', 'CurrencyParser']
+__all__ = ['CurrencyExchangerInterface']
+
 
 
 class CurrencyParser(object):
@@ -142,6 +143,8 @@ class FreecurrencyratesParser(CurrencyParser):
 
     def get_rate(self, iso_from:str, iso_to:str="USD"):
         iso_from, iso_to = iso_from.upper(), iso_to.upper()
+        if iso_from == iso_to:
+            return {iso_from: 1}
         try:
             link = self.link % iso_from
             soup = self.get_soup(link)
@@ -150,7 +153,7 @@ class FreecurrencyratesParser(CurrencyParser):
                 number = float(rate.get("value").strip().replace(",", "."))
             else:
                 raise ValueError("second iso code is invalid")
-        except Exception as e:    
+        except Exception as e:
             if str(e) == "second iso code is invalid":
                 raise ValueError(e)
             else:
@@ -211,6 +214,50 @@ class InvestingParser(CurrencyParser):
             iso=self.AVAILABLE_PRODUCTS[market_product], 
             start_value=start_value
         )
+
+
+
+class CurrencyExchangerInterface(CurrencyParser):
+    PARSERS = merge_dicts(
+        {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
+        {InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x) for x in list(InvestingParser.AVAILABLE_PRODUCTS)},
+        {None: FreecurrencyratesParser()}
+    )
+
+    def __init__(self):
+        pass
+
+    def get_rate(self, iso_from, iso_to):
+        parser_from = self.PARSERS.get(iso_from, self.PARSERS.get(None))
+        parser_to = self.PARSERS.get(iso_to, self.PARSERS.get(None))
+        rate_from = parser_from.get_rate(iso_from) if getattr(parser_from, 'iso', None) is None else parser_from.get_rate()
+        rate_to = parser_to.get_rate(iso_to) if getattr(parser_to, 'iso', None) is None else parser_to.get_rate()
+        try:
+            return {
+                iso_from: 1, 
+                iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
+            }
+        except Exception:
+            raise ValueError("`iso_from` or `iso_to` is invalid or network cannot be reached") # from None
+
+    def update_start_value(self):
+        for curr in self.PARSERS:
+            if curr != None:
+                self.PARSERS[curr].update_start_value()
+
+    def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
+        new = self.get_rate(iso_from, iso_to).get(iso_to)
+        rate = super().check_delta(old, new, percent_delta)
+        rate['currency_from'] = iso_from
+        rate['currency_to'] = iso_to
+        return rate
+
+    def __str__(self):
+        return '\n'.join([
+            f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD" 
+            for curr in self.PARSERS 
+            if curr is not None
+        ])
 
 
 

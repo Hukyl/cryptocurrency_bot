@@ -5,9 +5,11 @@ import threading
 from configs import settings
 
 from utils.dt import check_datetime_in_future, check_check_time_in_rate
+from utils.access_control import private
 
 
 
+@private(['get', 'set'], 'execute_and_commit')
 class DBHandler(object):
     """
     DB Format:

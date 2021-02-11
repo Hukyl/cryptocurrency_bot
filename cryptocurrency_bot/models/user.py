@@ -239,12 +239,6 @@ class DBPrediction(object):
             yield cls(pred_data[0]) # id
 
     @classmethod
-    def get_all_prediction_number(cls):
-        return cls.db.execute_and_commit(
-                'SELECT COUNT(id) FROM currency_predictions'
-            )[0][0]
-
-    @classmethod
     def get_random_prediction(cls):
         pred_data = cls.db.get_random_prediction()
         return cls(pred_data[0]) if isinstance(pred_data, list) or isinstance(pred_data, tuple) else None

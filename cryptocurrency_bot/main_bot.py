@@ -44,13 +44,7 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-brent_parser = InvestingParser('brent-oil')
-gold_parser = InvestingParser('gold')
-silver_parser = InvestingParser('silver')
-platinum_parser = InvestingParser('platinum')
-bitcoin_parser = BitcoinParser()
-rts_parser = RTSParser()
-currency_parser = FreecurrencyratesParser()
+currency_parser = CurrencyExchangerInterface()
 
 USERS_SESSIONS = {}
 
@@ -222,12 +216,7 @@ def get_currency_rates_today(msg):
 
     bot.send_message(
         msg.chat.id,
-        '\n'.join([
-            brent_parser.to_string(to_update=False), 
-            bitcoin_parser.to_string(to_update=False), 
-            rts_parser.to_string(to_update=False),
-            gold_parser.to_string(to_update=False)
-        ]),
+        str(currency_parser),
         reply_markup=kbs(list(buttons_dct))
     )
     bot.register_next_step_handler(msg, choose_option_inner)
@@ -241,7 +230,6 @@ def make_user_currency_prediction(msg):
     iso_from = iso_to = None
     value = None
 
-
     def get_date(msg):
         nonlocal date
         try:
@@ -254,20 +242,11 @@ def make_user_currency_prediction(msg):
         except ValueError:
             bot.send_message(
                 msg.chat.id, 
-                _(
-                    '❗ Please enter the date only in the specified format ❗',
-                    user.language
-                )
+                _('❗ Please enter the date only in the specified format ❗', user.language)
             )
             bot.register_next_step_handler(msg, get_date)
         except AssertionError:
-            bot.send_message(
-                msg.chat.id,
-                _(
-                    '❗ You cannot enter a past date ❗',
-                    user.language
-                )
-            )
+            bot.send_message(msg.chat.id, _('❗ You cannot enter a past date ❗', user.language))
             bot.register_next_step_handler(msg, get_date)
         else:
             date = up_to_date
@@ -275,8 +254,7 @@ def make_user_currency_prediction(msg):
                 msg.chat.id,
                 _(
                     'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
-                    user.language
-                    
+                    user.language                    
                 ),
                 parse_mode='markdown',
                 reply_markup=kbs(list(settings.ACCEPTABLE_CURRENCIES_CONVERTION))
@@ -291,30 +269,21 @@ def make_user_currency_prediction(msg):
         except ValueError:
             bot.send_message(
                 msg.chat.id,
-                _(
-                    '❗ Enter currency iso codes only in the specified format ❗',
-                    user.language
-                )
+                _('❗ Enter currency iso codes only in the specified format ❗', user.language)
             )
         else:
-            if currency_parser.check_currency_exists(iso_from) and currency_parser.check_currency_exists(iso_to) or (
-                    msg.text in settings.ACCEPTABLE_CURRENCIES_CONVERTION.values()
-                ):
+            try:
+                _r = currency_parser.get_rate(iso_from, iso_to)
+            except ValueError:
                 bot.send_message(
                     msg.chat.id,
-                    _(
-                        "Enter the forecast result (for example, 27.50, 22300)",
-                        user.language
-                    )
+                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
                 )
                 return bot.register_next_step_handler(msg, get_value)
             else:
                 bot.send_message(
                     msg.chat.id,
-                    _(
-                        "❗ This currency does not exist or is not supported, please try another one ❗",
-                        user.language
-                    )
+                    _("❗ This currency does not exist or is not supported, please try another one ❗", user.language)
                 )
         return bot.register_next_step_handler(msg, get_iso)
 
@@ -323,10 +292,7 @@ def make_user_currency_prediction(msg):
         try:
             value = float(msg.text.replace(',', '.'))
         except ValueError:
-            bot.send_message(
-                msg.chat.id,
-                _('❗ Enter only numbers ❗', user.language)
-            )
+            bot.send_message(msg.chat.id, _('❗ Enter only numbers ❗', user.language))
             bot.register_next_step_handler(msg, get_value)
         else:
             buttons = [_('Yes', user.language), _('No', user.language)]
@@ -484,7 +450,7 @@ def see_users_currency_predicitions(msg):
 
 
 
-def __get_prediction_inline_kb_for_liking(pred):
+def get_prediction_inline_kb_for_liking(pred):
     closest = pred.get_closest_neighbours()
     previous, next = closest['previous'], closest['next']
     inline_buttons = {
@@ -506,7 +472,7 @@ def get_closest_prediction(call):
     start_pred = DBPrediction(int(pred_id))
     following_pred = start_pred.get_closest_neighbours()[action]
     user = bot.session['user']
-    inline_kb = __get_prediction_inline_kb_for_liking(following_pred)
+    inline_kb = get_prediction_inline_kb_for_liking(following_pred)
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
@@ -527,7 +493,7 @@ def toggle_user_reaction(call):
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
-            reply_markup=__get_prediction_inline_kb_for_liking(prediction)
+            reply_markup=get_prediction_inline_kb_for_liking(prediction)
         )
     bot.answer_callback_query(
         callback_query_id=call.id,
@@ -1043,35 +1009,31 @@ def add_new_currency(msg):
 
     def ask_new_iso(msg):
         iso = msg.text
-        if not currency_parser.check_currency_exists(iso):
+        try:
+            rate = currency_parser.get_rate(iso, "USD").get("USD")
+        except ValueError:
             bot.send_message(
                 msg.chat.id,
-                _(
-                    '❗ This currency does not exist or is not supported, please try another one ❗',
-                    user.language
-                )
+                _('❗ This currency does not exist or is not supported, please try another one ❗', user.language)
             )
             bot.register_next_step_handler(msg, ask_new_iso)
-        elif iso in user.rates:
-            bot.send_message(
-                msg.chat.id, 
-                _(
-                    '❗ The currency is already on your currency list ❗',
-                    user.language
+        else:
+            if iso in user.rates:
+                bot.send_message(
+                    msg.chat.id, 
+                    _('❗ The currency is already on your currency list ❗', user.language)
                 )
-            )
-            return start_bot(msg)
-        elif user.is_pro:
-            rate = prettify_float(currency_parser.get_rate(iso, 'USD').get('USD'))
-            user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
-            bot.send_message(
-                msg.chat.id, 
-                _(
-                    'New currency has been created successfully!\nNow the rate is {} - {} USD',
-                    user.language
-                ).format(iso, rate)
-            )
-            return start_bot(msg)
+                return start_bot(msg)
+            elif user.is_pro:
+                user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
+                bot.send_message(
+                    msg.chat.id,
+                    _(
+                        'New currency has been created successfully!\nNow the rate is {} - {} USD',
+                        user.language
+                    ).format(iso, rate)
+                )
+                return start_bot(msg)
 
     bot.send_message(
         msg.chat.id,
@@ -1136,10 +1098,7 @@ def buy_subscription(msg):
         else:
             bot.send_message(
                 msg.chat.id, 
-                _(
-                    "I don't quite understand your answer, I'm returning to the main menu...", 
-                    user.language
-                )
+                _("I don't quite understand your answer, returning to the main menu...", user.language)
             )
             return start_bot(msg)
 
@@ -1347,8 +1306,7 @@ def send_bot_help(msg):
 
 def update_rates():
     while True:
-        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]:
-            parser.update_start_value()
+        currency_parser.update_start_value()
         time.sleep(53)
 
 
@@ -1373,17 +1331,12 @@ def check_premium_ended():
 
 @catch_exc(to_print=True)
 def verify_predictions():
-    parsers = {
-        parser.iso: parser
-        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]
-    }
     while True:
         for pred in DBPrediction.get_unverified_predictions():
-            pred_res = get_rate_safe(pred.iso_from, pred.iso_to)
-            real_value = pred_res.get(pred.iso_to) 
-            pred.update(real_value=real_value)
+            pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
+            pred.update(real_value=pred_res.get(pred.iso_to))
             user = DBUser(pred.user_id)
-            diff = CurrencyParser.calculate_difference(old=pred.value, new=real_value)
+            diff = CurrencyParser.calculate_difference(old=pred.value, new=pred.real_value)
             bot.send_message(
                 pred.user_id, 
                 _(
@@ -1427,40 +1380,9 @@ def start_alarms(time_):
 
 
 @catch_exc(to_print=True)
-def get_rate_safe(iso_from, iso_to):
-    parsers = {
-        parser.iso: parser
-        for parser in [brent_parser, bitcoin_parser, rts_parser, gold_parser, silver_parser, platinum_parser]
-    }
-    parser = parsers.get(iso_from, currency_parser)
-    try:
-        if getattr(parser, 'iso', None) is not None:
-            rate = parser.get_rate()
-        else:
-            # if parser is `FreecurrencyratesParser`
-            rate = parser.get_rate(iso_from=iso_from, iso_to=iso_to)
-    except Exception:
-        # if network can not be reached or somewhat
-        default_value = get_default_rates(iso_to).get(iso_to)
-        rate = {iso_from: 1, iso_to: default_value}
-    return rate
-
-
-
-@catch_exc(to_print=True)
-def check_delta_safe(iso_from, iso_to, start_value, percent_delta):
-    rate = get_rate_safe(iso_from, iso_to)
-    diff = CurrencyParser.calculate_difference(old=start_value, new=rate.get(iso_to))
-    if abs(diff.get('percentage_difference')) < percent_delta:
-            del diff['new'], diff['percentage_difference'], diff['difference']
-    return merge_dicts(diff, {'currency_from': iso_from, 'currency_to': iso_to})
-
-
-
-@catch_exc(to_print=True)
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
-        rate = check_delta_safe(k, 'USD', v.get('start_value'), v.get('percent_delta'))
+        rate = currency_parser.check_delta(k, 'USD', v.get('start_value'), v.get('percent_delta'))
         if rate.get('new', None): # WARNING: CAN BE DELETED
             new, old = rate.get('new'), rate.get('old')
             user.update_rates(k, start_value=new)
@@ -1482,7 +1404,7 @@ def send_alarm(user, t):
                 )
             except telebot.apihelper.ApiTelegramException:
                 # from traceback: "Bad Request: chat not found"
-                user.update(is_active=0) # not to sent notifications, since, chat is not reachable
+                user.update(is_active=0) # not to sent notifications, since chat is not reachable
 
 
 
