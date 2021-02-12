@@ -253,10 +253,9 @@ class DBHandler(object):
             tuple(list(rate[:-1]) + [rate[-1].split(',')])
             for rate in self.execute_and_commit(
                 'SELECT \
-                users_rates.iso, users_rates.start_value, \
-                users_rates.percent_delta, users_rates.check_times \
-                FROM users JOIN users_rates \
-                ON users.user_id = users_rates.user_id AND users.user_id = ?',
+                u_r.iso, u_r.start_value, u_r.percent_delta, u_r.check_times \
+                FROM users JOIN users_rates u_r \
+                ON users.user_id = u_r.user_id AND users.user_id = ?',
                 (user_id, )
             )
         ]
@@ -506,21 +505,19 @@ class DBHandler(object):
                 )[0][0]
 
     def get_max_liked_predictions(self):
-        return sorted(
-            [
-                self.get_prediction(pred_data[0])
-                for pred_data in self.execute_and_commit('''
-                    SELECT DISTINCT id 
-                    FROM currency_predictions 
-                    WHERE datetime(up_to_date) > datetime('now')
-                ''')
-            ], # only actual predictions
-            key=lambda x: self.get_number_likes(x[0]) - self.get_number_dislikes(x[0]), 
-            # difference between likes and dislikes
-            # pred.likes - pred.dislikes / (pred.up_to_date-get_current_datetime()).total_seconds() 
-            # Older predictions can have more likes, though they can be worse
-            reverse=True  # from biggest to smallest
-        )
+        return [
+            self.get_prediction(pred_data[0])
+            for pred_data in self.execute_and_commit('''
+                SELECT
+                p.id, CAST(TOTAL(r.reaction) AS INT) likes_diff
+                FROM currency_predictions p LEFT OUTER JOIN predictions_reactions r
+                ON p.id = r.pred_id
+                WHERE datetime(p.up_to_date) > datetime()
+                GROUP BY p.id
+                ORDER BY likes_diff DESC;
+            ''')
+        ] # only actual predictions
+
 
 
 if __name__ == '__main__':
