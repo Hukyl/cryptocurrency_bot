@@ -246,9 +246,11 @@ class CurrencyExchangerInterface(CurrencyParser):
 
     def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
         new = self.get_rate(iso_from, iso_to).get(iso_to)
-        rate = super().check_delta(old, new, percent_delta)
+        rate = self.calculate_difference(old, new)
         rate['currency_from'] = iso_from
         rate['currency_to'] = iso_to
+        if abs(rate.get('percentage_difference')) < percent_delta:
+            del rate['new'], rate['percentage_difference'], rate['difference']
         return rate
 
     def __str__(self):

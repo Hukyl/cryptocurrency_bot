@@ -1295,7 +1295,7 @@ def send_message_to_techsupport(call):
                 bot.forward_message(
                     chat_id=support_id, 
                     from_chat_id=msg.chat.id, 
-                    message_id=msg.id
+                    message_id=msg.message_id
                 )
         except Exception:
             answer_msg = _("Some error occurred", user.language)

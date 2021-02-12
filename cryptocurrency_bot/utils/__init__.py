@@ -60,7 +60,7 @@ def catch_exc(to_print:bool=True):
                         "Exception", f"Func name: {func.__name__}", 
                         f"Type: {sys.exc_info()[0].__name__}",
                         f"Message: {str(sys.exc_info()[1])}"
-                    ]))
+                    ]) + '\n')
             else:
                 return res
         return onArgs
