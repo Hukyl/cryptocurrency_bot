@@ -38,15 +38,14 @@ def get_default_rates(*args, to_print:bool=True):
     return {curr: json_config.get('initialValue' + curr, 1) for curr in args}
 
 
-
 def prettify_float(num:float):
     round_num = settings.PRECISION_NUMBER + (0 if num // 1 > 0 else 3)
     return round(num, round_num)
 
 
-def prettify_percent(n:float):
+def prettify_percent(n:float, to_sign:bool=False):
     res = round(n*100, settings.PERCENT_PRECISION_NUMBER)
-    return "{:+}%".format(int(res) if res % 1 == 0 else res)
+    return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res)
 
 
 def catch_exc(to_print:bool=True):

@@ -44,7 +44,7 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-currency_parser = CurrencyExchangerInterface()
+currency_parser = CurrencyExchanger()
 
 USERS_SESSIONS = {}
 
@@ -171,7 +171,7 @@ def choose_option(msg, buttons=None):
             _('Main menu', user.language): start_bot 
         }
         if user.is_pro:
-            buttons[_('⚜ Add your own currency ⚜', user.language)] = add_new_currency
+            buttons[_('⚜ Other currencies ⚜', user.language)] = other_user_currencies_menu
         kb = kbs(list(buttons), one_time_keyboard=False, row_width=2)
         bot.send_message(
             msg.chat.id,
@@ -844,7 +844,7 @@ def change_user_rate_percent_delta(msg):
         else:
             bot.send_message(
                 msg.chat.id, 
-                '❗ Please enter only valid currencies ❗', 
+                '❗ Please enter only valid currencies ❗',
                 reply_markup=kbs(settings.CURRENCIES)
             )
             bot.register_next_step_handler(msg, inner1)
@@ -854,11 +854,15 @@ def change_user_rate_percent_delta(msg):
         try:
             if 'inf' not in msg.text:
                 delta = float(msg.text) / 100
+                assert 0 < delta < 1
             else:
                 raise ValueError
         except ValueError:
             bot.send_message(msg.chat.id, _("❗ Enter only numbers ❗", user.language))
             return bot.register_next_step_handler(msg, inner2)
+        except AssertionError:
+            bot.send_message(msg.chat.id, _("❗ Percent must be in range from 0 to 100 ❗", user.language))
+            return bot.register_next_step_handler(msg, inner2)            
         user.update_rates(currency, percent_delta=delta)
         bot.send_message(
             msg.chat.id,
@@ -1030,6 +1034,99 @@ def change_user_timezone(msg):
 
 
 
+def other_user_currencies_menu(msg):
+    user = bot.session['user']
+    buttons = {
+        _("Add new currency", user.language): add_new_currency,
+        _("Delete currency", user.language): delete_user_currency,
+        _("Back", user.language): start_bot 
+    }
+
+    def next_step(msg):
+        option = buttons.get(msg.text, None)
+        if option is None:
+            bot.send_message(msg.chat.id, _('❗ Choose only from the suggestions ❗', user.language))
+            bot.register_next_step_handler(msg, next_step)
+        else:
+            return option(msg)
+
+    bot.send_message(
+        msg.chat.id, 
+        _('Choose from the following:', user.language),
+        reply_markup=kbs(list(buttons), row_width=3)
+    )
+    bot.register_next_step_handler(msg, next_step)
+
+
+
+@catch_exc(to_print=True)
+def delete_user_currency(msg):
+    user = bot.session['user']
+    curr = None
+    deletable_currencies = list(set(user.rates).difference(set(settings.CURRENCIES)))
+    answer_options = {_("Yes", user.language): True, _("No", user.language): False}
+
+    def confirm_deletion(msg):
+        option = answer_options.get(msg.text, None)
+        if option is True:
+            user.delete_rate(curr)
+            bot.send_message(
+                msg.chat.id, 
+                _("Currency {} was deleted", user.language).format(curr)
+            )
+        elif option is False:
+            bot.send_message(
+                msg.chat.id, 
+                _("Currency {} wasn't deleted", user.language).format(curr)
+            )
+        elif option is None:
+            bot.send_message(
+                msg.chat.id, 
+                _("I don't understand your answer, returning to the main menu...", user.language)
+            )
+        return start_bot(msg)
+
+    def choose_currency_to_delete(msg):
+        nonlocal curr
+        curr = msg.text
+        if curr in deletable_currencies:
+            bot.send_message(
+                msg.chat.id, 
+                _("Are you sure you want to delete this currency: {}?", user.language).format(curr),
+                reply_markup=kbs(list(answer_options))
+            )
+            bot.register_next_step_handler(msg, confirm_deletion)
+        else:
+            if curr == _("Back", user.language):
+                return start_bot(msg)
+            elif curr in settings.CURRENCIES:
+                bot.send_message(
+                    msg.chat.id, 
+                    _("❗ You can't delete default currencies ❗", user.language)
+                )
+            else:
+                bot.send_message(
+                    msg.chat.id, 
+                    _("❗ This currency is not supported ❗", user.language)
+                )
+            bot.register_next_step_handler(msg, choose_currency_to_delete)
+
+    if len(deletable_currencies) > 0:
+        bot.send_message(
+            msg.chat.id, 
+            _("Choose currency to delete", user.language),
+            reply_markup=kbs(
+                deletable_currencies + [_("Back", user.language)], 
+                one_time_keyboard=False
+            )
+        )
+        bot.register_next_step_handler(msg, choose_currency_to_delete)
+    else:
+        bot.send_message(msg.chat.id, _("You have no extra currencies to delete", user.language))
+        return start_bot(msg)
+
+
+
 @catch_exc(to_print=True)
 def add_new_currency(msg):
     user = bot.session['user']
@@ -1128,7 +1225,7 @@ def buy_subscription(msg):
             bot.send_message(
                 msg.chat.id, 
                 _(
-                    "I don't quite understand your answer, returning to the main menu...", 
+                    "I don't understand your answer, returning to the main menu...", 
                     user.language
                 )
             )
@@ -1389,7 +1486,7 @@ def verify_predictions():
                     repr(pred),
                     pred.value,
                     pred.real_value,
-                    prettify_percent(diff.get('percentage_difference'))
+                    prettify_percent(diff.get('percentage_difference'), to_sign=True)
                 ),
                 parse_mode='markdown'
             )
@@ -1439,7 +1536,7 @@ def send_alarm(user, t):
                         k, 
                         prettify_float(new), 
                         prettify_float(rate.get('difference')), 
-                        prettify_percent(rate.get('percentage_difference')), 
+                        prettify_percent(rate.get('percentage_difference'), to_sign=True), 
                         k, 
                         prettify_float(old)
                     ),

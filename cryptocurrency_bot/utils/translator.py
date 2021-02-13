@@ -18,9 +18,13 @@ translation_dict = {
         'en': 'Amount on {}-{} changed to {}',
         'ru': 'Сумма по {}-{} изменена на {}'
     },
+    "Are you sure you want to delete this currency: {}?": {
+        'en': "Are you sure you want to delete this currency: {}?",
+        'ru': "Вы уверены, что хотите удалить эту валюту: {}?"
+    },
     'Are you sure you want to delete this prediction:\n{}?': {
         'en': 'Are you sure you want to delete this prediction:\n{}?', 
-        'ru': 'Вы уверены что хотите удалить этот прогноз:\n{}?'
+        'ru': 'Вы уверены, что хотите удалить этот прогноз:\n{}?'
     },
     'At the moment, the service has two languages: Russian 🇷🇺 and English 🇬🇧': {
         'en': 'At the moment, the service has two languages: Russian 🇷🇺 and English 🇬🇧',
@@ -37,6 +41,10 @@ translation_dict = {
     'Change alarm time': {
         'en': 'Change alarm time',
         'ru': 'Изменить время оповещений'
+    },
+    "Choose currency to delete": {
+        'en': "Choose currency to delete",
+        'ru': "Выберите валюту для удаления"
     },
     'Change time zone': {
         'en': 'Change time zone',
@@ -61,6 +69,10 @@ translation_dict = {
     'Delete': {
         'en': 'Delete',
         'ru': 'Удалить'
+    },
+    "Delete currency": {
+        'en': "Delete currency",
+        'ru': "Удалить валюту"
     },
     'English 🇬🇧'  : {
         'en': 'English 🇬🇧', 
@@ -102,9 +114,9 @@ translation_dict = {
         'en': 'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast creation?',
         'ru': 'Вот данные прогноза: \nПериод прогноза: {} \nВалюта: {} - {} \nЗначение: {}\n. \nПодтвердить создание прогноза?'
     },
-    "I don't quite understand your answer, I'm returning to the main menu...": {
-        'en': "I don't quite understand your answer, I'm returning to the main menu...",
-        'ru': 'Не совсем понял ваш ответ, возвращаюсь в главное меню...'
+    "I don't understand your answer, returning to the main menu...": {
+        'en': "I don't understand your answer, returning to the main menu...",
+        'ru': 'Не понял ваш ответ, возвращаюсь в главное меню...'
     },
     'Language': {
         'en': 'Language', 
@@ -322,6 +334,10 @@ translation_dict = {
         'en': 'You disliked this prediction',
         'ru': 'Вам не понравился этот прогноз'
     },
+    "You have no extra currencies to delete": {
+        'en': "You have no extra currencies to delete",
+        'ru': "У вас нет валют для удаления"
+    },
     'Your message was recieved': {
         'en': 'Your message was recieved',
         'ru': 'Ваше сообщение было получено'
@@ -346,9 +362,13 @@ translation_dict = {
         'en': '⚙ You have received a technical support status ⚙',
         'ru': '⚙ Вы получили статус техподдержки ⚙'
     },
-    '⚜ Add your own currency ⚜': {
-        'en': '⚜ Add your own currency ⚜', 
-        'ru': '⚜ Добавить новую валюту ⚜'
+    'Add new currency': {
+        'en': 'Add new currency', 
+        'ru': 'Добавить новую валюту'
+    },
+    "⚜ Other currencies ⚜": {
+        'en': "⚜ Other currencies ⚜",
+        'ru': "⚜ Другие валюты ⚜"
     },
     '⚜ Experts predictions ⚜ are:': {
         'en': '⚜ Experts predictions ⚜ are:', 
@@ -377,6 +397,10 @@ translation_dict = {
     '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗': {
         'en': '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗',
         'ru': '❗ Оплатите как только получите выставленный счёт, иначе оплата может не засчитаться ❗'
+    },
+    "❗ Percent must be in range from 0 to 100 ❗": {
+        'en': "❗ Percent must be in range from 0 to 100 ❗",
+        'ru': "❗ Процент должен быть в диапазоне от 0 до 100 ❗"
     },
     '❗ Please enter only available dates ❗': {
         'en': '❗ Please enter only available dates ❗', 
@@ -413,6 +437,14 @@ translation_dict = {
     '❗ You cannot enter a past date ❗': {
         'en': '❗ You cannot enter a past date ❗', 
         'ru': '❗ Вы не можете ввести уже прошедшую дату ❗'
+    },
+    "❗ You can't delete default currencies ❗": {
+        'en': "❗ You can't delete default currencies ❗",
+        'ru': "❗ Вы не можете удалить валюты, установленные по умолчанию ❗"
+    },
+    "❗ This currency is not supported ❗": {
+        'en': "❗ This currency is not supported ❗",
+        'ru': "❗ Эта валюта не поддерживается ❗"
     }
 }
 
