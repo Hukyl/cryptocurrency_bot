@@ -105,8 +105,8 @@ class DBUser(User):
     def predictions(self):
         return list(self.get_predictions())
 
-    def get_predictions(self, if_all:bool=False):
-        for pred_data in self.db.get_user_predictions(self.user_id, if_all):
+    def get_predictions(self, only_actual:bool=False):
+        for pred_data in self.db.get_user_predictions(self.user_id, only_actual):
             yield DBPrediction(pred_data[0])
 
     def update_rates(self, iso, **kwargs):
@@ -233,8 +233,8 @@ class DBPrediction(object):
         return self.db.get_number_dislikes(self.id)
 
     @classmethod
-    def get_experts_predictions(cls, if_all:bool=False):
-        for pred_data in cls.db.get_experts_predictions(if_all):
+    def get_experts_predictions(cls, only_actual:bool=False):
+        for pred_data in cls.db.get_experts_predictions(only_actual):
             yield cls(pred_data[0]) # id
 
     @classmethod
