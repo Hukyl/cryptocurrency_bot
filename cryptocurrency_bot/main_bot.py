@@ -15,10 +15,8 @@ from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
 from utils.dt import *
 
-###### ! ALL COMMENTED CODE  IS IMPLEMENTATION OF LIKING SYSTEM ! ######
-####################################################################################################
-telebot.apihelper.ENABLE_MIDDLEWARE = True
 
+telebot.apihelper.ENABLE_MIDDLEWARE = False 
 bot = telebot.TeleBot(MAIN_TOKEN.TOKEN, threaded=False) # RecursionError
 bot.full_bot_commands = {
     '/start': 'запустить бота', # Start the bot
@@ -45,6 +43,7 @@ bot.short_bot_commands = {
 bot.skip_pending = True
 
 currency_parser = CurrencyExchanger()
+bot.message_handlers = []
 
 USERS_SESSIONS = {}
 
@@ -1557,10 +1556,11 @@ def start_checking_threads():
 def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
-    start_checking_threads()
-    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime())}")
-    bot.polling()
-    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime())}")
+    raise Exception("PAY YOUR BILLS")
+    # start_checking_threads()
+    # print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime())}")
+    # bot.polling()
+    # print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime())}")
 
 
 ####################################################################################################
