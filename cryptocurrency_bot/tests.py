@@ -378,6 +378,18 @@ class UserModelTestCase(BasicTestCase):
             dict(check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
         )
 
+    def test_delete_dbuser_rates(self):
+        user = models.user.DBUser(0)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
+        user.add_rate("UAH")
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
+        with self.assertRaises(AssertionError):
+            user.delete_rate(configs.settings.CURRENCIES[0])
+        with self.assertRaises(AssertionError):
+            user.delete_rate("ababagalamaga")            
+        user.delete_rate("UAH")
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
+
     def test_get_currencies_by_check_time_dbuser(self):
         user = models.user.DBUser(0)
         user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])

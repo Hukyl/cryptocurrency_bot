@@ -125,6 +125,13 @@ class DBUser(User):
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
         return True
 
+    def delete_rate(self, iso):
+        assert iso not in settings.CURRENCIES, f"can't delete {iso}, since it is in default currencies"
+        assert iso in self.rates, f"can't delete non-present currency {iso}"
+        self.db.delete_user_rate(self.user_id, iso)
+        del self.rates[iso]
+        return True
+
     @classmethod
     def init_user(cls, user_id):
         if not cls.db.check_user_exists(user_id):
@@ -164,8 +171,7 @@ class DBUser(User):
         self.update(is_pro=0)
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
-                self.db.delete_user_rate(self.user_id, k)
-                del self.rates[k]
+                self.delete_rate(k)
             else:
                 self.update_rates(k, check_times=settings.DEFAULT_CHECK_TIMES)
 
