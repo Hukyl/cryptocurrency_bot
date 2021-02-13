@@ -7,7 +7,7 @@ from utils.agent import get_useragent
 from utils import get_default_rates, prettify_float, merge_dicts
 
 
-__all__ = ['CurrencyExchangerInterface']
+__all__ = ['CurrencyExchanger']
 
 
 
@@ -209,7 +209,7 @@ class InvestingParser(CurrencyParser):
 
 
 
-class CurrencyExchangerInterface(CurrencyParser):
+class CurrencyExchanger(CurrencyParser):
     PARSERS = merge_dicts(
         {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
         {
