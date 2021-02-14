@@ -5,7 +5,7 @@ import threading
 from configs import settings
 
 from utils.dt import check_datetime_in_future, check_check_time_in_rate
-from utils.access_control import private
+from utils.decorators import private, rangetest
 
 
 
@@ -128,12 +128,12 @@ class DBHandler(object):
         )
         return True
 
+    @rangetest(start_value=(0, float('inf')))
     def add_user_rate(
             self, user_id, iso, start_value=1, 
             percent_delta=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES
         ):
         check_times = ','.join(check_times)
-        assert start_value > 0, 'can\'t set negative start_value'
         self.execute_and_commit(
             "INSERT INTO users_rates \
             VALUES (?, ?, ?, ?, ?)", 
@@ -141,6 +141,7 @@ class DBHandler(object):
         )
         return True
 
+    @rangetest(value=(0, float("inf")))
     def add_prediction(
             self, user_id, iso_from:str, iso_to:str, 
             value:float, up_to_date:datetime, is_by_experts=False
@@ -150,7 +151,6 @@ class DBHandler(object):
         Returns True if succeded else None
         """
         if self.check_user_exists(user_id):
-            assert value > 0, 'can\'t create prediction with negative `value`'
             assert check_datetime_in_future(
                 up_to_date
             ), 'can\'t create prediction with past `up_to_date`'
@@ -402,11 +402,9 @@ class DBHandler(object):
             else:
                 return True
 
+    @rangetest(start_value=(0, float("inf")))
     def change_user_rate(self, user_id, iso, **kwargs):
         if self.check_user_exists(user_id):
-            start_value = kwargs.get('start_value', 1)
-            assert start_value > 0, 'can\'t change `start_value` to negative'
-            del start_value
             for k, v in kwargs.items():
                 if k == 'check_times' and (isinstance(v, list) or isinstance(v, tuple)):
                     v = ','.join(v)
@@ -428,14 +426,13 @@ class DBHandler(object):
         )
         return True
 
+    @rangetest(value=(0, float("inf")), real_value=(0, float("inf")), )
     def change_prediction(self, id, **kwargs):
         if self.check_prediction_exists(id):
             # validation of parameters
             assert (
                 kwargs.get('iso_from') or kwargs.get('iso_to')
             ) is None, "can't change isos of prediction"
-            assert kwargs.get('value', 1) > 0, 'can\'t change `value` to negative'
-            assert kwargs.get('real_value', 1) > 0, 'can\'t change `real_value` to negative'
             assert 'user_id' not in kwargs, 'cant\'t change `user_id` of prediction'
             up_to_date = kwargs.get('up_to_date', None)
             if up_to_date is not None and isinstance(up_to_date, datetime):

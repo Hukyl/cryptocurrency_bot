@@ -3,6 +3,7 @@ import os
 import sys
 
 from configs import settings
+from .decorators import rangetest
 
 
 __all__ = [
@@ -19,8 +20,8 @@ def merge_dicts(*dcts):
     return start_dct
 
 
+@rangetest(_strict_comp=False, utcoffset=(-11, 12))
 def prettify_utcoffset(utcoffset:int=0):
-    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
     return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}:00'.format(utcoffset))
 
 
