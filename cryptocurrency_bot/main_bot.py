@@ -1411,8 +1411,7 @@ def send_message_to_techsupport(call):
         bot.send_message(
             user.user_id,
             _(
-                'Напишите ваше сообщение техподдержке ({} чтобы выйти в меню);\
-                Чтобы получить обратную связь, вы должны иметь никнейм (к примеру, @{})',
+                'Напишите сообщение техподдержке ({} - возврат в меню)',
                 user.language,
                 parse_mode='newline'
             ).format('/menu', bot.get_me().username)
