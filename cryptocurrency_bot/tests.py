@@ -514,6 +514,28 @@ class PredictionModelTestCase(BasicTestCase):
         self.assertEqual(pred.likes, 2)
         self.assertEqual(pred.dislikes, 0)
 
+    def test_delete_dbprediction(self):
+        user = models.user.DBUser(0)
+        user.create_prediction(
+            'BRENT', 'USD', 
+            value=55, up_to_date=utils.dt.get_current_datetime() + dt.timedelta(0, 2)
+        )
+        self.assertEqual(len(user.predictions), 1)
+        p = user.predictions[0]
+        p.delete()
+        self.assertEqual(len(user.predictions), 0)
+        user.create_prediction(
+            'BRENT', 'USD', 
+            value=55, up_to_date=utils.dt.get_current_datetime()
+        )
+        time.sleep(1)
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 1)
+        with self.assertRaises(AssertionError):
+            list(user.get_predictions(only_actual=False))[0].delete()
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 1)
+        list(user.get_predictions(only_actual=False))[0].delete(force=True)
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 0)
+
 
 
 class UtilsTestCase(unittest.TestCase):

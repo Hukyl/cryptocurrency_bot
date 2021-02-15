@@ -105,7 +105,7 @@ class DBUser(User):
     def predictions(self):
         return list(self.get_predictions())
 
-    def get_predictions(self, only_actual:bool=False):
+    def get_predictions(self, only_actual:bool=True):
         for pred_data in self.db.get_user_predictions(self.user_id, only_actual):
             yield DBPrediction(pred_data[0])
 
@@ -208,8 +208,9 @@ class DBPrediction(object):
         """
         self.db.toggle_prediction_reaction(self.id, user_id, if_like)
 
-    def delete(self):
-        assert self.is_actual, "can't delete a past prediction"
+    def delete(self, force:bool=False):
+        if not force:
+            assert self.is_actual, "can't delete a past prediction"
         self.db.delete_prediction(self.id)
 
     def update(self, **kwargs):

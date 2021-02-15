@@ -294,7 +294,7 @@ class DBHandler(object):
         ]
 
     def get_user_predictions(self, user_id, only_actual:bool=False):
-        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if not only_actual else ''
+        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if only_actual else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(
@@ -362,7 +362,7 @@ class DBHandler(object):
         }
 
     def get_experts_predictions(self, only_actual:bool=False):
-        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if not only_actual else ''
+        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if only_actual else ''
         return [
             self.get_prediction(data[0])
             for data in self.execute_and_commit(

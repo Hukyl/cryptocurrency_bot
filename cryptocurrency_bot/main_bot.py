@@ -1470,23 +1470,41 @@ def check_premium_ended():
 def verify_predictions():
     while True:
         for pred in DBPrediction.get_unverified_predictions():
-            pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
-            pred.update(real_value=pred_res.get(pred.iso_to))
-            user = DBUser(pred.user_id)
-            diff = CurrencyParser.calculate_difference(old=pred.value, new=pred.real_value)
-            bot.send_message(
-                pred.user_id, 
-                _(
-                    'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
-                    user.language
-                ).format(
-                    repr(pred),
+            try:
+                pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
+            except ValueError:
+                user = DBUser(pred.user_id)
+                user.create_prediction(
+                    pred.iso_from, 
+                    pred.iso_to, 
                     pred.value,
-                    pred.real_value,
-                    prettify_percent(diff.get('percentage_difference'), to_sign=True)
-                ),
-                parse_mode='markdown'
-            )
+                    pred.up_to_date + datetime.timedelta(0, 5*60) # 5 minutes
+                )
+                bot.send_messsage(
+                    pred.user_id, 
+                    _(
+                        "The quotes are unreachable, the prediction {} was scheduled for 5 minutes later", 
+                        user.language
+                    ).format(repr(pred))
+                )
+                pred.delete(force=True)
+            else:
+                pred.update(real_value=pred_res.get(pred.iso_to))
+                user = DBUser(pred.user_id)
+                diff = CurrencyParser.calculate_difference(old=pred.value, new=pred.real_value)
+                bot.send_message(
+                    pred.user_id, 
+                    _(
+                        'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
+                        user.language
+                    ).format(
+                        repr(pred),
+                        pred.value,
+                        pred.real_value,
+                        prettify_percent(diff.get('percentage_difference'), to_sign=True)
+                    ),
+                    parse_mode='markdown'
+                )
 
 
 
@@ -1519,29 +1537,40 @@ def start_alarms(time_):
 @catch_exc(to_print=True)
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
-        rate = currency_parser.check_delta(k, 'USD', v.get('start_value'), v.get('percent_delta'))
-        if rate.get('new', None): # WARNING: CAN BE DELETED
-            new, old = rate.get('new'), rate.get('old')
-            user.update_rates(k, start_value=new)
-            try:
-                bot.send_message(
-                    user.user_id,
-                    _(
-                        '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({})**\nPrevious: **{} = {} USD **',
-                        user.language
-                    ).format(
-                        k, 
-                        prettify_float(new), 
-                        prettify_float(rate.get('difference')), 
-                        prettify_percent(rate.get('percentage_difference'), to_sign=True), 
-                        k, 
-                        prettify_float(old)
-                    ),
-                    parse_mode='markdown'
-                )
-            except telebot.apihelper.ApiTelegramException:
-                # from traceback: "Bad Request: chat not found"
-                user.update(is_active=0) # not to sent notifications, since chat is not reachable
+        try:
+            rate = currency_parser.check_delta(
+                k, 'USD', 
+                v.get('start_value'), v.get('percent_delta')
+            )
+        except ValueError:
+            bot.send_message(
+                user.user_id, 
+                _("The quotes are not available, the notification can not be sent", user.language)
+            )
+        else:
+            if rate.get('new', None): # WARNING: CAN BE DELETED
+                new, old = rate.get('new'), rate.get('old')
+                user.update_rates(k, start_value=new)
+                try:
+                    bot.send_message(
+                        user.user_id,
+                        _(
+                            '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({})**\nPrevious: **{} = {} USD **',
+                            user.language
+                        ).format(
+                            k, 
+                            prettify_float(new), 
+                            prettify_float(rate.get('difference')), 
+                            prettify_percent(rate.get('percentage_difference'), to_sign=True), 
+                            k, 
+                            prettify_float(old)
+                        ),
+                        parse_mode='markdown'
+                    )
+                except telebot.apihelper.ApiTelegramException:
+                    # from traceback: "Bad Request: chat not found"
+                    user.update(is_active=0) 
+                    # not to sent notifications anymore, since chat is not reachable
 
 
 

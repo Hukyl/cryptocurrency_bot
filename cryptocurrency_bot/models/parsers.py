@@ -225,11 +225,17 @@ class CurrencyExchanger(CurrencyParser):
     def get_rate(self, iso_from, iso_to):
         p_from = self.PARSERS.get(iso_from, self.PARSERS.get(None))
         p_to = self.PARSERS.get(iso_to, self.PARSERS.get(None))
-        rate_from = (
-            p_from.get_rate(iso_from) if getattr(p_from, 'iso', None) is None else p_from.get_rate()
-        )
-        rate_to = p_to.get_rate(iso_to) if getattr(p_to, 'iso', None) is None else p_to.get_rate()
         try:
+            rate_from = (
+                p_from.get_rate(iso_from) 
+                if getattr(p_from, 'iso', None) is None else 
+                p_from.get_rate()
+            )
+            rate_to = (
+                p_to.get_rate(iso_to) 
+                if getattr(p_to, 'iso', None) is None else 
+                p_to.get_rate()
+            )
             return {
                 iso_from: 1, 
                 iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
