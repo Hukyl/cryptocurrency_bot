@@ -44,9 +44,11 @@ def prettify_float(num:float):
     return round(num, round_num)
 
 
+@rangetest(_strict_comp=False, n=(0.00001, 1))
 def prettify_percent(n:float, to_sign:bool=False):
-    res = round(n*100, settings.PERCENT_PRECISION_NUMBER)
-    return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res)
+    res = n*100
+    res = round(res, settings.PERCENT_PRECISION_NUMBER if res > 1 else 6)
+    return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res) 
 
 
 def catch_exc(to_print:bool=True):
