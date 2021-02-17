@@ -275,17 +275,17 @@ def make_user_currency_prediction(msg):
             except ValueError:
                 bot.send_message(
                     msg.chat.id,
-                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
-                )
-                return bot.register_next_step_handler(msg, get_value)
-            else:
-                bot.send_message(
-                    msg.chat.id,
                     _(
                         "❗ This currency does not exist or is not supported, please try another one ❗", 
                         user.language
                     )
+                )                
+            else:
+                bot.send_message(
+                    msg.chat.id,
+                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
                 )
+                return bot.register_next_step_handler(msg, get_value)
         return bot.register_next_step_handler(msg, get_iso)
 
     def get_value(msg):
