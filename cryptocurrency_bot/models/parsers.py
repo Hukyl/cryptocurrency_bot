@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
 from utils import get_default_rates, prettify_float, merge_dicts
+from configs import settings
 
 
 __all__ = ['CurrencyExchanger']
@@ -215,16 +216,16 @@ class CurrencyExchanger(CurrencyParser):
         {
             InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
             for x in list(InvestingParser.AVAILABLE_PRODUCTS)
-        },
-        {None: FreecurrencyratesParser()}
+        }
     )
+    DEFAULT_PARSER = FreecurrencyratesParser()
 
     def __init__(self):
         pass
 
     def get_rate(self, iso_from, iso_to):
-        p_from = self.PARSERS.get(iso_from, self.PARSERS.get(None))
-        p_to = self.PARSERS.get(iso_to, self.PARSERS.get(None))
+        p_from = self.PARSERS.get(iso_from, self.DEFAULT_PARSER)
+        p_to = self.PARSERS.get(iso_to, self.DEFAULT_PARSER)
         try:
             rate_from = (
                 p_from.get_rate(iso_from) 
@@ -247,8 +248,7 @@ class CurrencyExchanger(CurrencyParser):
 
     def update_start_value(self):
         for curr in self.PARSERS:
-            if curr != None:
-                self.PARSERS[curr].update_start_value()
+            self.PARSERS[curr].update_start_value()
 
     def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
         new = self.get_rate(iso_from, iso_to).get(iso_to)
@@ -262,8 +262,17 @@ class CurrencyExchanger(CurrencyParser):
     def __str__(self):
         return '\n'.join([
             f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD" 
-            for curr in self.PARSERS 
-            if curr is not None
+            for curr in sorted(self.PARSERS)
+        ])
+
+    def to_telegram_string(self):
+        main_currs = sorted(settings.MAIN_CURRENCIES)
+        other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
+        return '\n'.join([
+            ('*{}*' if curr in main_currs else '{}').format(
+                f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD"
+            )
+            for curr in main_currs + other_currs
         ])
 
 

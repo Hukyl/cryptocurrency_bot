@@ -214,7 +214,8 @@ def get_currency_rates_today(msg):
 
     bot.send_message(
         msg.chat.id,
-        str(currency_parser),
+        currency_parser.to_telegram_string(),
+        parse_mode='Markdown',
         reply_markup=kbs(list(buttons_dct))
     )
     bot.register_next_step_handler(msg, choose_option_inner)
@@ -254,7 +255,7 @@ def make_user_currency_prediction(msg):
                     'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
                     user.language                    
                 ),
-                parse_mode='markdown',
+                parse_mode='Markdown',
                 reply_markup=kbs(list(settings.ACCEPTABLE_CURRENCIES_CONVERTION))
             )
             bot.register_next_step_handler(msg, get_iso)
@@ -279,7 +280,7 @@ def make_user_currency_prediction(msg):
                         "❗ This currency does not exist or is not supported, please try another one ❗", 
                         user.language
                     )
-                )                
+                )
             else:
                 bot.send_message(
                     msg.chat.id,
@@ -340,7 +341,7 @@ def make_user_currency_prediction(msg):
             'Select the forecast validity period in the format `{}`\nFor example, {}', 
             user.language
         ).format(datetime_check_str, datetime_example),
-        parse_mode='markdown'
+        parse_mode='Markdown'
     )
     bot.register_next_step_handler(msg, get_date)
 
@@ -663,7 +664,7 @@ def convert_currency(msg):
             'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB',
             user.language
         ),
-        parse_mode='markdown'
+        parse_mode='Markdown'
     )
     bot.register_next_step_handler(msg, get_isos)
 
@@ -1495,7 +1496,7 @@ def verify_predictions():
                 bot.send_message(
                     pred.user_id, 
                     _(
-                        'Results of `{}`:\n**Predicted value:** {}\n**Real value:** {}\n**Percentage difference:** {}',
+                        'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
                         user.language
                     ).format(
                         repr(pred),
@@ -1503,7 +1504,7 @@ def verify_predictions():
                         pred.real_value,
                         prettify_percent(diff.get('percentage_difference'), to_sign=True)
                     ),
-                    parse_mode='markdown'
+                    parse_mode='Markdown'
                 )
 
 
@@ -1555,7 +1556,7 @@ def send_alarm(user, t):
                     bot.send_message(
                         user.user_id,
                         _(
-                            '**Notification**\n**{}** = **{} USD**\nThe change: **{:+} ({})**\nPrevious: **{} = {} USD **',
+                            '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
                             user.language
                         ).format(
                             k, 
@@ -1565,7 +1566,7 @@ def send_alarm(user, t):
                             k, 
                             prettify_float(old)
                         ),
-                        parse_mode='markdown'
+                        parse_mode='Markdown'
                     )
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
