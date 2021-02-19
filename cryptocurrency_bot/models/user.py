@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from .db import DBHandler
 from configs import settings
-from utils import get_json_config, prettify_percent, get_default_rates
+from utils import get_json_config, prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
     convert_to_country_format,
     convert_from_country_format,
@@ -270,7 +270,7 @@ class DBPrediction(object):
         return '\n'.join(
             [
                 "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
-                f"Up to: {self.up_to_date}", f"Exchange Rate: {self.value}"
+                f"Up to: {self.up_to_date}", f"Exchange Rate: {prettify_float(self.value)}"
             ],
             [f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else []
         )

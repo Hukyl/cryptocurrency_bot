@@ -307,7 +307,7 @@ def make_user_currency_prediction(msg):
                     convert_to_country_format(date, user.language),
                     iso_from, 
                     iso_to,
-                    value
+                    prettify_float(value)
                 ),
                 reply_markup=kbs(buttons)
             )
@@ -315,7 +315,7 @@ def make_user_currency_prediction(msg):
 
     def confirm_prediction(msg, buttons):
         if msg.text == buttons[0]:
-            user.create_prediction(iso_from, iso_to, value, date)
+            user.create_prediction(iso_from, iso_to, prettify_float(value), date)
             bot.send_message(msg.chat.id, _('The forecast has been created!', user.language))
             return start_bot(msg)
         elif msg.text ==  buttons[1]:
