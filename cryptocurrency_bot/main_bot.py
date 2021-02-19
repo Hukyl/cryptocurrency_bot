@@ -1514,15 +1514,12 @@ def check_alarm_times():
     while True:
         t_ = get_current_datetime(utcoffset=0).time()
         if t_.minute == 0:
-            print('CONDITION TRUE')
             thread = threading.Thread(
                 target=start_alarms, 
                 args=(str(t_.strftime('%H:%M')),), 
                 daemon=True
             )
             thread.start()
-            print('THREAD STARTED')
-        print(f"Time: {str(t_.strftime('%H:%M'))}, cond: {t_.minute == 0}")
         time.sleep(59.9) 
 
 
@@ -1530,37 +1527,29 @@ def check_alarm_times():
 @catch_exc(to_print=True)
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        print("IN  EXECUTOR")
         for user in DBUser.get_users_by_check_time(time_):
-            print("IN FOR IN EXECUTOR")
             executor.submit(send_alarm, user, time_)
 
 
 
 @catch_exc(to_print=True)
 def send_alarm(user, t):
-    print("IN SEND_ALARM")
     for k, v in user.get_currencies_by_check_time(t).items():
-        print("IN FOR IN SEND_ALARM")
         try:
             rate = currency_parser.check_delta(
                 k, 'USD', 
                 v.get('start_value'), v.get('percent_delta')
             )
-            print(rate)
         except ValueError:
             bot.send_message(
                 user.user_id, 
                 _("The quotes are not available, the notification can not be sent", user.language)
             )
         else:
-            print("IN ELSE IN FOR IN SEND_ALARM")
             if rate.get('new', None) is not None: # WARNING: CAN BE DELETED
-                print("COND TRUE IN ELSE IN FOR IN SEND_ALARM")
                 new, old = rate.get('new'), rate.get('old')
                 user.update_rates(k, start_value=new)
                 try:
-                    print("IN TRY IN COND TRUE IN ELSE IN FOR IN SEND_ALARM")
                     bot.send_message(
                         user.user_id,
                         _(
@@ -1576,10 +1565,8 @@ def send_alarm(user, t):
                         ),
                         parse_mode='Markdown'
                     )
-                    print("AFTER TRY IN COND TRUE IN ELSE IN FOR IN SEND_ALARM")
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
-                    print("IN EXCEPT IN COND TRUE IN ELSE IN FOR IN SEND_ALARM")
                     user.update(is_active=0) 
                     # not to sent notifications anymore, since chat is not reachable
 
