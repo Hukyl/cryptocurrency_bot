@@ -270,19 +270,19 @@ class DBTestCase(BasicTestCase):
 class UserModelTestCase(BasicTestCase):
     def test_add_user(self):
         self.db.add_user(0, timezone=+2, language='ru', is_staff=True)
-        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['9:00', '18:00', '11:12']) 
-        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['7:00', '9:00', '10:30']) 
+        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['09:00', '18:00', '11:12']) 
+        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['07:00', '09:00', '10:30']) 
         user = models.user.User(*self.db.get_user(0))
         self.assertDictEqual(
             user.rates, 
             {
                 'BRENT': {
-                    'check_times': ['9:00', '18:00', '11:12'], 
+                    'check_times': ['09:00', '18:00', '11:12'], 
                     'percent_delta': 0.2,
                     'start_value': 56.3
                 },
                 'BTC': {
-                    'check_times': ['7:00', '9:00', '10:30'], 
+                    'check_times': ['07:00', '09:00', '10:30'], 
                     'percent_delta': 0.01,
                     'start_value': 31000 
                 }
@@ -319,8 +319,8 @@ class UserModelTestCase(BasicTestCase):
     def test_change_dbuser_rates(self):
         user = models.user.DBUser(0)
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
-        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
-        self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['9:00', '10:00', '11:00'])
+        user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
+        self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['09:00', '10:00', '11:00'])
         self.assertEqual(user.rates.get('BRENT').get('start_value'), 55)
         user.update_rates('BRENT', start_value=58.2)
         self.assertEqual(user.rates.get('BRENT').get('start_value'), 58.2)
@@ -371,11 +371,11 @@ class UserModelTestCase(BasicTestCase):
     def test_add_dbuser_rates(self):
         user = models.user.DBUser(0)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
-        user.add_rate('UAH', check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+        user.add_rate('UAH', check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
         self.assertDictEqual(
             user.rates.get('UAH'), 
-            dict(check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+            dict(check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
         )
 
     def test_delete_dbuser_rates(self):
@@ -392,7 +392,7 @@ class UserModelTestCase(BasicTestCase):
 
     def test_get_currencies_by_check_time_dbuser(self):
         user = models.user.DBUser(0)
-        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
+        user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
         user.update_rates('BTC', check_times=['13:00', '14:00', '15:00'])
         user.add_rate('UAH', check_times=['16:00', '17:00', '18:00'])
@@ -414,7 +414,7 @@ class UserModelTestCase(BasicTestCase):
         )
         user.update(timezone=+2)
         self.assertDictEqual(
-            user.get_currencies_by_check_time('9:00'),
+            user.get_currencies_by_check_time('09:00'),
             dict(BRENT=user.rates.get('BRENT'), RTS=user.rates.get("RTS"))
         )
         self.assertDictEqual(
