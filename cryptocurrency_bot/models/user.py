@@ -57,7 +57,7 @@ class User(object):
     @staticmethod
     def prettify_rates(rates:list):
         total_str = ''
-        for idx, k, v in enumerate(rates.items(), start=1):
+        for idx, (k, v) in enumerate(rates.items(), start=1):
             total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
                     idx, 
                     k, 
