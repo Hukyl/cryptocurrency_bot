@@ -259,6 +259,12 @@ class CurrencyExchanger(CurrencyParser):
             del rate['new'], rate['percentage_difference'], rate['difference']
         return rate
 
+    def check_rate_exists(self, iso_from, iso_to):
+        return all(
+            x in self.PARSERS or self.DEFAULT_PARSER.check_currency_exists(x)
+            for x in [iso_from, iso_to]
+        )
+
     def __str__(self):
         return '\n'.join([
             f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD" 

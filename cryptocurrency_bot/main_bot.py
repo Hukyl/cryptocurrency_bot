@@ -271,9 +271,13 @@ def make_user_currency_prediction(msg):
                 _('❗ Enter currency iso codes only in the specified format ❗', user.language)
             )
         else:
-            try:
-                _r = currency_parser.get_rate(iso_from, iso_to)
-            except ValueError:
+            if currency_parser.check_rate_exists(iso_from, iso_to):
+                bot.send_message(
+                    msg.chat.id,
+                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
+                )
+                return bot.register_next_step_handler(msg, get_value)                
+            else:
                 bot.send_message(
                     msg.chat.id,
                     _(
@@ -281,12 +285,6 @@ def make_user_currency_prediction(msg):
                         user.language
                     )
                 )
-            else:
-                bot.send_message(
-                    msg.chat.id,
-                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
-                )
-                return bot.register_next_step_handler(msg, get_value)
         return bot.register_next_step_handler(msg, get_iso)
 
     def get_value(msg):
