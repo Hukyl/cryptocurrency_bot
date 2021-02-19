@@ -1444,8 +1444,10 @@ def send_bot_help(msg):
 
 def update_rates():
     while True:
-        currency_parser.update_start_value()
-        time.sleep(53)
+        sleep_time = 60 / (len(currency_parser.PARSERS) + 1)
+        for curr in currency_parser.PARSERS:
+            currency_parser.PARSERS[curr].update_start_value()
+            time.sleep(sleep_time)
 
 
 
