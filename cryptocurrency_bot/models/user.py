@@ -271,8 +271,8 @@ class DBPrediction(object):
             [
                 "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
                 f"Up to: {self.up_to_date}", f"Exchange Rate: {prettify_float(self.value)}"
-            ],
-            [f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else []
+            ] +
+            ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
         )
 
 
