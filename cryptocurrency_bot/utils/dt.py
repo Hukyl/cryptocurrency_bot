@@ -59,8 +59,8 @@ def convert_to_country_format(d:dt.datetime, country:str, no_offset:bool=False):
 @rangetest(_strict_comp=False, user_timezone=(-11, 12))
 def check_check_time_in_rate(user_check_times:list, check_time:str, user_timezone:int=0):
     for t_ in user_check_times:
-        t_no_offset = '{}:{:0>2}'.format(int(t_.split(':')[0]) - user_timezone, t_.split(":")[1]) 
-        # "17:00", offset=2 -> "15:00"
+        t_no_offset = '{:0>2}:{:0>2}'.format(abs(int(t_.split(':')[0]) - user_timezone), t_.split(":")[1]) 
+        # "09:00", offset=2 -> "07:00"; "09:00", offset=-10 -> "23:00"
         if check_time == t_no_offset:
             return True
     return False

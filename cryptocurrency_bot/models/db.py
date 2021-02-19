@@ -188,7 +188,7 @@ class DBHandler(object):
     def get_user(self, user_id:int):
         """
         Get all user data (except the predictions) by its id
-        Returns None if user with this id does not exists
+        Returns None if user with this id does not exist
         otherwise returns list(user_id, is_active, is_pro, is_staff, rates, timezone, language)
         """
         if self.check_user_exists(user_id):

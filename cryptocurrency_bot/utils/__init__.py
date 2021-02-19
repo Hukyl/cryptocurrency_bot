@@ -41,7 +41,7 @@ def get_default_rates(*args, to_print:bool=True):
 
 def prettify_float(num:float):
     round_num = settings.PRECISION_NUMBER + (0 if num // 1 > 0 else 3)
-    return round(num, round_num)
+    return int(num) if num % 1 == 0 else round(num, round_num)
 
 
 @rangetest(_strict_comp=False, n=(0.00001, 1))

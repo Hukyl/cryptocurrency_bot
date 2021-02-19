@@ -57,8 +57,7 @@ class User(object):
     @staticmethod
     def prettify_rates(rates:list):
         total_str = ''
-        for idx, pair in enumerate(rates.items(), start=1):
-            k, v = pair
+        for idx, k, v in enumerate(rates.items(), start=1):
             total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
                     idx, 
                     k, 
@@ -144,22 +143,22 @@ class DBUser(User):
     @classmethod
     def get_pro_users(cls):
         for user_data in cls.db.get_pro_users():
-            yield cls(user_data[1]) # user_data.user_id
+            yield cls(user_data[0])
 
     @classmethod
     def get_all_users(cls):
         for user_data in cls.db.get_all_users():
-            yield cls(user_data[1])
+            yield cls(user_data[0])
 
     @classmethod
     def get_staff_users(cls):
         for user_data in cls.db.get_staff_users():
-            yield cls(user_data[1])
+            yield cls(user_data[0])
 
     @classmethod
     def get_users_by_check_time(cls, check_time):
         for user_data in cls.db.get_users_by_check_time(check_time):
-            yield cls(user_data[1]) # user_data.user_id
+            yield cls(user_data[0])
 
     def init_premium(self, up_to_datetime:datetime):
         self.update(is_pro=up_to_datetime)
