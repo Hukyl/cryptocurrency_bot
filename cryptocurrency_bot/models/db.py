@@ -179,7 +179,7 @@ class DBHandler(object):
         equals to `check_time` (which is in UTC)
         """
         users_lst = list()
-        for user_id in self.execute_and_commit('SELECT DISTINCT user_id FROM users WHERE is_active = 0'):
+        for user_id in self.execute_and_commit('SELECT DISTINCT user_id FROM users WHERE is_active = 1'):
             user = self.get_user(user_id[0])
             if any(check_check_time_in_rate(rate[-1], check_time, user[-2]) for rate in user[-3]):
                 users_lst.append(user)
