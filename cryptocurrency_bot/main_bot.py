@@ -640,17 +640,14 @@ def convert_currency(msg):
             )
             bot.send_message(
                 msg.chat.id,
-                _(
-                    'Conversion by {}:\n{} {} - {} {}',
-                    user.language
-                ).format(
+                _('Conversion by {}:\n{} {} - {} {}', user.language).format(
                     convert_to_country_format(
                         get_current_datetime(utcoffset=user.timezone),
                         user.language
                     ),
-                    rate[iso_from],
+                    prettify_float(rate[iso_from]),
                     iso_from,
-                    rate[iso_to],
+                    prettify_float(rate[iso_to]),
                     iso_to
                 ),
                 reply_markup=markup
@@ -679,7 +676,7 @@ def get_callback_for_change_currency_converter_amount(call):
                 change_amount = float(change_amount)
                 iso_from, iso_to = [x.split() for x in call.message.text.split(':')[-1].split('-')]
                 rate = float(iso_to[0].replace(',', '.')) / float(iso_from[0].replace(',', '.'))
-                new_amount = round(rate * change_amount, settings.PRECISION_NUMBER)
+                new_amount = rate * change_amount
                 markup = inline_kbs(
                     {
                         i: f"change_currency_converter_amount_to_{i}" 
@@ -705,9 +702,9 @@ def get_callback_for_change_currency_converter_amount(call):
                                 get_current_datetime(utcoffset=user.timezone),
                                 user.language
                             ),
-                            change_amount,
+                            prettify_float(change_amount),
                             iso_from[1],
-                            new_amount,
+                            prettify_float(new_amount),
                             iso_to[1]
                         ),
                         reply_markup=markup
