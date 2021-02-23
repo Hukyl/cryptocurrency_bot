@@ -1395,6 +1395,7 @@ def send_message_to_techsupport(call):
             answer_msg = _("Your message was recieved", user.language)
         finally:
             bot.send_message(msg.chat.id, answer_msg)
+            bot.clear_step_handler(msg)
             return start_bot(msg)
 
     if call.message:
