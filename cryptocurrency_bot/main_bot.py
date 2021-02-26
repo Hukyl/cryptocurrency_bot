@@ -1440,7 +1440,7 @@ def send_bot_help(msg):
 
 def update_rates():
     while True:
-        sleep_time = 180 / (len(currency_parser.PARSERS) + 1)  # one update per three minutes
+        sleep_time = 180 / (len(currency_parser.PARSERS))  # one update per three minutes
         for curr in currency_parser.PARSERS:
             currency_parser.PARSERS[curr].update_start_value()
             time.sleep(sleep_time)
