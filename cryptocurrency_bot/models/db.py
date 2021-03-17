@@ -550,9 +550,21 @@ class SessionDBHandler(DBHandlerBase):
             return True
         return False
 
+    def delete_session(self, user_id):
+        self.execute_and_commit('DELETE FROM sessions WHERE user_id = ?', (user_id, ))
+        return True
+
+    def get_session(self, user_id):
+        if self.check_session_exists(user_id):
+            return self.execute_and_commit('SELECT * FROM sessions WHERE user_id = ?', (user_id, ))[0]
+        return False
+
+    def get_all_sessions(self):
+        return self.execute_and_commit("SELECT * FROM sessions")
+
     def decrease_count(self, user_id):
         self.execute_and_commit(
-            'UPDATE sessions SET free_notifications_count = free_notifications_count - 1 WHERE user_id = (?)',
+            'UPDATE sessions SET free_notifications_count = free_notifications_count - 1 WHERE user_id = ?',
             (user_id, )
         )
         return True
@@ -560,19 +572,19 @@ class SessionDBHandler(DBHandlerBase):
     def fetch_count(self, user_id, with_decrease:bool=False):
         if self.check_session_exists(user_id):
             is_user_pro = self.execute_and_commit(
-                'SELECT is_pro IS NOT NULL FROM users WHERE user_id = ?', 
+                'SELECT is_pro != 0 FROM users WHERE user_id = ?', 
                 (user_id, )
             )
-        if len(is_user_pro) > 0:
-            if is_user_pro[0][0] is True:
-                return 1
-            count = self.execute_and_commit(
-                'SELECT free_notifications_count FROM sessions WHERE user_id = ?',
-                (user_id, )
-            )[0][0]
-            if with_decrease:
-                self.decrease_count(user_id)
-            return count
+            if len(is_user_pro) > 0:
+                if is_user_pro[0][0]:
+                    return 1
+                count = self.execute_and_commit(
+                    'SELECT free_notifications_count FROM sessions WHERE user_id = ?',
+                    (user_id, )
+                )[0][0]
+                if with_decrease:
+                    self.decrease_count(user_id)
+                return count
 
 
 

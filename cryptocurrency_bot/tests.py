@@ -14,10 +14,10 @@ import utils
 
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
-        self.db = models.db.DBHandler(configs.settings.TEST_DB_NAME)
+        self.db = models.db.DBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
-        os.remove(configs.settings.TEST_DB_NAME)    
+        os.remove(configs.settings.DB_NAME)    
 
 
 
@@ -272,7 +272,7 @@ class UserModelTestCase(BasicTestCase):
         self.db.add_user(0, timezone=+2, language='ru', is_staff=True)
         self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['09:00', '18:00', '11:12']) 
         self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['07:00', '09:00', '10:30']) 
-        user = models.user.User(*self.db.get_user(0))
+        user = models.user.UserBase(*self.db.get_user(0))
         self.assertDictEqual(
             user.rates, 
             {
@@ -596,6 +596,77 @@ class UtilsTestCase(unittest.TestCase):
         self.assertFalse(f(['15:00', '17:00', '19:00'], '11:00', 0))
         self.assertFalse(f(['15:00', '17:00', '19:00'], '19:00', 2))
         self.assertFalse(f([], '19:00'))
+
+
+
+class SessionModelTestCase(BasicTestCase):
+    def setUp(self):
+        super().setUp()
+        self.session_db = models.db.SessionDBHandler(configs.settings.DB_NAME)
+
+    def test_add_session(self):
+        self.assertEqual(len(self.db.get_all_users()), 0)
+        self.assertEqual(len(self.session_db.get_all_sessions()), 0)
+        models.user.User(0)
+        self.session_db.add_session(0)
+        self.assertEqual(len(self.db.get_all_users()), 1)
+        self.assertEqual(len(self.session_db.get_all_sessions()), 1)        
+
+    def test_session_data(self):
+        models.user.User(123)
+        self.assertFalse(self.session_db.get_session(123))
+        self.session_db.add_session(123)
+        session = self.session_db.get_session(123)
+        self.assertEqual(session[0], 123)
+        self.assertEqual(session[1], configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
+        self.session_db.delete_session(123)
+        self.assertFalse(self.session_db.get_session(123))
+
+    def test_session_fetch_count(self):
+        models.user.User(123)
+        self.session_db.add_session(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.assertEqual(
+            self.session_db.fetch_count(123, with_decrease=True), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1
+        )
+        session = self.session_db.get_session(123)
+        self.assertEqual(session[1], configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1)
+        self.assertIsNone(self.session_db.fetch_count(0))
+        self.assertIsNone(self.session_db.fetch_count(0, with_decrease=True))
+        user = models.user.User(0)
+        self.session_db.add_session(0)
+        self.assertEqual(
+            self.session_db.fetch_count(0), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        user.update(is_pro=utils.dt.get_current_datetime() + dt.timedelta(0, 24*60*60))
+        self.assertEqual(self.session_db.fetch_count(0), 1)       
+        user.update(is_pro=False) 
+        self.assertEqual(
+            self.session_db.fetch_count(0), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )        
+
+    def test_session_decrease_count(self):
+        models.user.User(123)
+        self.session_db.add_session(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.session_db.decrease_count(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1
+        )        
 
 
 
