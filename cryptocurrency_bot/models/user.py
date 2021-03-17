@@ -106,7 +106,7 @@ class User(UserBase):
 
     def get_predictions(self, only_actual:bool=True):
         for pred_data in self.db.get_user_predictions(self.user_id, only_actual):
-            yield DBPrediction(pred_data[0])
+            yield Prediction(pred_data[0])
 
     def update_rates(self, iso, **kwargs):
         self.db.change_user_rate(self.user_id, iso, **kwargs)
@@ -189,7 +189,7 @@ class User(UserBase):
 
 
 
-class DBPrediction(object):
+class Prediction(object):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
@@ -222,8 +222,8 @@ class DBPrediction(object):
         res = self.db.get_closest_neighbours_of_prediction(self.id)
         prev_id, next_id = res['previous'], res['next']
         return {
-            'previous': DBPrediction(prev_id) if prev_id else None,
-            'next': DBPrediction(next_id) if next_id else None
+            'previous': Prediction(prev_id) if prev_id else None,
+            'next': Prediction(next_id) if next_id else None
         }
 
     @property
@@ -277,7 +277,7 @@ class DBPrediction(object):
 
 
 
-class DBSession(object):
+class Session(object):
     db = SessionDBHandler(settings.DB_NAME)
 
     def __init__(self, user_id):

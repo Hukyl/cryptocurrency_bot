@@ -9,7 +9,7 @@ from telebot.types import LabeledPrice
 
 from configs import settings
 from models.parsers import *
-from models.user import User, DBPrediction, DBSession
+from models.user import User, Prediction, Session
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
@@ -51,7 +51,7 @@ USERS_SESSIONS = {}
 def get_or_create_session(chat_id):
     global USERS_SESSIONS
     try:
-        USERS_SESSIONS[chat_id] = USERS_SESSIONS.get(chat_id, DBSession(chat_id))
+        USERS_SESSIONS[chat_id] = USERS_SESSIONS.get(chat_id, Session(chat_id))
     except MemoryError:
         for i in range(50):
             USERS_SESSIONS.pop()
@@ -367,7 +367,7 @@ def see_users_currency_predicitions(msg):
             experts_str = (
                 '⚜ Experts predictions ⚜ are:\n'
                 +
-                ('\n\n'.join([str(x) for x in DBPrediction.get_experts_predictions()][:5]) or ' none')
+                ('\n\n'.join([str(x) for x in Prediction.get_experts_predictions()][:5]) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
@@ -380,7 +380,7 @@ def see_users_currency_predicitions(msg):
         liked_preds_str = (
             'Most liked predictions are:\n'
             +
-            ('\n\n'.join([str(x) for x in DBPrediction.get_most_liked_predictions()][:5]) or ' none')
+            ('\n\n'.join([str(x) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
@@ -396,7 +396,7 @@ def see_users_currency_predicitions(msg):
         return see_users_currency_predicitions(msg)
 
     def liking_system(msg):
-        random_pred = DBPrediction.get_random_prediction()
+        random_pred = Prediction.get_random_prediction()
         if random_pred is None:
             # if no predictions are there
             bot.send_message(
@@ -474,7 +474,7 @@ def get_prediction_inline_kb_for_liking(pred):
 )
 def get_closest_prediction(call):
     action, *data, pred_id = call.data.split('_')
-    start_pred = DBPrediction(int(pred_id))
+    start_pred = Prediction(int(pred_id))
     following_pred = start_pred.get_closest_neighbours()[action]
     user = bot.session.user
     inline_kb = get_prediction_inline_kb_for_liking(following_pred)
@@ -492,7 +492,7 @@ def get_closest_prediction(call):
 )
 def toggle_user_reaction(call):
     action, *some_data, pred_id = call.data.split('_')
-    prediction = DBPrediction(int(pred_id))
+    prediction = Prediction(int(pred_id))
     user = bot.session.user
     reaction = True if action == 'like' else False
     prediction.toggle_like(call.message.chat.id, reaction)
@@ -513,7 +513,7 @@ def toggle_user_reaction(call):
 @bot.callback_query_handler(lambda call: 'get_prediction_' in call.data)
 def get_prediction_details(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBPrediction(pred_id)
+    prediction = Prediction(pred_id)
     user = bot.session.user
     bot.edit_message_text(
         chat_id=call.message.chat.id, 
@@ -530,7 +530,7 @@ def get_prediction_details(call):
 @bot.callback_query_handler(lambda call: 'ask_delete_prediction_' in call.data)
 def ask_delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBPrediction(pred_id)
+    prediction = Prediction(pred_id)
     user = bot.session.user
     if prediction.is_actual:
         bot.edit_message_text(
@@ -560,7 +560,7 @@ def ask_delete_prediction(call):
 @bot.callback_query_handler(lambda call: 'delete_prediction_' in call.data)
 def delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = DBPrediction(pred_id)
+    prediction = Prediction(pred_id)
     user = bot.session.user
     bot.delete_message(call.message.chat.id, call.message.message_id)
     if prediction.is_actual:
@@ -1465,7 +1465,7 @@ def check_premium_ended():
 @catch_exc(to_print=True)
 def verify_predictions():
     while True:
-        for pred in DBPrediction.get_unverified_predictions():
+        for pred in Prediction.get_unverified_predictions():
             try:
                 pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
             except ValueError:
