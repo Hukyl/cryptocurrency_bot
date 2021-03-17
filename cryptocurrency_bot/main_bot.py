@@ -827,8 +827,8 @@ def toggle_user_alarms(msg):
 @bot.message_handler(commands=['toggle_experts_predictions'])
 def toggle_user_experts_predictions(msg):
     user = bot.session.user
-    user.update(to_notify_by_experts=not to_notify_by_experts)
-    bot.send_messsage(
+    user.update(to_notify_by_experts=not user.to_notify_by_experts)
+    bot.send_message(
         msg.chat.id, 
         _(
             f"Experts' predictions {'en' if user.to_notify_by_experts else 'dis'}abled",
