@@ -186,6 +186,10 @@ translation_dict = {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'
     },
+    '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}': {
+        'en': '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
+        'ru': '*⚜ Прогноз от эксперта ⚜*\n*До:* {}\n*Прогнозируемое значение:* {}'
+    },
     '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *': {
         'en': '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
         'ru': "*Оповещение*\n*{}* = *{} USD*\nИзменение: *{:+} ({})*\nПредыдущее: *{} = {} USD*"
@@ -442,6 +446,10 @@ translation_dict = {
         'en': "❗ You can't delete default currencies ❗",
         'ru': "❗ Вы не можете удалить валюты, установленные по умолчанию ❗"
     },
+    "❗ Your limit on receiving predictions has expired, contact our support team ❗": {
+        'en': "❗ Your limit on receiving predictions has expired, contact our support team ❗",
+        'ru': "❗ Ваш лимит на получение прогнозов закончился, обратитесь в поддержку ❗"
+    }
     "❗ This currency is not supported ❗": {
         'en': "❗ This currency is not supported ❗",
         'ru': "❗ Эта валюта не поддерживается ❗"

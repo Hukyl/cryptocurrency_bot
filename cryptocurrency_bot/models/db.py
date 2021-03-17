@@ -167,6 +167,7 @@ class DBHandler(DBHandlerBase):
                 (user_id, iso_from, iso_to, value, str(up_to_date), is_by_experts)
             )
             return True
+        return False
 
     def check_user_exists(self, user_id:int):
         res = self.execute_and_commit('SELECT user_id FROM users WHERE user_id = ?', (user_id, ))
@@ -208,10 +209,11 @@ class DBHandler(DBHandlerBase):
             return [user_id, is_active, is_pro, is_staff, rates, timezone, language]
         return None
 
-    def get_all_users(self):
+    def get_all_users(self, if_all:bool=True):
+        filter_sql = 'WHERE is_staff != 1' if not if_all else ''
         return [
             self.get_user(user_data[0])
-            for user_data in self.execute_and_commit('SELECT user_id FROM users')
+            for user_data in self.execute_and_commit('SELECT user_id FROM users %s' % filter_sql)
         ]
 
     def get_staff_users(self):
@@ -568,6 +570,12 @@ class SessionDBHandler(DBHandlerBase):
             (user_id, )
         )
         return True
+
+    def set_count(self, user_id, count):
+        if self.check_session_exists(user_id):
+            self.execute_and_commit('UPDATE sessions SET free_notifications_count = ? WHERE user_id = ?', (count, user_id, ))
+            return True
+        return False
 
     def fetch_count(self, user_id, with_decrease:bool=False):
         if self.check_session_exists(user_id):

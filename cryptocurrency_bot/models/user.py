@@ -95,8 +95,7 @@ class User(UserBase):
 
     def get_currencies_by_check_time(self, check_time:str):
         return {
-            k: v 
-            for k, v in self.rates.items() 
+            k: v for k, v in self.rates.items() 
             if check_check_time_in_rate(v.get('check_times'), check_time, self.timezone)
         }
 
@@ -141,18 +140,18 @@ class User(UserBase):
                 cls.db.add_user_rate(user_id, currency, start_value=defaults.get(currency)) 
 
     @classmethod
-    def get_pro_users(cls):
-        for user_data in cls.db.get_pro_users():
+    def get_pro_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_pro_users(*args, **kwargs):
             yield cls(user_data[0])
 
     @classmethod
-    def get_all_users(cls):
-        for user_data in cls.db.get_all_users():
+    def get_all_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_all_users(*args, **kwargs):
             yield cls(user_data[0])
 
     @classmethod
-    def get_staff_users(cls):
-        for user_data in cls.db.get_staff_users():
+    def get_staff_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_staff_users(*args, **kwargs):
             yield cls(user_data[0])
 
     @classmethod
@@ -168,6 +167,7 @@ class User(UserBase):
 
     def delete_premium(self):
         self.update(is_pro=0)
+        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
                 self.delete_rate(k)
@@ -184,6 +184,7 @@ class User(UserBase):
     def delete_staff(self):
         self.delete_premium()
         self.update(is_staff=0)
+        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=0)
 
@@ -244,16 +245,16 @@ class Prediction(object):
             yield cls(pred_data[0]) # id
 
     @classmethod
-    def get_most_liked_predictions(cls):
-        for pred_data in cls.db.get_max_liked_predictions():
+    def get_most_liked_predictions(cls, *args, **kwargs):
+        for pred_data in cls.db.get_max_liked_predictions(*args, **kwargs):
             yield cls(pred_data[0])
 
     @classmethod
-    def get_unverified_predictions(cls):
+    def get_unverified_predictions(cls, *args, **kwargs):
         """
         Get predictions which `up_to_date` is expired and `real_value` is still None
         """
-        for pred_data in cls.db.get_unverified_predictions():
+        for pred_data in cls.db.get_unverified_predictions(*args, **kwargs):
             yield cls(pred_data[0]) # id
 
     @classmethod
@@ -290,6 +291,9 @@ class Session(object):
 
     def decrease_count(self):
         self.db.decrease_count(self.user.user_id)
+
+    def set_count(self, count):
+        self.db.set_count(self.user.user_id, count)
 
 
 

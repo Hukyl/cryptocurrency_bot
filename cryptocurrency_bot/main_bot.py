@@ -308,9 +308,36 @@ def make_user_currency_prediction(msg):
             )
             bot.register_next_step_handler(msg, confirm_prediction, buttons)
 
+    def resend_prediction_all_users(prediction):
+        for user in User.get_all_users(if_all=False):
+            if Session.db.fetch_count(user.user_id) > 0:
+                bot.send_message(
+                    user.user_id, 
+                    _(
+                        '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}', 
+                        user.language
+                    ).format(
+                        convert_to_country_format(prediction.up_to_date),
+                        prettify_float(prediction.value)
+                    )
+                )
+            else:
+                bot.send_message(
+                    user.user_id, 
+                    _(
+                        "❗ Your limit on receiving predictions has expired, contact our support team ❗", 
+                        user.language
+                    )
+                )                
+
     def confirm_prediction(msg, buttons):
         if msg.text == buttons[0]:
             user.create_prediction(iso_from, iso_to, prettify_float(value), date)
+            if user.is_staff:
+                threading.Thread(
+                    resend_prediction_all_users, 
+                    args=(user.predictions[-1],), daemon=True
+                ).start()            
             bot.send_message(msg.chat.id, _('The forecast has been created!', user.language))
             return start_bot(msg)
         elif msg.text ==  buttons[1]:
@@ -365,30 +392,30 @@ def see_users_currency_predicitions(msg):
     def see_other_users_predictions(msg):
         if user.is_pro:
             experts_str = (
-                '⚜ Experts predictions ⚜ are:\n'
+                '⚜ Experts predictions ⚜ are:;'
                 +
-                ('\n\n'.join([str(x) for x in Prediction.get_experts_predictions()][:5]) or ' none')
+                (';;'.join([str(x) for x in Prediction.get_experts_predictions()][:5]) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
-                experts_str = experts_str.replace('\n', '')
+                experts_str = experts_str.replace(';', '')
             bot.send_message(
                 msg.chat.id, 
-                _(experts_str.replace('\n', ';'), user.language, parse_mode='newline'),
+                _(experts_str, user.language, parse_mode='newline'),
             )
 
         liked_preds_str = (
-            'Most liked predictions are:\n'
+            'Most liked predictions are:;'
             +
-            ('\n\n'.join([str(x) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
+            (';;'.join([str(x) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
-            liked_preds_str = liked_preds_str.replace('\n', '')
+            liked_preds_str = liked_preds_str.replace(';', '')
         bot.send_message(
             msg.chat.id, 
             _(
-                liked_preds_str.replace('\n', ';'),
+                liked_preds_str,
                 user.language,
                 parse_mode='newline'
             ),
