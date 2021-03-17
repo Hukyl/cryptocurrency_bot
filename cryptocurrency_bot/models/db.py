@@ -70,6 +70,7 @@ class DBHandler(DBHandlerBase):
                     is_active BOOLEAN DEFAULT 0,
                     is_pro DATETIME DEFAULT FALSE, 
                     is_staff BOOLEAN DEFAULT 0,
+                    to_notify_by_experts BOOLEAN DEFAULT 1,
                     timezone TINYINT DEFAULT 0 CHECK (
                         timezone in (
                             -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 
@@ -120,16 +121,16 @@ class DBHandler(DBHandlerBase):
 
     def add_user(
             self, user_id:int, is_active:bool=True, is_pro=False, 
-            is_staff:bool=False, timezone:int=0, language:str='en'
+            is_staff:bool=False, to_notify_by_experts:bool=True, timezone:int=0, language:str='en'
         ):
         self.execute_and_commit(
             "INSERT INTO users\
-            (user_id, is_active, is_pro, is_staff, timezone, language) \
-            VALUES (?, ?, ?, ?, ?, ?)", 
+            (user_id, is_active, is_pro, is_staff, to_notify_by_experts, timezone, language) \
+            VALUES (?, ?, ?, ?, ?, ?, ?)", 
             (
                 user_id, is_active, 
                 is_pro.strftime('%Y-%m-%d %H:%M:%S') if isinstance(is_pro, datetime) else is_pro, 
-                is_staff, timezone, language
+                is_staff, to_notify_by_experts, timezone, language
             )
         )
         return True
@@ -199,14 +200,14 @@ class DBHandler(DBHandlerBase):
         otherwise returns list(user_id, is_active, is_pro, is_staff, rates, timezone, language)
         """
         if self.check_user_exists(user_id):
-            user_id, is_active, is_pro, is_staff, timezone, language = list(
+            user_id, is_active, is_pro, is_staff, to_notify_by_experts, timezone, language = list(
                 self.execute_and_commit('SELECT * FROM users WHERE user_id = ?', (user_id, ))[0]
             )
             rates = self.get_user_rates(user_id)
             is_pro = datetime.strptime(
                 is_pro, '%Y-%m-%d %H:%M:%S'
             ) if isinstance(is_pro, str) else is_pro
-            return [user_id, is_active, is_pro, is_staff, rates, timezone, language]
+            return [user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language]
         return None
 
     def get_all_users(self, if_all:bool=True):
@@ -262,8 +263,8 @@ class DBHandler(DBHandlerBase):
             for rate in self.execute_and_commit(
                 'SELECT \
                 u_r.iso, u_r.start_value, u_r.percent_delta, u_r.check_times \
-                FROM users JOIN users_rates u_r \
-                ON users.user_id = u_r.user_id AND users.user_id = ?',
+                FROM users u JOIN users_rates u_r \
+                ON u.user_id = u_r.user_id AND u.user_id = ?',
                 (user_id, )
             )
         ]

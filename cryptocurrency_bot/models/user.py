@@ -33,12 +33,13 @@ class UserBase(object):
 
     def __init__(
             self, user_id:int, is_active:bool, is_pro, is_staff:bool, 
-            rates:list, timezone:int, language:str
+            to_notify_by_experts:bool, rates:list, timezone:int, language:str
         ):
         self.user_id = user_id
         self.is_active = is_active
         self.is_pro = is_pro
         self.is_staff = is_staff
+        self.to_notify_by_experts = to_notify_by_experts
         self.rates = self.normalize_rates(rates)
         self.timezone = timezone
         self.language = language
@@ -72,8 +73,8 @@ class UserBase(object):
     def __iter__(self):
         # also implements list(User), because __iter__ is used by list()
         for i in [
-                self.user_id, self.is_active, self.is_pro, 
-                self.is_staff, self.rates, self.timezone, self.language
+                self.user_id, self.is_active, self.is_pro, self.is_staff,
+                self.to_notify_by_experts, self.rates, self.timezone, self.language
             ]:
             yield i
 

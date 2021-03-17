@@ -449,7 +449,7 @@ translation_dict = {
     "❗ Your limit on receiving predictions has expired, contact our support team ❗": {
         'en': "❗ Your limit on receiving predictions has expired, contact our support team ❗",
         'ru': "❗ Ваш лимит на получение прогнозов закончился, обратитесь в поддержку ❗"
-    }
+    },
     "❗ This currency is not supported ❗": {
         'en': "❗ This currency is not supported ❗",
         'ru': "❗ Эта валюта не поддерживается ❗"

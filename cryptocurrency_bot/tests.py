@@ -15,6 +15,7 @@ import utils
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
         self.db = models.db.DBHandler(configs.settings.DB_NAME)
+        self.session_db = models.db.SessionDBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
         os.remove(configs.settings.DB_NAME)    
@@ -36,7 +37,7 @@ class DBTestCase(BasicTestCase):
             self.db.add_user(-1, timezone=-14) # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
             self.db.add_user(-1, language='English') # should be 'en', 'ru', 'ua' etc.
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(0)
         self.assertEqual(user_id, 0)
         self.assertEqual(is_pro, 0)
         self.assertEqual(is_active, 1)
@@ -46,11 +47,11 @@ class DBTestCase(BasicTestCase):
 
     def test_change_user(self):
         self.db.add_user(1)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 1)
         self.assertEqual(language, 'en')
         self.db.change_user(1, language='ru', is_active=False)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 0)
         self.assertEqual(language, 'ru')
         with self.assertRaises(ValueError):
@@ -91,7 +92,7 @@ class DBTestCase(BasicTestCase):
 
     def test_add_user_prediction(self):
         self.db.add_user(0)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(0)
         self.assertFalse(self.db.check_prediction_exists(1))
         self.assertTrue(
             self.db.add_prediction(
@@ -103,7 +104,7 @@ class DBTestCase(BasicTestCase):
             )
         )
         self.assertTrue(self.db.check_prediction_exists(1))
-        self.assertIsNone(
+        self.assertFalse(
             self.db.add_prediction(
                 -1, 
                 'BRENT', 
@@ -288,7 +289,7 @@ class UserModelTestCase(BasicTestCase):
                 }
             }
         )
-        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 2, 'ru'])
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 1, 2, 'ru'])
 
     def test_add_dbuser(self):
         user = models.user.User(0)
@@ -302,7 +303,7 @@ class UserModelTestCase(BasicTestCase):
                 for k, v in user.rates.items()
             ])
         )
-        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 0, 'en'])
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 1, 0, 'en'])
 
     def test_change_dbuser(self):
         user = models.user.User(0)
@@ -600,10 +601,6 @@ class UtilsTestCase(unittest.TestCase):
 
 
 class SessionModelTestCase(BasicTestCase):
-    def setUp(self):
-        super().setUp()
-        self.session_db = models.db.SessionDBHandler(configs.settings.DB_NAME)
-
     def test_add_session(self):
         self.assertEqual(len(self.db.get_all_users()), 0)
         self.assertEqual(len(self.session_db.get_all_sessions()), 0)
