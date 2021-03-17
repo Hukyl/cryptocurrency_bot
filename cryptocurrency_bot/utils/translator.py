@@ -102,6 +102,14 @@ translation_dict = {
         'en': 'Enter the ISO-code of the new currency', 
         'ru': 'Введите ISO-код новой валюты'
     },
+    "Experts' predictions enabled": {
+        'en': "Experts' predictions enabled", 
+        'ru': "Прогнозы от экспертов включены"
+    },
+    "Experts' predictions disabled": {
+        'en': "Experts' predictions disabled", 
+        'ru': "Прогнозы от экспертов выключены"
+    },    
     'Forecast not created': {
         'en': 'Forecast not created', 
         'ru': 'Прогноз не создан'
@@ -261,6 +269,10 @@ translation_dict = {
     'Toggle alarms': {
         'en': 'Toggle alarms', 
         'ru': 'Включить/выключить оповещения'
+    },
+    "Toggle experts predictions": {
+        'en': "Toggle experts predictions",
+        'ru': "Включить/выключить прогнозы от экспертов"
     },
     'Your info': {
         'en': 'Your info', 

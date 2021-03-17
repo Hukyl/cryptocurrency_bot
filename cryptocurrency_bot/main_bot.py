@@ -27,6 +27,7 @@ bot.full_bot_commands = {
     # Change percent delta at which to notify
     '/change_timezone': 'сменить ваш часовой пояс', # change your timezone
     '/toggle_alarms': 'включить/выключить оповещения', # Toggle alarms
+    '/toggle_experts_predictions': 'включить/выключить прогнозы от экспертов', # Toggle experts predictions
     '/make_prediction': 'сделать прогноз', # Make a prediction
     '/get_predictions': 'прогнозы', # Go to "Predictions" section
     '/convert': 'конвертер валют', # Currency Converter
@@ -162,6 +163,7 @@ def choose_option(msg, buttons=None):
             _('Change alarm time', user.language): change_user_rate_check_times, 
             _('Change alarm percent', user.language):change_user_rate_percent_delta,
             _('Toggle alarms', user.language): toggle_user_alarms,
+            _("Toggle experts predictions", user.language): toggle_user_experts_predictions,
             _('Change time zone', user.language): change_user_timezone,
             _('Main menu', user.language): start_bot 
         }
@@ -310,25 +312,27 @@ def make_user_currency_prediction(msg):
 
     def resend_prediction_all_users(prediction):
         for user in User.get_all_users(if_all=False):
-            if Session.db.fetch_count(user.user_id) > 0:
-                bot.send_message(
-                    user.user_id, 
-                    _(
-                        '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}', 
-                        user.language
-                    ).format(
-                        convert_to_country_format(prediction.up_to_date),
-                        prettify_float(prediction.value)
+            if user.to_notify_by_experts == True:
+                if Session.db.fetch_count(user.user_id) > 0:
+                    bot.send_message(
+                        user.user_id, 
+                        _(
+                            '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}', 
+                            user.language
+                        ).format(
+                            convert_to_country_format(prediction.up_to_date),
+                            prettify_float(prediction.value)
+                        )
                     )
-                )
-            else:
-                bot.send_message(
-                    user.user_id, 
-                    _(
-                        "❗ Your limit on receiving predictions has expired, contact our support team ❗", 
-                        user.language
-                    )
-                )                
+                    Session.db.decrease_count(user.user_id)
+                else:
+                    bot.send_message(
+                        user.user_id, 
+                        _(
+                            "❗ Your limit on receiving predictions has expired, contact our support team ❗", 
+                            user.language
+                        )
+                    )                
 
     def confirm_prediction(msg, buttons):
         if msg.text == buttons[0]:
@@ -820,6 +824,19 @@ def toggle_user_alarms(msg):
     return start_bot(msg)
 
 
+@bot.message_handler(commands=['toggle_experts_predictions'])
+def toggle_user_experts_predictions(msg):
+    user = bot.session.user
+    user.update(to_notify_by_experts=not to_notify_by_experts)
+    bot.send_messsage(
+        msg.chat.id, 
+        _(
+            f"Experts' predictions {'en' if user.to_notify_by_experts else 'dis'}abled",
+            user.language
+        )
+    )
+    return start_bot(msg)
+
 
 @bot.message_handler(commands=['me'])
 def see_user_info(msg):
@@ -830,6 +847,7 @@ def see_user_info(msg):
             ;Персонал: {'да' if user.is_staff else 'нет'}\
             ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
             ;Оповещения: {'включены' if user.is_active else 'отключены'}\
+            ;Прогнозы от экспертов: {'включены' if user.to_notify_by_experts else 'отключены'}\
             ;Оповещения:\
             ;{User.prettify_rates(user.rates)}"
     bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
