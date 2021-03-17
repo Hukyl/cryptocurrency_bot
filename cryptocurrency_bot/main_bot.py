@@ -9,7 +9,7 @@ from telebot.types import LabeledPrice
 
 from configs import settings
 from models.parsers import *
-from models.user import DBUser, DBPrediction, DBSession
+from models.user import User, DBPrediction, DBSession
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
@@ -107,7 +107,7 @@ def start_message(msg):
         ).format(bot.get_me().first_name),
         parse_mode='html'
     )
-    if (add_info and (tech_support_recognizer in add_info)) or not list(DBUser.get_staff_users()):
+    if (add_info and (tech_support_recognizer in add_info)) or not list(User.get_staff_users()):
         # if user started bot with techsupport link or there are not support users
         user.init_staff()
         bot.send_message(
@@ -804,7 +804,7 @@ def see_user_info(msg):
             ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
             ;Оповещения: {'включены' if user.is_active else 'отключены'}\
             ;Оповещения:\
-            ;{DBUser.prettify_rates(user.rates)}"
+            ;{User.prettify_rates(user.rates)}"
     bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
     return start_bot(msg)
 
@@ -1285,7 +1285,7 @@ def buy_subscription(msg):
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout_handler(pre_checkout_query):
-    user = DBUser(pre_checkout_query.from_user.id)
+    user = User(pre_checkout_query.from_user.id)
     bot.answer_pre_checkout_query(
         pre_checkout_query.id, 
         ok=True,
@@ -1456,7 +1456,7 @@ def check_premium_ended():
 
     while True:
         with futures.ThreadPoolExecutor(max_workers=50) as executor:
-            for user in DBUser.get_pro_users():
+            for user in User.get_pro_users():
                 executor.submit(check_user_premium_ended, user)
         time.sleep(180) # 3 min
 
@@ -1469,7 +1469,7 @@ def verify_predictions():
             try:
                 pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
             except ValueError:
-                user = DBUser(pred.user_id)
+                user = User(pred.user_id)
                 user.create_prediction(
                     pred.iso_from, 
                     pred.iso_to, 
@@ -1486,7 +1486,7 @@ def verify_predictions():
                 pred.delete(force=True)
             else:
                 pred.update(real_value=pred_res.get(pred.iso_to))
-                user = DBUser(pred.user_id)
+                user = User(pred.user_id)
                 diff = currency_parser.calculate_difference(old=pred.value, new=pred.real_value)
                 bot.send_message(
                     pred.user_id, 
@@ -1522,7 +1522,7 @@ def check_alarm_times():
 @catch_exc(to_print=True)
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        for user in DBUser.get_users_by_check_time(time_):
+        for user in User.get_users_by_check_time(time_):
             executor.submit(send_alarm, user, time_)
 
 

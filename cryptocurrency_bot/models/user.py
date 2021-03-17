@@ -14,7 +14,7 @@ from utils.translator import translate as _
 
 
 
-class User(object):
+class UserBase(object):
     """
     User base class
 
@@ -79,7 +79,7 @@ class User(object):
 
 
 
-class DBUser(User):
+class User(UserBase):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, user_id):
@@ -281,7 +281,7 @@ class DBSession(object):
     db = SessionDBHandler(settings.DB_NAME)
 
     def __init__(self, user_id):
-        self.user = DBUser(user_id)
+        self.user = User(user_id)
         self.db.add_session(user_id)
 
     @property

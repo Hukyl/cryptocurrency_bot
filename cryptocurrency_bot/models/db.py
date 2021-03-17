@@ -532,7 +532,7 @@ class SessionDBHandler(DBHandlerBase):
 
     def setup_db(self):
         self.execute_and_commit(
-            '''CREATE TABLE sessions(
+            '''CREATE TABLE IF NOT EXISTS sessions(
                 user_id INTEGER NOT NULL,
                 free_notifications_count TINYINT DEFAULT %s,
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,

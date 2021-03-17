@@ -10,7 +10,8 @@ PAYMENT_TOKEN = '401643678:TEST:36b3e5b5-0ab7-4fbd-beca-8a11ce7100d8'  # test to
 ACCESSIBLE_LINK = "https://t.me/{}?start=support" # {} - bot username
 
 
-DB_NAME = 'db.sqlite3' # production use - 'db.sqlite3', tests - 'test.sqlite3'
+DB_NAME = 'db.sqlite3'
+TEST_DB_NAME = 'test.sqlite3'
 
 
 CHECK_TIMES = [

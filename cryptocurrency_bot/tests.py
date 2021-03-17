@@ -14,10 +14,10 @@ import utils
 
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
-        self.db = models.db.DBHandler(configs.settings.DB_NAME)
+        self.db = models.db.DBHandler(configs.settings.TEST_DB_NAME)
 
     def tearDown(self):
-        os.remove(configs.settings.DB_NAME)    
+        os.remove(configs.settings.TEST_DB_NAME)    
 
 
 
@@ -291,7 +291,7 @@ class UserModelTestCase(BasicTestCase):
         self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 2, 'ru'])
 
     def test_add_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertTrue(
             all([
                 {k: {
@@ -305,7 +305,7 @@ class UserModelTestCase(BasicTestCase):
         self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 0, 'en'])
 
     def test_change_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertEqual(self.db.get_user(0)[-2], 0) # timezone
         self.assertEqual(user.timezone, 0)
         user.update(timezone=+2)
@@ -317,7 +317,7 @@ class UserModelTestCase(BasicTestCase):
             user.update(timezone=+20)
 
     def test_change_dbuser_rates(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
         user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['09:00', '10:00', '11:00'])
@@ -333,7 +333,7 @@ class UserModelTestCase(BasicTestCase):
             user.update_rates('BRENT', start_value='abcdef')
 
     def test_premium_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -351,7 +351,7 @@ class UserModelTestCase(BasicTestCase):
             self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_staff_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d_test = utils.dt.get_current_datetime()
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -369,7 +369,7 @@ class UserModelTestCase(BasicTestCase):
             self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_add_dbuser_rates(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
         user.add_rate('UAH', check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
@@ -379,7 +379,7 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_delete_dbuser_rates(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
         user.add_rate("UAH")
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
@@ -391,7 +391,7 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
 
     def test_get_currencies_by_check_time_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
         user.update_rates('BTC', check_times=['13:00', '14:00', '15:00'])
@@ -431,37 +431,37 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_get_pro_users(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        user = models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
         user.init_premium(utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 1)
         user.delete_premium()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
 
     def test_get_staff_users(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+        user = models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 0)
         user.init_staff()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 1)
         user.delete_staff()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 0)
 
     def test_get_all_users(self):
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_all_users())), 0)
+        user = models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_all_users())), 1)
         self.tearDown()
         self.setUp()
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_all_users())), 0)
 
 
 
 class PredictionModelTestCase(BasicTestCase):
     def test_add_dbprediction(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         self.assertEqual(len(user.predictions), 0)
         user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
@@ -478,7 +478,7 @@ class PredictionModelTestCase(BasicTestCase):
             user.create_prediction('BRENT', 'USD', value=-55, up_to_date=d1)
 
     def test_change_future_dbprediction(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
         pred = user.predictions[0]
@@ -498,8 +498,8 @@ class PredictionModelTestCase(BasicTestCase):
             pred.update(real_value=-20)
 
     def test_toggle_like_dbprediction(self):
-        u1 = models.user.DBUser(0)
-        u2 = models.user.DBUser(1)
+        u1 = models.user.User(0)
+        u2 = models.user.User(1)
         u1.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
         pred = u1.predictions[0]
         self.assertEqual(pred.likes, 0)
@@ -515,7 +515,7 @@ class PredictionModelTestCase(BasicTestCase):
         self.assertEqual(pred.dislikes, 0)
 
     def test_delete_dbprediction(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         user.create_prediction(
             'BRENT', 'USD', 
             value=55, up_to_date=utils.dt.get_current_datetime() + dt.timedelta(0, 2)

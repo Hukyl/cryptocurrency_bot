@@ -1,8 +1,5 @@
 from telebot import types
 
-from models.user import DBUser
-from .translator import translate as _
-
 
 __all__ = ['kbs', 'inline_kbs']
 
