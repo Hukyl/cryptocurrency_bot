@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from .db import DBHandler
+from .db import DBHandler, SessionDBHandler
 from configs import settings
 from utils import get_json_config, prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
@@ -274,6 +274,22 @@ class DBPrediction(object):
             ] +
             ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
         )
+
+
+
+class DBSession(object):
+    db = SessionDBHandler(settings.DB_NAME)
+
+    def __init__(self, user_id):
+        self.user = DBUser(user_id)
+        self.db.add_session(user_id)
+
+    @property
+    def free_notifications_count(self):
+        return self.db.fetch_count(self.user.user_id)
+
+    def decrease_count(self):
+        self.db.decrease_count(self.user.user_id)
 
 
 

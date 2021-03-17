@@ -9,8 +9,22 @@ from utils.decorators import private, rangetest
 
 
 
+class DBHandlerBase(object):
+    def __init__(self, db_name:str=None):
+        self.DB_NAME = db_name or settings.DB_NAME
+
+    def execute_and_commit(self, sql, params=tuple()):
+        with threading.Lock():
+            with sqlite3.connect(self.DB_NAME) as conn:
+                cur = conn.cursor()
+                res = cur.execute(sql, params).fetchall()
+                conn.commit()
+                return res
+
+
+
 @private(['get', 'set'], 'execute_and_commit')
-class DBHandler(object):
+class DBHandler(DBHandlerBase):
     """
     DB Format:
 
@@ -46,8 +60,8 @@ class DBHandler(object):
         reaction: like/dislike (1/0 respectively)
     """
     def __init__(self, db_name:str=None):
-        self.DB_NAME = db_name or settings.DB_NAME
-        self.setup_db()
+        super().__init__(db_name)
+        self.setup_db()    
 
     def setup_db(self):
         self.execute_and_commit(
@@ -103,14 +117,6 @@ class DBHandler(object):
             )
             '''
         )
-
-    def execute_and_commit(self, sql, params=tuple()):
-        with threading.Lock():
-            with sqlite3.connect(self.DB_NAME) as conn:
-                cur = conn.cursor()
-                res = cur.execute(sql, params).fetchall()
-                conn.commit()
-                return res
 
     def add_user(
             self, user_id:int, is_active:bool=True, is_pro=False, 
@@ -514,6 +520,59 @@ class DBHandler(object):
                 ORDER BY likes_diff DESC;
             ''')
         ] # only actual predictions
+
+
+
+
+@private(['get', 'set'], 'execute_and_commit')
+class SessionDBHandler(DBHandlerBase):
+    def __init__(self, db_name:str=None):
+        super().__init__(db_name)
+        self.setup_db()  
+
+    def setup_db(self):
+        self.execute_and_commit(
+            '''CREATE TABLE sessions(
+                user_id INTEGER NOT NULL,
+                free_notifications_count TINYINT DEFAULT %s,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                UNIQUE(user_id) ON CONFLICT REPLACE
+            )''' % settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+
+    def check_session_exists(self, user_id):
+        res = self.execute_and_commit('SELECT user_id FROM sessions WHERE user_id = ?', (user_id, ))
+        return len(res) > 0
+
+    def add_session(self, user_id):
+        if not self.check_session_exists(user_id):
+            self.execute_and_commit('INSERT INTO sessions(user_id) VALUES (?)', (user_id, ))
+            return True
+        return False
+
+    def decrease_count(self, user_id):
+        self.execute_and_commit(
+            'UPDATE sessions SET free_notifications_count = free_notifications_count - 1 WHERE user_id = (?)',
+            (user_id, )
+        )
+        return True
+
+    def fetch_count(self, user_id, with_decrease:bool=False):
+        if self.check_session_exists(user_id):
+            is_user_pro = self.execute_and_commit(
+                'SELECT is_pro IS NOT NULL FROM users WHERE user_id = ?', 
+                (user_id, )
+            )
+        if len(is_user_pro) > 0:
+            if is_user_pro[0][0] is True:
+                return 1
+            count = self.execute_and_commit(
+                'SELECT free_notifications_count FROM sessions WHERE user_id = ?',
+                (user_id, )
+            )[0][0]
+            if with_decrease:
+                self.decrease_count(user_id)
+            return count
 
 
 
