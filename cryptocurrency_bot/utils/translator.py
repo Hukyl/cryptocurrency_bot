@@ -74,7 +74,7 @@ translation_dict = {
         'en': "Delete currency",
         'ru': "Удалить валюту"
     },
-    'English 🇬🇧'  : {
+    'English 🇬🇧': {
         'en': 'English 🇬🇧', 
         'ru': 'Английский 🇬🇧'
     },
@@ -119,8 +119,10 @@ translation_dict = {
         'ru': 'Вот ваши прогнозы'
     },
     'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast creation?': {
-        'en': 'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast creation?',
-        'ru': 'Вот данные прогноза: \nПериод прогноза: {} \nВалюта: {} - {} \nЗначение: {}\n. \nПодтвердить создание прогноза?'
+        'en': 'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast '
+              'creation?',
+        'ru': 'Вот данные прогноза: \nПериод прогноза: {} \nВалюта: {} - {} \nЗначение: {}\n. \nПодтвердить создание '
+              'прогноза? '
     },
     "I don't understand your answer, returning to the main menu...": {
         'en': "I don't understand your answer, returning to the main menu...",
@@ -290,9 +292,15 @@ translation_dict = {
         'en': 'Welcome, {}!', 
         'ru': 'Добро пожаловать, {}!'
     },
-    'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts from experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, and you will not regret it': {
-        'en': 'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts from experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, and you will not regret it',
-        'ru': 'Покупая Подписку, вы получаете доступ к:\n\t1. Неограниченому количеству оповещений в день\n\t2. Прогнозам от экспертов\n\t3. Добавлению своих валют к оповещения\n\tИ другому!\n\nПокупайте Подписку уже сегодня, и вы об этом не пожалеете'
+    'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts from '
+    'experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, and you will not regret '
+    'it': {
+        'en': 'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts '
+              'from experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, '
+              'and you will not regret it',
+        'ru': 'Покупая Подписку, вы получаете доступ к:\n\t1. Неограниченому количеству оповещений в день\n\t2. '
+              'Прогнозам от экспертов\n\t3. Добавлению своих валют к оповещения\n\tИ другому!\n\nПокупайте Подписку '
+              'уже сегодня, и вы об этом не пожалеете '
     },
     'Write your message to technical support ({} to go to the menu)': {
         'en': 'Write your message to technical support ({} to go to the menu)',
@@ -354,8 +362,8 @@ translation_dict = {
         'en': "You have no extra currencies to delete",
         'ru': "У вас нет валют для удаления"
     },
-    'Your message was recieved': {
-        'en': 'Your message was recieved',
+    'Your message was received': {
+        'en': 'Your message was received',
         'ru': 'Ваше сообщение было получено'
     },
     'Your percentage is now {}%': {
@@ -366,9 +374,12 @@ translation_dict = {
         'en': 'Your premium has expired, but you can always refresh it!',
         'ru': 'Ваша подписка истекла, но вы можете купить новую!'
     },
-    '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always grateful for your help!': {
-        'en': '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always grateful for your help!',
-        'ru': '⚙ Это техподдержка @{} ⚙\nНе стесняйтесь присылать нам любые отзывы об этом боте, мы всегда благодарны за вашу помощь!'
+    '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always grateful for '
+    'your help!': {
+        'en': '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always '
+              'grateful for your help!',
+        'ru': '⚙ Это техподдержка @{} ⚙\nНе стесняйтесь присылать нам любые отзывы об этом боте, мы всегда благодарны '
+              'за вашу помощь! '
     },
     '⚙ You are already a staff member ⚙': {
         'en': '⚙ You are already a staff member ⚙', 
@@ -410,8 +421,8 @@ translation_dict = {
         'en': "❗ I can't understand your request, please try again ❗", 
         'ru': '❗ Не могу вас понять, попробуйте ещё раз ❗'
     },
-    '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗': {
-        'en': '❗ Pay just as you recieve invoice, otherwise payemt can be not recieved ❗',
+    '❗ Pay just as you receive invoice, otherwise payment can be not received ❗': {
+        'en': '❗ Pay just as you receive invoice, otherwise payment can be not received ❗',
         'ru': '❗ Оплатите как только получите выставленный счёт, иначе оплата может не засчитаться ❗'
     },
     "❗ Percent must be in range from 0 to 100 ❗": {
@@ -469,13 +480,13 @@ translation_dict = {
 }
 
 
-def translate(text:str, dest:str='ru', parse_mode:str='casual'):
+def translate(text: str, dest: str = 'ru', parse_mode: str = 'casual'):
     """
     Translates text into language, by translation_dct or Google Translator
 
-    parse_modes:
-        casual: R"some text;some more<newline char>" -> translation... -> R"some text; some more<not newline char>"
-        newline: R"some text;some more;one more" -> translation... -> R"some text<newline char>some more<newline char>one more"
+    parse_modes: casual: R"some text;some more<newline char>" -> translation... -> R"some text; some more<not newline
+    char>" newline: R"some text;some more;one more" -> translation... -> R"some text<newline char>some more<newline
+    char>one more"
     """
     assert parse_mode in ['casual', 'newline']
     res = translation_dict.get(text, {}).get(dest, None)

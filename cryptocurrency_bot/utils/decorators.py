@@ -21,12 +21,16 @@ def accessControl(type_, failIf):
     return onDecorator
 
 
-def private(types:list=['get', 'set'], *attributes):
+def private(types=None, *attributes):
+    if types is None:
+        types = ['get', 'set']
     return accessControl(types, failIf=(lambda attr: attr in attributes))
- 
-def public(types:list=['get', 'set'], *attributes):
-    return accessControl(types, failIf=(lambda attr: attr not in attributes))
 
+
+def public(types=None, *attributes):
+    if types is None:
+        types = ['get', 'set']
+    return accessControl(types, failIf=(lambda attr: attr not in attributes))
 
 
 def rangetest(_strict_comp:bool=True, **kargs):
@@ -39,8 +43,8 @@ def rangetest(_strict_comp:bool=True, **kargs):
         pass
     """
     privates = kargs
-    def inner(func):
 
+    def inner(func):
         code = func.__code__
         allargs = code.co_varnames[:code.co_argcount]
 

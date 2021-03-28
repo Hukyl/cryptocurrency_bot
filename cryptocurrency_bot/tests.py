@@ -1,15 +1,12 @@
 import os
-import sys
 import sqlite3
 import unittest
 import time
 import datetime as dt
 
-import main_bot
 import models
 import configs
 import utils
-
 
 
 class BasicTestCase(unittest.TestCase):
@@ -19,7 +16,6 @@ class BasicTestCase(unittest.TestCase):
 
     def tearDown(self):
         os.remove(configs.settings.DB_NAME)    
-
 
 
 class DBTestCase(BasicTestCase):
@@ -86,7 +82,7 @@ class DBTestCase(BasicTestCase):
     def test_delete_user_rate(self):
         self.db.add_user(0)
         self.db.add_user_rate(0, 'BRENT', 55.0)
-        self.assertTrue(self.db.delete_user_rate(0, 'BRENT')) # deletion succeded, so returns True
+        self.assertTrue(self.db.delete_user_rate(0, 'BRENT'))  # deletion succeeded, so returns True
         rates = self.db.get_user_rates(0)
         self.assertEqual(rates, [])
 
