@@ -339,7 +339,7 @@ def make_user_currency_prediction(msg):
             user.create_prediction(iso_from, iso_to, prettify_float(value), date)
             if user.is_staff:
                 threading.Thread(
-                    resend_prediction_all_users, 
+                    target=resend_prediction_all_users, 
                     args=(user.predictions[-1],), daemon=True
                 ).start()            
             bot.send_message(msg.chat.id, _('The forecast has been created!', user.language))
