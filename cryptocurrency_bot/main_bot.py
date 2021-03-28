@@ -320,7 +320,7 @@ def make_user_currency_prediction(msg):
                             '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}', 
                             user.language
                         ).format(
-                            convert_to_country_format(prediction.up_to_date),
+                            convert_to_country_format(prediction.up_to_date, user.language),
                             prettify_float(prediction.value)
                         )
                     )
