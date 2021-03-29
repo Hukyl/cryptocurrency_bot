@@ -1,4 +1,4 @@
-import json
+import abc
 
 import requests
 from bs4 import BeautifulSoup as bs
@@ -12,7 +12,7 @@ __all__ = ['CurrencyExchanger']
 
 
 
-class CurrencyParser(object):
+class CurrencyParser(abc.ABC):
     """
     Universal abstract class for parsing the currency
     All rates returned according to USD
@@ -172,7 +172,7 @@ class FreecurrencyratesParser(CurrencyParser):
     def update_start_value(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def to_string(iso_from, iso_to):
+    def to_string(self, iso_from, iso_to):
         rate = self.get_rate(iso_from, iso_to)
         return f"{iso_from} - {rate.get(iso_to)} {iso_to}"
 

@@ -2,15 +2,12 @@ from datetime import datetime, timedelta
 
 from .db import DBHandler, SessionDBHandler
 from configs import settings
-from utils import get_json_config, prettify_percent, get_default_rates, prettify_float
+from utils import prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
-    convert_to_country_format,
-    convert_from_country_format,
     check_datetime_in_future,
     get_current_datetime,
     check_check_time_in_rate
 )
-from utils.translator import translate as _
 
 
 
@@ -34,7 +31,7 @@ class UserBase(object):
     def __init__(
             self, user_id:int, is_active:bool, is_pro, is_staff:bool, 
             to_notify_by_experts:bool, rates:list, timezone:int, language:str
-        ):
+            ):
         self.user_id = user_id
         self.is_active = is_active
         self.is_pro = is_pro
@@ -45,7 +42,7 @@ class UserBase(object):
         self.language = language
 
     @staticmethod
-    def normalize_rates(rates:list):
+    def normalize_rates(rates: list):
         return {
             rate[0]: {  # iso code
                 'check_times': rate[-1],  # check_times
@@ -56,7 +53,7 @@ class UserBase(object):
         }
 
     @staticmethod
-    def prettify_rates(rates:list):
+    def prettify_rates(rates: list):
         total_str = ''
         for idx, (k, v) in enumerate(rates.items(), start=1):
             total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
@@ -75,7 +72,7 @@ class UserBase(object):
         for i in [
                 self.user_id, self.is_active, self.is_pro, self.is_staff,
                 self.to_notify_by_experts, self.rates, self.timezone, self.language
-            ]:
+                ]:
             yield i
 
 
@@ -243,7 +240,7 @@ class Prediction(object):
     @classmethod
     def get_experts_predictions(cls, only_actual:bool=False):
         for pred_data in cls.db.get_experts_predictions(only_actual):
-            yield cls(pred_data[0]) # id
+            yield cls(pred_data[0])  # id
 
     @classmethod
     def get_most_liked_predictions(cls, *args, **kwargs):
@@ -256,7 +253,7 @@ class Prediction(object):
         Get predictions which `up_to_date` is expired and `real_value` is still None
         """
         for pred_data in cls.db.get_unverified_predictions(*args, **kwargs):
-            yield cls(pred_data[0]) # id
+            yield cls(pred_data[0])  # id
 
     @classmethod
     def get_random_prediction(cls):

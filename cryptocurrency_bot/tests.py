@@ -28,11 +28,11 @@ class DBTestCase(BasicTestCase):
         self.db.add_user(0)
         self.assertTrue(self.db.check_user_exists(0))
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, timezone=20) # timezone not in range(-11, 13)
+            self.db.add_user(-1, timezone=20)  # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, timezone=-14) # timezone not in range(-11, 13)
+            self.db.add_user(-1, timezone=-14)  # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, language='English') # should be 'en', 'ru', 'ua' etc.
+            self.db.add_user(-1, language='English')  # should be 'en', 'ru', 'ua' etc.
         user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(0)
         self.assertEqual(user_id, 0)
         self.assertEqual(is_pro, 0)
@@ -149,7 +149,7 @@ class DBTestCase(BasicTestCase):
 
     def test_get_actual_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2)  # add 2 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_actual_predictions()), 1)
         time.sleep(3)
@@ -157,7 +157,7 @@ class DBTestCase(BasicTestCase):
 
     def test_get_unverified_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2)  # add 2 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_unverified_predictions()), 0)
         time.sleep(3)
@@ -204,11 +204,11 @@ class DBTestCase(BasicTestCase):
         self.assertFalse(self.db.check_prediction_exists(1))
 
     def test_get_users_by_check_time(self):
-        self.db.add_user(0) # user's timezone is UTC
+        self.db.add_user(0)  # user's timezone is UTC
         self.db.add_user_rate(0, 'BRENT', 55.0, check_times=['00:01', '15:10', '18:05'])
         self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 1)
         self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 0)
-        self.db.change_user(0, timezone=+2) # user's timezone is UTC+02:00
+        self.db.change_user(0, timezone=+2)  # user's timezone is UTC+02:00
         self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 0)
         self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 1)
 
@@ -303,10 +303,10 @@ class UserModelTestCase(BasicTestCase):
 
     def test_change_dbuser(self):
         user = models.user.User(0)
-        self.assertEqual(self.db.get_user(0)[-2], 0) # timezone
+        self.assertEqual(self.db.get_user(0)[-2], 0)  # timezone
         self.assertEqual(user.timezone, 0)
         user.update(timezone=+2)
-        self.assertEqual(self.db.get_user(0)[-2], 2) # timezone
+        self.assertEqual(self.db.get_user(0)[-2], 2)  # timezone
         self.assertEqual(user.timezone, 2)
         with self.assertRaises(ValueError):
             user.update(ababgalgamaga=123)
@@ -448,7 +448,7 @@ class UserModelTestCase(BasicTestCase):
 
     def test_get_all_users(self):
         self.assertEqual(len(list(models.user.User.get_all_users())), 0)
-        user = models.user.User(0)
+        models.user.User(0)
         self.assertEqual(len(list(models.user.User.get_all_users())), 1)
         self.tearDown()
         self.setUp()

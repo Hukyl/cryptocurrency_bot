@@ -64,13 +64,13 @@ def get_or_create_session(chat_id):
 
 # Used not to initialize the user every time, just save their state
 @bot.middleware_handler(update_types=['message'])
-def set_session(bot_instance, message):
+def set_message_session(bot_instance, message):
     bot_instance.session = get_or_create_session(message.chat.id)
 
 
 # Used not to initialize the user every time, just save their state
 @bot.middleware_handler(update_types=['callback_query'])
-def set_session(bot_instance, call):
+def set_call_session(bot_instance, call):
     bot_instance.session = get_or_create_session(call.message.chat.id)
 
 
@@ -1273,7 +1273,7 @@ def buy_subscription(msg):
     def command_pay(msg_inner, prices_inner, n_months: int = None):
         bot.send_invoice(
             msg_inner.chat.id,
-            title=_(f'Подписка', user.language),
+            title=_('Подписка', user.language),
             description=_(
                 "You pay for a Subscription for {} month(s)",
                 user.language
@@ -1398,7 +1398,7 @@ def send_techsupport_message(msg):
     else:
         bot.send_message(
             msg.chat.id,
-            _(f'⚙ You are already a staff member ⚙', user.language)
+            _('⚙ You are already a staff member ⚙', user.language)
         )
     return start_bot(msg)
 

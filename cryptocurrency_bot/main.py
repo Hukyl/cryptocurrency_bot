@@ -1,7 +1,6 @@
 import threading
 import sys
 from time import sleep
-import datetime
 
 import main_bot
 from utils.dt import get_current_datetime
@@ -24,7 +23,7 @@ else:
     for target in targets:
         threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
 print(
-    "[INFO]" + (" [DEBUG]" if if_debug else '') +  f" Bot started at {get_current_datetime()}"
+    "[INFO]" + (" [DEBUG]" if if_debug else '') + f" Bot started at {get_current_datetime()}"
 )
 while True:
     try:
@@ -32,6 +31,6 @@ while True:
     except KeyboardInterrupt:
         break
 print(
-    "[INFO]" + (" [DEBUG]" if if_debug else '') +  f" Bot stopped at {get_current_datetime()}"
+    "[INFO]" + (" [DEBUG]" if if_debug else '') + f" Bot stopped at {get_current_datetime()}"
 )
 sys.exit(0)
