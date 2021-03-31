@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-from ..configs import settings
+from configs import settings
 from . import decorators, agent, dt, telegram, translator
 
 
@@ -29,7 +29,7 @@ def prettify_utcoffset(utcoffset: int = 0):
 def get_json_config():
     with open(os.path.join('configs', 'config.json'), 'r', encoding='utf-8') as f:
         return json.load(f)
-    
+
 
 def get_default_rates(*args, to_print: bool = True):
     if len(args) == 0:
