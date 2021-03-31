@@ -1,6 +1,5 @@
 import datetime as dt
 
-from . import prettify_utcoffset
 from .decorators import rangetest
 
 

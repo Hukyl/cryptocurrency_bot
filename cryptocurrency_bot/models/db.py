@@ -2,10 +2,10 @@ import sqlite3
 from datetime import datetime
 import threading
 
-from ..configs import settings
+from configs import settings
 
-from ..utils.dt import check_datetime_in_future, check_check_time_in_rate
-from ..utils.decorators import private, rangetest
+from utils.dt import check_datetime_in_future, check_check_time_in_rate
+from utils.decorators import private, rangetest
 
 
 class DBHandlerBase(object):
