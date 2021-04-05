@@ -159,7 +159,6 @@ class User(UserBase):
 
     def init_premium(self, up_to_datetime:datetime):
         self.update(is_pro=up_to_datetime)
-        self.db.change_user(self.user_id, is_pro=up_to_datetime)
         for k, v in self.rates.items():
             self.update_rates(k, check_times=settings.CHECK_TIMES)
 
@@ -292,8 +291,3 @@ class Session(object):
 
     def set_count(self, count):
         self.db.set_count(self.user.user_id, count)
-
-
-
-if __name__ == '__main__':
-    pass

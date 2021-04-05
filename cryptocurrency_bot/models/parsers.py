@@ -280,8 +280,3 @@ class CurrencyExchanger(CurrencyParser):
             )
             for curr in main_currs + other_currs
         ])
-
-
-
-if __name__ == "__main__":
-    pass

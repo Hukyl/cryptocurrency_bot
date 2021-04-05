@@ -1474,7 +1474,7 @@ def update_rates():
 @catch_exc(to_print=True)
 def check_premium_ended():
     def check_user_premium_ended(usr):
-        if get_current_datetime(utcoffset=usr.timezone) > usr.is_pro:
+        if datetime.datetime.utcnow() > usr.is_pro:
             bot.send_message(
                 usr.user_id,
                 _('Your premium has expired, but you can always refresh it!', usr.language)

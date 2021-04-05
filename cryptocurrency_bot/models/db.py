@@ -601,7 +601,3 @@ class SessionDBHandler(DBHandlerBase):
                 if with_decrease:
                     self.decrease_count(user_id)
                 return count
-
-
-if __name__ == '__main__':
-    db = DBHandler()
