@@ -211,17 +211,15 @@ class InvestingParser(CurrencyParser):
 
 
 class CurrencyExchanger(CurrencyParser):
-    PARSERS = merge_dicts(
-        {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
-        {
-            InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
-            for x in list(InvestingParser.AVAILABLE_PRODUCTS)
-        }
-    )
-    DEFAULT_PARSER = FreecurrencyratesParser()
-
     def __init__(self):
-        pass
+        self.PARSERS = merge_dicts(
+            {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
+            {
+                InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
+                for x in list(InvestingParser.AVAILABLE_PRODUCTS)
+            }
+        )
+        self.DEFAULT_PARSER = FreecurrencyratesParser()
 
     def get_rate(self, iso_from, iso_to):
         p_from = self.PARSERS.get(iso_from, self.DEFAULT_PARSER)

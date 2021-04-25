@@ -51,7 +51,7 @@ def convert_to_country_format(d:dt.datetime, country:str, no_offset:bool=False):
     else:
         format_str = '%Y-%m-%d %H:%M'
     if d.tzinfo and (not no_offset):
-        format_str += f" UTC{str(d)[-6:]}" # " UTC+02:00"
+        format_str += f" UTC{str(d)[-6:]}"  # " UTC+02:00"
     return d.strftime(format_str)
 
 

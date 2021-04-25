@@ -221,7 +221,7 @@ def get_currency_rates_today(msg):
 @bot.message_handler(commands=['make_prediction'])
 def make_user_currency_prediction(msg):
     user: User = bot.session.user
-    date: datetime = datetime.datetime(1, 1, 1)
+    date = None
     iso_from: str = ''
     iso_to: str = ''
     value: float = 0.0

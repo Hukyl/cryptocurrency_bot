@@ -1,3 +1,4 @@
+import abc
 import sqlite3
 from datetime import datetime
 import threading
@@ -8,9 +9,15 @@ from utils.dt import check_datetime_in_future, check_check_time_in_rate
 from utils.decorators import private, rangetest
 
 
-class DBHandlerBase(object):
-    def __init__(self, db_name: str = None):
+
+class DBHandlerBase(abc.ABC):
+    def __init__(self, db_name:str=None):
         self.DB_NAME = db_name or settings.DB_NAME
+        self.setup_db()
+
+    @abc.abstractmethod
+    def setup_db(self):
+        pass
 
     def execute_and_commit(self, sql, params=tuple()):
         with threading.Lock():
@@ -57,10 +64,6 @@ class DBHandler(DBHandlerBase):
         user_id: user's Telegram ID, who made reaction
         reaction: like/dislike (1/0 respectively)
     """
-
-    def __init__(self, db_name: str = None):
-        super().__init__(db_name)
-        self.setup_db()
 
     def setup_db(self):
         self.execute_and_commit(
@@ -533,10 +536,6 @@ class DBHandler(DBHandlerBase):
 
 @private(['get', 'set'], 'execute_and_commit')
 class SessionDBHandler(DBHandlerBase):
-    def __init__(self, db_name: str = None):
-        super().__init__(db_name)
-        self.setup_db()
-
     def setup_db(self):
         self.execute_and_commit(
             '''CREATE TABLE IF NOT EXISTS sessions(

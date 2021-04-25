@@ -80,7 +80,7 @@ class UserBase(object):
 class User(UserBase):
     db = DBHandler(settings.DB_NAME)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id: int):
         self.init_user(user_id)
         data = self.db.get_user(user_id)
         super().__init__(*data)
@@ -116,12 +116,12 @@ class User(UserBase):
             value, up_to_date, is_by_experts=self.is_staff
         )
 
-    def add_rate(self, iso, **kwargs):
+    def add_rate(self, iso: str, **kwargs):
         self.db.add_user_rate(self.user_id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
         return True
 
-    def delete_rate(self, iso):
+    def delete_rate(self, iso: str):
         assert iso not in settings.CURRENCIES, f"can't delete {iso}, since it is in default currencies"
         assert iso in self.rates, f"can't delete non-present currency {iso}"
         self.db.delete_user_rate(self.user_id, iso)
@@ -129,7 +129,7 @@ class User(UserBase):
         return True
 
     @classmethod
-    def init_user(cls, user_id):
+    def init_user(cls, user_id: int):
         if not cls.db.check_user_exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
@@ -278,7 +278,7 @@ class Prediction(object):
 class Session(object):
     db = SessionDBHandler(settings.DB_NAME)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id: int):
         self.user = User(user_id)
         self.db.add_session(user_id)
 
@@ -289,5 +289,5 @@ class Session(object):
     def decrease_count(self):
         self.db.decrease_count(self.user.user_id)
 
-    def set_count(self, count):
+    def set_count(self, count: int):
         self.db.set_count(self.user.user_id, count)
