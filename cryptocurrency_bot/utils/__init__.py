@@ -1,3 +1,4 @@
+import random
 import json
 import os
 import sys
@@ -29,6 +30,11 @@ def prettify_utcoffset(utcoffset: int = 0):
 def get_json_config():
     with open(os.path.join('configs', 'config.json'), 'r', encoding='utf-8') as f:
         return json.load(f)
+
+
+def get_random_proxy():
+    with open(os.path.join('configs', 'http_proxies.txt'), 'r') as f:
+        return "http://" + random.choice(f.read().strip().split('\n'))
 
 
 def get_default_rates(*args, to_print: bool = True):

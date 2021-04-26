@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
-from utils import get_default_rates, prettify_float, merge_dicts
+from utils import get_default_rates, prettify_float, merge_dicts, get_random_proxy
 from configs import settings
 
 
@@ -51,7 +51,7 @@ class CurrencyParser(abc.ABC):
     def get_response(self, link:str=None):
         link = link or self.link
         headers = {"Connection": "Close", "User-Agent": get_useragent()}
-        return requests.get(link, headers=headers)
+        return requests.get(link, headers=headers, proxies={'http': get_random_proxy()})
 
     def get_html(self, link:str=None):
         return self.get_response(link or self.link).text
@@ -105,9 +105,8 @@ class RTSParser(CurrencyParser):
     iso = "RTS"
 
     def __init__(self, start_value:float=None):
-        link = "https://m.ru.investing.com/indices/rts-cash-settled-futures"
-        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > \
-                        div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
+        link = "https://www.investing.com/indices/rts-cash-settled-futures-chart"
+        css_selector = "#last_last"
         super().__init__(
             link=link, css_selector=css_selector, 
             iso=self.iso, start_value=start_value
@@ -200,9 +199,7 @@ class InvestingParser(CurrencyParser):
             market_product in self.AVAILABLE_PRODUCTS
         ), 'not supported market product - {}'.format(repr(market_product))
         link = "https://m.investing.com/commodities/{}".format(market_product)
-        css_selector = '#siteWrapper > div.wrapper > \
-                        section.boxItemInstrument.boxItem > \
-                        div.quotesBox > div.quotesBoxTop > span.lastInst'
+        css_selector = '#last_last'
         super().__init__(
             link=link, css_selector=css_selector, 
             iso=self.AVAILABLE_PRODUCTS[market_product], start_value=start_value
