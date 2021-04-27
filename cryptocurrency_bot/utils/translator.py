@@ -480,7 +480,7 @@ translation_dict = {
 }
 
 
-def translate(text: str, dest: str = 'ru', parse_mode: str = 'casual'):
+def translate(text:str, dest:str='ru', parse_mode:str='casual'):
     """
     Translates text into language, by translation_dct or Google Translator
 
