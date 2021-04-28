@@ -196,6 +196,10 @@ translation_dict = {
         'en': 'Prediction {} was deleted', 
         'ru': 'Прогноз {} был удалён'
     },
+    "Price": {
+        'en': "Price",
+        'ru': "Цена"
+    },
     '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}': {
         'en': '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
         'ru': '*⚜ Прогноз от эксперта ⚜*\n*До:* {}\n*Прогнозируемое значение:* {}'

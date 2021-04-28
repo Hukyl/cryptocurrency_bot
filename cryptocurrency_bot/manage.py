@@ -117,7 +117,7 @@ def help_message():
     message = """Utility for bot managing
 
 commands:
-    run-bot [-d, --DEBUG] - run bot with(-out) debug flag.
+    run [-d, --DEBUG] - run bot with(-out) debug flag.
     give-staff [user_id] [user_id] [...] - give staff membership to users.
     remove-staff [user_id] [user_id] [...] - remove staff from users.
     check-subscribed [user_id] [user_id] [...] - check whether users are subscribed.

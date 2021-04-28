@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
+from utils.translator import translate as _
 from utils import get_default_rates, prettify_float, merge_dicts, get_random_proxy
 from configs import settings
 
@@ -51,7 +52,16 @@ class CurrencyParser(abc.ABC):
     def get_response(self, link:str=None):
         link = link or self.link
         headers = {"Connection": "Close", "User-Agent": get_useragent()}
-        return requests.get(link, headers=headers, proxies={'http': get_random_proxy()})
+        lambda_get = lambda x: requests.get(x, headers=headers, proxies={'http': get_random_proxy()})
+        q = lambda_get(link)
+        for i in range(3):
+            if not q.ok:
+                q = lambda_get(link)
+            else:
+                break
+        # else:
+        #     print("q is not ok: {0.status_code}".format(q))
+        return q
 
     def get_html(self, link:str=None):
         return self.get_response(link or self.link).text
@@ -266,12 +276,16 @@ class CurrencyExchanger(CurrencyParser):
             for curr in sorted(self.PARSERS)
         ])
 
-    def to_telegram_string(self):
+    def to_telegram_string(self, user_language:str):
         main_currs = sorted(settings.MAIN_CURRENCIES)
         other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
-        return '\n'.join([
+        biggest_length = len(max(self.PARSERS, key=lambda x: len(x))) + 2
+        start_string = "{:<{max_length}s}".format(_("Цена", user_language), max_length=biggest_length) + "($)\n"
+        return start_string + '\n'.join([
             ('*{}*' if curr in main_currs else '{}').format(
-                f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD"
+                "{:<{max_length}s}".format(
+                    (curr if curr in main_currs else curr.title()), max_length=biggest_length
+                ) + f"= {prettify_float(self.PARSERS[curr].start_value)}"
             )
             for curr in main_currs + other_currs
         ])
