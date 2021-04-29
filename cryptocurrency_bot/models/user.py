@@ -1,20 +1,17 @@
 from datetime import datetime, timedelta
 
-from .db import DBHandler
+from .db import DBHandler, SessionDBHandler
 from configs import settings
-from utils import get_json_config, prettify_percent
+from utils import prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
-    convert_to_country_format,
-    convert_from_country_format,
     check_datetime_in_future,
     get_current_datetime,
     check_check_time_in_rate
 )
-from utils.translator import translate as _
 
 
 
-class User(object):
+class UserBase(object):
     """
     User base class
 
@@ -31,31 +28,34 @@ class User(object):
     language:str: - user's language
     """
 
-    def __init__(self, user_id:int, is_active:bool, is_pro, is_staff:bool, rates:list, timezone:int, language:str):
+    def __init__(
+            self, user_id:int, is_active:bool, is_pro, is_staff:bool, 
+            to_notify_by_experts:bool, rates:list, timezone:int, language:str
+            ):
         self.user_id = user_id
         self.is_active = is_active
         self.is_pro = is_pro
         self.is_staff = is_staff
+        self.to_notify_by_experts = to_notify_by_experts
         self.rates = self.normalize_rates(rates)
         self.timezone = timezone
         self.language = language
 
     @staticmethod
-    def normalize_rates(rates:list):
+    def normalize_rates(rates: list):
         return {
-            rate[0]: {                                  # iso code
-                'check_times': rate[-1],                # check_times
-                'percent_delta': rate[2],               # percent_delta
-                'start_value': rate[1]                  # start_value
+            rate[0]: {  # iso code
+                'check_times': rate[-1],  # check_times
+                'percent_delta': rate[2],  # percent_delta
+                'start_value': rate[1]  # start_value
             }
             for rate in rates
         }
 
     @staticmethod
-    def prettify_rates(rates:list):
+    def prettify_rates(rates: list):
         total_str = ''
-        for idx, pair in enumerate(rates.items(), start=1):
-            k, v = pair
+        for idx, (k, v) in enumerate(rates.items(), start=1):
             total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
                     idx, 
                     k, 
@@ -69,15 +69,18 @@ class User(object):
 
     def __iter__(self):
         # also implements list(User), because __iter__ is used by list()
-        for i in [self.user_id, self.is_active, self.is_pro, self.is_staff, self.rates, self.timezone, self.language]:
+        for i in [
+                self.user_id, self.is_active, self.is_pro, self.is_staff,
+                self.to_notify_by_experts, self.rates, self.timezone, self.language
+                ]:
             yield i
 
 
 
-class DBUser(User):
+class User(UserBase):
     db = DBHandler(settings.DB_NAME)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id: int):
         self.init_user(user_id)
         data = self.db.get_user(user_id)
         super().__init__(*data)
@@ -90,8 +93,7 @@ class DBUser(User):
 
     def get_currencies_by_check_time(self, check_time:str):
         return {
-            k: v 
-            for k, v in self.rates.items() 
+            k: v for k, v in self.rates.items() 
             if check_check_time_in_rate(v.get('check_times'), check_time, self.timezone)
         }
 
@@ -99,9 +101,9 @@ class DBUser(User):
     def predictions(self):
         return list(self.get_predictions())
 
-    def get_predictions(self, if_all:bool=False):
-        for pred_data in self.db.get_user_predictions(self.user_id, if_all):
-            yield DBCurrencyPrediction(pred_data[0])
+    def get_predictions(self, only_actual:bool=True):
+        for pred_data in self.db.get_user_predictions(self.user_id, only_actual):
+            yield Prediction(pred_data[0])
 
     def update_rates(self, iso, **kwargs):
         self.db.change_user_rate(self.user_id, iso, **kwargs)
@@ -109,55 +111,63 @@ class DBUser(User):
 
     def create_prediction(self, iso_from:str, iso_to:str, value:float, up_to_date:datetime):
         assert check_datetime_in_future(up_to_date)
-        self.db.add_prediction(self.user_id, iso_from, iso_to, value, up_to_date, is_by_experts=self.is_staff)
+        self.db.add_prediction(
+            self.user_id, iso_from, iso_to, 
+            value, up_to_date, is_by_experts=self.is_staff
+        )
 
-    def add_rate(self, iso, **kwargs):
+    def add_rate(self, iso: str, **kwargs):
         self.db.add_user_rate(self.user_id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
         return True
 
+    def delete_rate(self, iso: str):
+        assert iso not in settings.CURRENCIES, f"can't delete {iso}, since it is in default currencies"
+        assert iso in self.rates, f"can't delete non-present currency {iso}"
+        self.db.delete_user_rate(self.user_id, iso)
+        del self.rates[iso]
+        return True
+
     @classmethod
-    def init_user(cls, user_id):
+    def init_user(cls, user_id: int):
         if not cls.db.check_user_exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
-            json_config = get_json_config()
+            defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
-                s_v = json_config.get('initialValue' + currency, 0.01) # start_value
-                cls.db.add_user_rate(user_id, currency, start_value=s_v) 
+                cls.db.add_user_rate(user_id, currency, start_value=defaults.get(currency)) 
 
     @classmethod
-    def get_pro_users(cls):
-        for user_data in cls.db.get_pro_users():
-            yield cls(user_data[1]) # user_data.user_id
+    def get_pro_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_pro_users(*args, **kwargs):
+            yield cls(user_data[0])
 
     @classmethod
-    def get_all_users(cls):
-        for user_data in cls.db.get_all_users():
-            yield cls(user_data[1])
+    def get_all_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_all_users(*args, **kwargs):
+            yield cls(user_data[0])
 
     @classmethod
-    def get_staff_users(cls):
-        for user_data in cls.db.get_staff_users():
-            yield cls(user_data[1])
+    def get_staff_users(cls, *args, **kwargs):
+        for user_data in cls.db.get_staff_users(*args, **kwargs):
+            yield cls(user_data[0])
 
     @classmethod
     def get_users_by_check_time(cls, check_time):
         for user_data in cls.db.get_users_by_check_time(check_time):
-            yield cls(user_data[1]) # user_data.user_id
+            yield cls(user_data[0])
 
     def init_premium(self, up_to_datetime:datetime):
         self.update(is_pro=up_to_datetime)
-        self.db.change_user(self.user_id, is_pro=up_to_datetime)
         for k, v in self.rates.items():
             self.update_rates(k, check_times=settings.CHECK_TIMES)
 
     def delete_premium(self):
         self.update(is_pro=0)
+        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
-                self.db.delete_user_rate(self.user_id, k)
-                del self.rates[k]
+                self.delete_rate(k)
             else:
                 self.update_rates(k, check_times=settings.DEFAULT_CHECK_TIMES)
 
@@ -171,16 +181,20 @@ class DBUser(User):
     def delete_staff(self):
         self.delete_premium()
         self.update(is_staff=0)
+        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=0)
 
 
 
-class DBCurrencyPrediction(object):
+class Prediction(object):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, pred_id):
-        self.id, self.user_id, self.iso_from, self.iso_to, self.value, self.up_to_date, self.is_by_experts, self.real_value = self.db.get_prediction(pred_id)
+        (
+            self.id, self.user_id, self.iso_from, self.iso_to, self.value, 
+            self.up_to_date, self.is_by_experts, self.real_value
+        ) = self.db.get_prediction(pred_id)
 
     def toggle_like(self, user_id, if_like=True):
         """
@@ -191,8 +205,9 @@ class DBCurrencyPrediction(object):
         """
         self.db.toggle_prediction_reaction(self.id, user_id, if_like)
 
-    def delete(self):
-        assert self.is_actual, "can't delete a past prediction"
+    def delete(self, force:bool=False):
+        if not force:
+            assert self.is_actual, "can't delete a past prediction"
         self.db.delete_prediction(self.id)
 
     def update(self, **kwargs):
@@ -205,8 +220,8 @@ class DBCurrencyPrediction(object):
         res = self.db.get_closest_neighbours_of_prediction(self.id)
         prev_id, next_id = res['previous'], res['next']
         return {
-            'previous': DBCurrencyPrediction(prev_id) if prev_id else None,
-            'next': DBCurrencyPrediction(next_id) if next_id else None
+            'previous': Prediction(prev_id) if prev_id else None,
+            'next': Prediction(next_id) if next_id else None
         }
 
     @property
@@ -222,59 +237,57 @@ class DBCurrencyPrediction(object):
         return self.db.get_number_dislikes(self.id)
 
     @classmethod
-    def get_experts_predictions(cls, if_all:bool=False):
-        for pred_data in cls.db.get_experts_predictions(if_all):
-            yield cls(pred_data[0]) # id
+    def get_experts_predictions(cls, only_actual:bool=False):
+        for pred_data in cls.db.get_experts_predictions(only_actual):
+            yield cls(pred_data[0])  # id
 
     @classmethod
-    def get_most_liked_predictions(cls):
-        for pred_data in cls.db.get_max_liked_predictions():
+    def get_most_liked_predictions(cls, *args, **kwargs):
+        for pred_data in cls.db.get_max_liked_predictions(*args, **kwargs):
             yield cls(pred_data[0])
 
     @classmethod
-    def get_unverified_predictions(cls):
+    def get_unverified_predictions(cls, *args, **kwargs):
         """
         Get predictions which `up_to_date` is expired and `real_value` is still None
         """
-        for pred_data in cls.db.get_unverified_predictions():
-            yield cls(pred_data[0]) # id
-
-    @classmethod
-    def get_all_prediction_number(cls):
-        return cls.db.__execute_and_commit(
-                'SELECT COUNT(id) FROM currency_predictions'
-            )[0][0]
+        for pred_data in cls.db.get_unverified_predictions(*args, **kwargs):
+            yield cls(pred_data[0])  # id
 
     @classmethod
     def get_random_prediction(cls):
         pred_data = cls.db.get_random_prediction()
-        return cls(pred_data[0]) if isinstance(pred_data, list) or isinstance(pred_data, tuple) else None
+        return cls(pred_data[0]) if (
+            isinstance(pred_data, list) or isinstance(pred_data, tuple)
+        ) else None
 
     def __repr__(self):
-        user = DBUser(self.user_id)
-        return f"{self.iso_from}-{self.iso_to}, {convert_to_country_format(self.up_to_date, user.language)}"
+        return f"{self.iso_from}-{self.iso_to}, {self.up_to_date}"
 
     def __str__(self):
-        user = DBUser(self.user_id)
-        return _(
-            'A prediction\
-            ;Currencies: {}-{} \
-            ;Up to:{} \
-            ;Exchange Rate: {} ' + (
-                ";Likes: {};Dislikes: {}" if not self.is_by_experts else ''
-            ),
-            user.language,
-            parse_mode='newline'
-        ).format(
-            self.iso_from,
-            self.iso_to,
-            convert_to_country_format(self.up_to_date, user.language),
-            self.value,
-            self.likes,
-            self.dislikes
+        return '\n'.join(
+            [
+                "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
+                f"Up to: {self.up_to_date}", f"Exchange Rate: {prettify_float(self.value)}"
+            ] +
+            ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
         )
 
 
-if __name__ == '__main__':
-    user = DBUser(729682451)
-    user.init_premium(datetime(year=2021, month=3, day=19))
+
+class Session(object):
+    db = SessionDBHandler(settings.DB_NAME)
+
+    def __init__(self, user_id: int):
+        self.user = User(user_id)
+        self.db.add_session(user_id)
+
+    @property
+    def free_notifications_count(self):
+        return self.db.fetch_count(self.user.user_id)
+
+    def decrease_count(self):
+        self.db.decrease_count(self.user.user_id)
+
+    def set_count(self, count: int):
+        self.db.set_count(self.user.user_id, count)

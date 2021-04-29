@@ -1,16 +1,19 @@
-import json
+import abc
 
 import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
-from utils import get_default_values_from_config, prettify_float
+from utils.translator import translate as _
+from utils import get_default_rates, prettify_float, merge_dicts, get_random_proxy
+from configs import settings
 
 
-__all__ = ['RTSParser', 'BitcoinParser', 'InvestingParser', 'FreecurrencyratesParser', 'CurrencyParser']
+__all__ = ['CurrencyExchanger']
 
 
-class CurrencyParser(object):
+
+class CurrencyParser(abc.ABC):
     """
     Universal abstract class for parsing the currency
     All rates returned according to USD
@@ -33,7 +36,7 @@ class CurrencyParser(object):
         try:
             self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
-            self.start_value = get_default_values_from_config(iso or '')
+            self.start_value = get_default_rates(iso or '')
 
     def to_string(self, to_update:bool=True):
         iso_str = self.iso or ""
@@ -49,11 +52,19 @@ class CurrencyParser(object):
     def get_response(self, link:str=None):
         link = link or self.link
         headers = {"Connection": "Close", "User-Agent": get_useragent()}
-        return requests.get(link, headers=headers)
+        lambda_get = lambda x: requests.get(x, headers=headers, proxies={'http': get_random_proxy()})
+        q = lambda_get(link)
+        for i in range(3):
+            if not q.ok:
+                q = lambda_get(link)
+            else:
+                break
+        # else:
+        #     print("q is not ok: {0.status_code}".format(q))
+        return q
 
     def get_html(self, link:str=None):
-        link = link or self.link
-        return self.get_response(link).text
+        return self.get_response(link or self.link).text
 
     def get_soup(self, link:str=None):
         link = link or self.link
@@ -71,15 +82,12 @@ class CurrencyParser(object):
             else:
                 raise ValueError(f'can not parse currency of "{self.iso}"')
         except Exception:
-            number = get_default_values_from_config(self.iso).get(self.iso)
+            number = get_default_rates(self.iso).get(self.iso)
         finally:
             return {self.iso: 1, 'USD': number}
 
     def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
-        res = self.calculate_difference(
-            old or self.start_value,
-            new or self.get_rate().get('USD')
-        )
+        res = self.calculate_difference(old or self.start_value, new or self.get_rate().get('USD'))
         res['currency_from'] = self.iso
         res['currency_to'] = 'USD'
         if abs(res.get('percentage_difference')) < percent_delta:
@@ -107,13 +115,11 @@ class RTSParser(CurrencyParser):
     iso = "RTS"
 
     def __init__(self, start_value:float=None):
-        link = "https://m.ru.investing.com/indices/rts-cash-settled-futures"
-        css_selector = "#siteWrapper > div.wrapper > section.boxItemInstrument.boxItem > div.quotesBox > div.quotesBoxTop > span.lastInst.pid-104396-last"
+        link = "https://www.investing.com/indices/rts-cash-settled-futures-chart"
+        css_selector = "#last_last"
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.iso, 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.iso, start_value=start_value
         )
 
 
@@ -124,14 +130,13 @@ class BitcoinParser(CurrencyParser):
     def __init__(self, start_value:float=None):
         link = "https://www.coindesk.com/price/bitcoin"
         # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
-        css_selector = "#export-chart-element > div > section > div.coin-info-list.price-list > \
-                             div:nth-child(1) > div.data-definition > div"
+        css_selector = "#export-chart-element > div > section > \
+                        div.coin-info-list.price-list > div:nth-child(1) > \
+                        div.data-definition > div"
         # css_selector = "#amount2"
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.iso, 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.iso, start_value=start_value
         )
 
 
@@ -142,19 +147,19 @@ class FreecurrencyratesParser(CurrencyParser):
 
     def get_rate(self, iso_from:str, iso_to:str="USD"):
         iso_from, iso_to = iso_from.upper(), iso_to.upper()
+        if iso_from == iso_to:
+            return {iso_from: 1}
         try:
-            link = self.link % iso_from
-            soup = self.get_soup(link)
-            rate = soup.select_one(f"#rate-iso-{iso_to}")
+            rate = self.get_soup(self.link % iso_from).select_one(f"#rate-iso-{iso_to}")
             if rate is not None:
                 number = float(rate.get("value").strip().replace(",", "."))
             else:
                 raise ValueError("second iso code is invalid")
-        except Exception as e:    
+        except Exception as e:
             if str(e) == "second iso code is invalid":
                 raise ValueError(e)
             else:
-                number = get_default_values_from_config(iso_from).get(iso_from)
+                number = get_default_rates(iso_from).get(iso_from)
         return {iso_from: 1, iso_to: number}
 
     def check_currency_exists(self, currency:str):
@@ -176,7 +181,7 @@ class FreecurrencyratesParser(CurrencyParser):
     def update_start_value(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def to_string(iso_from, iso_to):
+    def to_string(self, iso_from, iso_to):
         rate = self.get_rate(iso_from, iso_to)
         return f"{iso_from} - {rate.get(iso_to)} {iso_to}"
 
@@ -200,19 +205,100 @@ class InvestingParser(CurrencyParser):
     }
 
     def __init__(self, market_product:str, start_value:float=None):
-        assert market_product in self.AVAILABLE_PRODUCTS, 'not supported market product - {}'.format(repr(market_product))
+        assert (
+            market_product in self.AVAILABLE_PRODUCTS
+        ), 'not supported market product - {}'.format(repr(market_product))
         link = "https://m.investing.com/commodities/{}".format(market_product)
-        css_selector = '#siteWrapper > div.wrapper > \
-                        section.boxItemInstrument.boxItem > \
-                        div.quotesBox > div.quotesBoxTop > span.lastInst'
+        css_selector = '#last_last'
         super().__init__(
-            link=link, 
-            css_selector=css_selector, 
-            iso=self.AVAILABLE_PRODUCTS[market_product], 
-            start_value=start_value
+            link=link, css_selector=css_selector, 
+            iso=self.AVAILABLE_PRODUCTS[market_product], start_value=start_value
         )
 
 
 
-if __name__ == "__main__":
-    pass
+class CurrencyExchanger(CurrencyParser):
+    def __init__(self):
+        self.PARSERS = merge_dicts(
+            {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
+            {
+                InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
+                for x in list(InvestingParser.AVAILABLE_PRODUCTS)
+            }
+        )
+        self.DEFAULT_PARSER = FreecurrencyratesParser()
+
+    def get_rate(self, iso_from, iso_to):
+        p_from = self.PARSERS.get(iso_from, self.DEFAULT_PARSER)
+        p_to = self.PARSERS.get(iso_to, self.DEFAULT_PARSER)
+        try:
+            rate_from = (
+                p_from.get_rate(iso_from) 
+                if getattr(p_from, 'iso', None) is None else 
+                p_from.get_rate()
+            )
+            rate_to = (
+                p_to.get_rate(iso_to) 
+                if getattr(p_to, 'iso', None) is None else 
+                p_to.get_rate()
+            )
+            return {
+                iso_from: 1, 
+                iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
+            }
+        except Exception:
+            raise ValueError(
+                "`iso_from` or `iso_to` is invalid or network cannot be reached"
+            ) from None
+
+    def update_start_value(self):
+        for curr in self.PARSERS:
+            self.PARSERS[curr].update_start_value()
+
+    def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
+        new = self.get_rate(iso_from, iso_to).get(iso_to)
+        rate = self.calculate_difference(old, new)
+        rate['currency_from'] = iso_from
+        rate['currency_to'] = iso_to
+        if abs(rate.get('percentage_difference')) < percent_delta:
+            del rate['new'], rate['percentage_difference'], rate['difference']
+        return rate
+
+    def check_rate_exists(self, iso_from, iso_to):
+        return all(
+            x in self.PARSERS or self.DEFAULT_PARSER.check_currency_exists(x)
+            for x in [iso_from, iso_to]
+        )
+
+    def __str__(self):
+        return '\n'.join([
+            f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD" 
+            for curr in sorted(self.PARSERS)
+        ])
+
+    def to_telegram_string(self, user_language:str):
+        # main_currs = sorted(settings.MAIN_CURRENCIES)
+        # other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
+        biggest_length = len(max(self.PARSERS, key=lambda x: len(x))) + 6
+        return (
+            "{:<{max_length}s}".format(_("Price", user_language), max_length=biggest_length) + "($)\n"
+            f"<b>BRENT</b>        = {prettify_float(self.PARSERS['BRENT'].start_value)}\n"
+            f"<b>BTC</b>             = {prettify_float(self.PARSERS['BTC'].start_value)}\n"
+            f"<b>RTS</b>              = {prettify_float(self.PARSERS['RTS'].start_value)}\n"
+            f"Crude         = {prettify_float(self.PARSERS['CRUDE'].start_value)}\n"
+            f"Copper       = {prettify_float(self.PARSERS['Copper'].start_value)}\n"
+            f"Gas             = {prettify_float(self.PARSERS['GAS'].start_value)}\n"
+            f"Gas-Oil       = {prettify_float(self.PARSERS['GAS-OIL'].start_value)}\n"
+            f"Gold            = {prettify_float(self.PARSERS['Gold'].start_value)}\n"
+            f"Palladium  = {prettify_float(self.PARSERS['Palladium'].start_value)}\n"
+            f"Platinum    = {prettify_float(self.PARSERS['Platinum'].start_value)}\n"
+            f"Silver          = {prettify_float(self.PARSERS['Silver'].start_value)}"
+        )
+        # return start_string + '\n'.join([
+        #     ('*{}*' if curr in main_currs else '{}').format(
+        #         "{:<{max_length}s}".format(
+        #             (curr if curr in main_currs else curr.title()), max_length=biggest_length
+        #         ) + f"= {prettify_float(self.PARSERS[curr].start_value)}"
+        #     )
+        #     for curr in main_currs + other_currs
+        # ])

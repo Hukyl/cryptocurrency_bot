@@ -1,5 +1,6 @@
 import datetime as dt
-from . import prettify_utcoffset
+
+from .decorators import rangetest
 
 
 
@@ -12,8 +13,8 @@ def add_offset(d:dt.datetime, utcoffset:int=0):
         )
 
 
+@rangetest(_strict_comp=False, utcoffset=(-11, 12))
 def get_current_datetime(utcoffset:int=0):
-    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
     n = dt.datetime.utcnow()
     n = n.replace(
         day=n.day + ((n.hour + utcoffset) // 24),
@@ -29,8 +30,9 @@ def check_datetime_in_future(up_to_date:dt.datetime):
     return up_to_date >= now
 
 
+
+@rangetest(_strict_comp=False, utcoffset=(-11, 12))
 def convert_from_country_format(datetime_str:str, country:str, utcoffset:int=0):
-    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
     if country == 'ru':
         check_str = '%d.%m.%Y %H:%M'
     elif country == 'en':
@@ -49,13 +51,24 @@ def convert_to_country_format(d:dt.datetime, country:str, no_offset:bool=False):
     else:
         format_str = '%Y-%m-%d %H:%M'
     if d.tzinfo and (not no_offset):
-        format_str += f" UTC{str(d)[-6:]}"
+        format_str += f" UTC{str(d)[-6:]}"  # " UTC+02:00"
     return d.strftime(format_str)
 
 
+@rangetest(_strict_comp=False, user_timezone=(-11, 12))
 def check_check_time_in_rate(user_check_times:list, check_time:str, user_timezone:int=0):
     for t_ in user_check_times:
-        t_no_offset = '{}:{:0>2}'.format(int(t_.split(':')[0]) - user_timezone, t_.split(":")[1])
+        t_no_offset = '{:0>2}:{:0>2}'.format(abs(int(t_.split(':')[0]) - user_timezone), t_.split(":")[1]) 
+        # "09:00", offset=2 -> "07:00"; "09:00", offset=-10 -> "23:00"
         if check_time == t_no_offset:
             return True
     return False
+
+
+def get_country_dt_example(language:str='en'):
+    examples = {
+        'ru': 'ДД.ММ.ГГГГ ЧЧ:ММ',
+        'en': 'MM-DD-YYYY HH:МI AM/PM',
+        'default': 'YYYY-MM-DD HH:MI'
+    }
+    return examples.get(language, examples['default'])

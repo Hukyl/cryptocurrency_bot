@@ -1,8 +1,5 @@
 from telebot import types
 
-from models.user import DBUser
-from .translator import translate as _
-
 
 __all__ = ['kbs', 'inline_kbs']
 
@@ -16,7 +13,11 @@ def kbs(buttons, one_time_keyboard=True, row_width:int=None):
     :return:
     """
     row_width = row_width or len(buttons)//2
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=one_time_keyboard, row_width=row_width)
+    kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True, 
+        one_time_keyboard=one_time_keyboard, 
+        row_width=row_width
+    )
     if len(buttons) > 1:
         kb.add(*[types.KeyboardButton(i) for i in buttons])
     else:

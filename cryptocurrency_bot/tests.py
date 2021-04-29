@@ -1,38 +1,39 @@
 import os
-import sys
 import sqlite3
 import unittest
 import time
 import datetime as dt
 
-import main_bot
 import models
 import configs
 import utils
 
 
-
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
         self.db = models.db.DBHandler(configs.settings.DB_NAME)
+        self.session_db = models.db.SessionDBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
         os.remove(configs.settings.DB_NAME)    
 
 
-
 class DBTestCase(BasicTestCase):
+    def test_access_execute_method(self):
+        with self.assertRaises(TypeError):
+            self.db.execute_and_commit("SELECT * FROM users")
+
     def test_add_user(self):
         self.assertFalse(self.db.check_user_exists(0))
         self.db.add_user(0)
         self.assertTrue(self.db.check_user_exists(0))
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, timezone=20) # timezone not in range(-11, 13)
+            self.db.add_user(-1, timezone=20)  # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, timezone=-14) # timezone not in range(-11, 13)
+            self.db.add_user(-1, timezone=-14)  # timezone not in range(-11, 13)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.add_user(-1, language='English') # should be 'en', 'ru', 'ua' etc.
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
+            self.db.add_user(-1, language='English')  # should be 'en', 'ru', 'ua' etc.
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(0)
         self.assertEqual(user_id, 0)
         self.assertEqual(is_pro, 0)
         self.assertEqual(is_active, 1)
@@ -42,11 +43,11 @@ class DBTestCase(BasicTestCase):
 
     def test_change_user(self):
         self.db.add_user(1)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 1)
         self.assertEqual(language, 'en')
         self.db.change_user(1, language='ru', is_active=False)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(1)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(1)
         self.assertEqual(is_active, 0)
         self.assertEqual(language, 'ru')
         with self.assertRaises(ValueError):
@@ -75,18 +76,19 @@ class DBTestCase(BasicTestCase):
             self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
         with self.assertRaises(AssertionError):
             self.db.change_user_rate(0, 'BRENT', start_value=-5)
-        self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) # not user is found, so returns None
+        self.assertIsNone(self.db.change_user_rate(-1, 'BRENT', start_value=35.0)) 
+        # not user is found, so returns None
 
     def test_delete_user_rate(self):
         self.db.add_user(0)
         self.db.add_user_rate(0, 'BRENT', 55.0)
-        self.assertTrue(self.db.delete_user_rate(0, 'BRENT')) # deletion succeded, so returns True
+        self.assertTrue(self.db.delete_user_rate(0, 'BRENT'))  # deletion succeeded, so returns True
         rates = self.db.get_user_rates(0)
         self.assertEqual(rates, [])
 
     def test_add_user_prediction(self):
         self.db.add_user(0)
-        user_id, is_active, is_pro, is_staff, rates, timezone, language = self.db.get_user(0)
+        user_id, is_active, is_pro, is_staff, to_notify_by_experts, rates, timezone, language = self.db.get_user(0)
         self.assertFalse(self.db.check_prediction_exists(1))
         self.assertTrue(
             self.db.add_prediction(
@@ -98,7 +100,7 @@ class DBTestCase(BasicTestCase):
             )
         )
         self.assertTrue(self.db.check_prediction_exists(1))
-        self.assertIsNone(
+        self.assertFalse(
             self.db.add_prediction(
                 -1, 
                 'BRENT', 
@@ -108,9 +110,17 @@ class DBTestCase(BasicTestCase):
             )
         )
         with self.assertRaises(AssertionError):
-            self.db.add_prediction(user_id, 'BRENT', 'USD', -55, utils.dt.get_current_datetime().replace(year=2120))
+            self.db.add_prediction(
+                user_id, 'BRENT', 
+                'USD', -55, 
+                utils.dt.get_current_datetime().replace(year=2120)
+            )
         with self.assertRaises(AssertionError):
-            self.db.add_prediction(user_id, 'BRENT', 'USD', 55, utils.dt.get_current_datetime().replace(year=2020))
+            self.db.add_prediction(
+                user_id, 'BRENT', 
+                'USD', 55, 
+                utils.dt.get_current_datetime().replace(year=2020)
+            )
         pid, puser_id, piso_from, piso_to, pvalue, pup_to_date, pis_by_experts, preal_value = self.db.get_prediction(1)
         self.assertEqual(pid, 1)
         self.assertEqual(puser_id, user_id)
@@ -139,7 +149,7 @@ class DBTestCase(BasicTestCase):
 
     def test_get_actual_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2)  # add 2 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_actual_predictions()), 1)
         time.sleep(3)
@@ -147,7 +157,7 @@ class DBTestCase(BasicTestCase):
 
     def test_get_unverified_predictions(self):
         self.db.add_user(0)
-        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2) # add 1 second
+        d = utils.dt.get_current_datetime() + dt.timedelta(0, 2)  # add 2 second
         self.db.add_prediction(0, 'RUB', 'USD', 0.007, d)
         self.assertEqual(len(self.db.get_unverified_predictions()), 0)
         time.sleep(3)
@@ -194,11 +204,11 @@ class DBTestCase(BasicTestCase):
         self.assertFalse(self.db.check_prediction_exists(1))
 
     def test_get_users_by_check_time(self):
-        self.db.add_user(0) # user's timezone is UTC
+        self.db.add_user(0)  # user's timezone is UTC
         self.db.add_user_rate(0, 'BRENT', 55.0, check_times=['00:01', '15:10', '18:05'])
         self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 1)
         self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 0)
-        self.db.change_user(0, timezone=+2) # user's timezone is UTC+02:00
+        self.db.change_user(0, timezone=+2)  # user's timezone is UTC+02:00
         self.assertEqual(len(self.db.get_users_by_check_time('15:10')), 0)
         self.assertEqual(len(self.db.get_users_by_check_time('13:10')), 1)
 
@@ -226,8 +236,8 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(len(self.db.get_all_users()), 1)
         self.db.add_user(1)
         self.assertEqual(len(self.db.get_all_users()), 2)
-        self.db.__execute_and_commit('DELETE FROM users')
-        self.db.__execute_and_commit('DELETE FROM users_rates')
+        self.tearDown()
+        self.setUp()
         self.assertEqual(len(self.db.get_all_users()), 0)
 
     def test_get_pro_users(self):
@@ -257,56 +267,46 @@ class DBTestCase(BasicTestCase):
 class UserModelTestCase(BasicTestCase):
     def test_add_user(self):
         self.db.add_user(0, timezone=+2, language='ru', is_staff=True)
-        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['9:00', '18:00', '11:12']) 
-        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['7:00', '9:00', '10:30']) 
-        user = models.user.User(*self.db.get_user(0))
+        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['09:00', '18:00', '11:12']) 
+        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['07:00', '09:00', '10:30']) 
+        user = models.user.UserBase(*self.db.get_user(0))
         self.assertDictEqual(
             user.rates, 
             {
                 'BRENT': {
-                    'check_times': ['9:00', '18:00', '11:12'], 
+                    'check_times': ['09:00', '18:00', '11:12'], 
                     'percent_delta': 0.2,
                     'start_value': 56.3
                 },
                 'BTC': {
-                    'check_times': ['7:00', '9:00', '10:30'], 
+                    'check_times': ['07:00', '09:00', '10:30'], 
                     'percent_delta': 0.01,
                     'start_value': 31000 
                 }
             }
         )
-        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 2, 'ru'])
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 1, 1, 2, 'ru'])
 
     def test_add_dbuser(self):
-        user = models.user.DBUser(0)
-        self.assertDictEqual(
-            user.rates, 
-            {
-                'BRENT': {
+        user = models.user.User(0)
+        self.assertTrue(
+            all([
+                {k: {
                     'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 55.0
-                },
-                'RTS': {
-                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 145.0 
-                },
-                'BTC': {
-                    'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
-                    'percent_delta': 0.01,
-                    'start_value': 31000.0 
-                }
-            }
+                    'percent_delta': 0.01, 
+                    'start_value': utils.get_default_rates(k, to_print=False).get(k)
+                }} == {k: v}
+                for k, v in user.rates.items()
+            ])
         )
-        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 0, 'en'])
+        self.assertListEqual([x for x in list(user) if not isinstance(x, dict)], [0, 1, 0, 0, 1, 0, 'en'])
 
     def test_change_dbuser(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(self.db.get_user(0)[-2], 0) # timezone
+        user = models.user.User(0)
+        self.assertEqual(self.db.get_user(0)[-2], 0)  # timezone
         self.assertEqual(user.timezone, 0)
         user.update(timezone=+2)
-        self.assertEqual(self.db.get_user(0)[-2], 2) # timezone
+        self.assertEqual(self.db.get_user(0)[-2], 2)  # timezone
         self.assertEqual(user.timezone, 2)
         with self.assertRaises(ValueError):
             user.update(ababgalgamaga=123)
@@ -314,10 +314,10 @@ class UserModelTestCase(BasicTestCase):
             user.update(timezone=+20)
 
     def test_change_dbuser_rates(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
-        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
-        self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['9:00', '10:00', '11:00'])
+        user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
+        self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['09:00', '10:00', '11:00'])
         self.assertEqual(user.rates.get('BRENT').get('start_value'), 55)
         user.update_rates('BRENT', start_value=58.2)
         self.assertEqual(user.rates.get('BRENT').get('start_value'), 58.2)
@@ -326,11 +326,11 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.2)
         with self.assertRaises(ValueError):
             user.update_rates('BRENT', ababgalamaga=123123123)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             user.update_rates('BRENT', start_value='abcdef')
 
     def test_premium_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -348,7 +348,7 @@ class UserModelTestCase(BasicTestCase):
             self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_staff_dbuser(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d_test = utils.dt.get_current_datetime()
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -366,18 +366,30 @@ class UserModelTestCase(BasicTestCase):
             self.assertEqual(v.get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_add_dbuser_rates(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(len(user.rates), 3)
-        user.add_rate('UAH', check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
-        self.assertEqual(len(user.rates), 4)
+        user = models.user.User(0)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
+        user.add_rate('UAH', check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
         self.assertDictEqual(
             user.rates.get('UAH'), 
-            dict(check_times=['9:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+            dict(check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
         )
 
+    def test_delete_dbuser_rates(self):
+        user = models.user.User(0)
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
+        user.add_rate("UAH")
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
+        with self.assertRaises(AssertionError):
+            user.delete_rate(configs.settings.CURRENCIES[0])
+        with self.assertRaises(AssertionError):
+            user.delete_rate("ababagalamaga")            
+        user.delete_rate("UAH")
+        self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
+
     def test_get_currencies_by_check_time_dbuser(self):
-        user = models.user.DBUser(0)
-        user.update_rates('BRENT', check_times=['9:00', '10:00', '11:00'])
+        user = models.user.User(0)
+        user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
         user.update_rates('BTC', check_times=['13:00', '14:00', '15:00'])
         user.add_rate('UAH', check_times=['16:00', '17:00', '18:00'])
@@ -399,7 +411,7 @@ class UserModelTestCase(BasicTestCase):
         )
         user.update(timezone=+2)
         self.assertDictEqual(
-            user.get_currencies_by_check_time('9:00'),
+            user.get_currencies_by_check_time('09:00'),
             dict(BRENT=user.rates.get('BRENT'), RTS=user.rates.get("RTS"))
         )
         self.assertDictEqual(
@@ -416,37 +428,37 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_get_pro_users(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        user = models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
         user.init_premium(utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 1)
         user.delete_premium()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
 
     def test_get_staff_users(self):
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+        user = models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 0)
         user.init_staff()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 1)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 1)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 1)
         user.delete_staff()
-        self.assertEqual(len(list(models.user.DBUser.get_pro_users())), 0)
-        self.assertEqual(len(list(models.user.DBUser.get_staff_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_staff_users())), 0)
 
     def test_get_all_users(self):
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
-        user = models.user.DBUser(0)
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 1)
-        self.db.__execute_and_commit('DELETE FROM users')
-        self.db.__execute_and_commit('DELETE FROM users_rates')
-        self.assertEqual(len(list(models.user.DBUser.get_all_users())), 0)
+        self.assertEqual(len(list(models.user.User.get_all_users())), 0)
+        models.user.User(0)
+        self.assertEqual(len(list(models.user.User.get_all_users())), 1)
+        self.tearDown()
+        self.setUp()
+        self.assertEqual(len(list(models.user.User.get_all_users())), 0)
 
 
 
 class PredictionModelTestCase(BasicTestCase):
     def test_add_dbprediction(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         self.assertEqual(len(user.predictions), 0)
         user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
@@ -463,7 +475,7 @@ class PredictionModelTestCase(BasicTestCase):
             user.create_prediction('BRENT', 'USD', value=-55, up_to_date=d1)
 
     def test_change_future_dbprediction(self):
-        user = models.user.DBUser(0)
+        user = models.user.User(0)
         d1 = utils.dt.get_current_datetime().replace(year=2120)
         user.create_prediction('BRENT', 'USD', value=55, up_to_date=d1)
         pred = user.predictions[0]
@@ -483,8 +495,8 @@ class PredictionModelTestCase(BasicTestCase):
             pred.update(real_value=-20)
 
     def test_toggle_like_dbprediction(self):
-        u1 = models.user.DBUser(0)
-        u2 = models.user.DBUser(1)
+        u1 = models.user.User(0)
+        u2 = models.user.User(1)
         u1.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
         pred = u1.predictions[0]
         self.assertEqual(pred.likes, 0)
@@ -499,17 +511,28 @@ class PredictionModelTestCase(BasicTestCase):
         self.assertEqual(pred.likes, 2)
         self.assertEqual(pred.dislikes, 0)
 
-    def test_all_predictions_number(self):
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
-        user = models.user.DBUser(0)
-        user.create_prediction('BRENT', 'USD', value=55, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 1)
-        user.create_prediction('UAH', 'USD', value=0.036, up_to_date=utils.dt.get_current_datetime().replace(year=2120))
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 2)
-        pred1, pred2 = user.predictions
-        pred1.delete()
-        pred2.delete()
-        self.assertEqual(models.user.DBCurrencyPrediction.get_all_prediction_number(), 0)
+    def test_delete_dbprediction(self):
+        user = models.user.User(0)
+        user.create_prediction(
+            'BRENT', 'USD', 
+            value=55, up_to_date=utils.dt.get_current_datetime() + dt.timedelta(0, 2)
+        )
+        self.assertEqual(len(user.predictions), 1)
+        p = user.predictions[0]
+        p.delete()
+        self.assertEqual(len(user.predictions), 0)
+        user.create_prediction(
+            'BRENT', 'USD', 
+            value=55, up_to_date=utils.dt.get_current_datetime()
+        )
+        time.sleep(1)
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 1)
+        with self.assertRaises(AssertionError):
+            list(user.get_predictions(only_actual=False))[0].delete()
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 1)
+        list(user.get_predictions(only_actual=False))[0].delete(force=True)
+        self.assertEqual(len(list(user.get_predictions(only_actual=False))), 0)
+
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -542,7 +565,7 @@ class UtilsTestCase(unittest.TestCase):
 
         with self.assertRaises(ZeroDivisionError):
             raise_exc()
-        raise_exc = utils.catch_exc(raise_exc)
+        raise_exc = utils.catch_exc(to_print=False)(raise_exc)
         self.assertIsNone(raise_exc())
 
     def test_add_offset(self):
@@ -570,6 +593,73 @@ class UtilsTestCase(unittest.TestCase):
         self.assertFalse(f(['15:00', '17:00', '19:00'], '11:00', 0))
         self.assertFalse(f(['15:00', '17:00', '19:00'], '19:00', 2))
         self.assertFalse(f([], '19:00'))
+
+
+
+class SessionModelTestCase(BasicTestCase):
+    def test_add_session(self):
+        self.assertEqual(len(self.db.get_all_users()), 0)
+        self.assertEqual(len(self.session_db.get_all_sessions()), 0)
+        models.user.User(0)
+        self.session_db.add_session(0)
+        self.assertEqual(len(self.db.get_all_users()), 1)
+        self.assertEqual(len(self.session_db.get_all_sessions()), 1)        
+
+    def test_session_data(self):
+        models.user.User(123)
+        self.assertFalse(self.session_db.get_session(123))
+        self.session_db.add_session(123)
+        session = self.session_db.get_session(123)
+        self.assertEqual(session[0], 123)
+        self.assertEqual(session[1], configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
+        self.session_db.delete_session(123)
+        self.assertFalse(self.session_db.get_session(123))
+
+    def test_session_fetch_count(self):
+        models.user.User(123)
+        self.session_db.add_session(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.assertEqual(
+            self.session_db.fetch_count(123, with_decrease=True), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1
+        )
+        session = self.session_db.get_session(123)
+        self.assertEqual(session[1], configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1)
+        self.assertIsNone(self.session_db.fetch_count(0))
+        self.assertIsNone(self.session_db.fetch_count(0, with_decrease=True))
+        user = models.user.User(0)
+        self.session_db.add_session(0)
+        self.assertEqual(
+            self.session_db.fetch_count(0), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        user.update(is_pro=utils.dt.get_current_datetime() + dt.timedelta(0, 24*60*60))
+        self.assertEqual(self.session_db.fetch_count(0), 1)       
+        user.update(is_pro=False) 
+        self.assertEqual(
+            self.session_db.fetch_count(0), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )        
+
+    def test_session_decrease_count(self):
+        models.user.User(123)
+        self.session_db.add_session(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+        )
+        self.session_db.decrease_count(123)
+        self.assertEqual(
+            self.session_db.fetch_count(123), 
+            configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1
+        )        
 
 
 

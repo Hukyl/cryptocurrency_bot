@@ -1,65 +1,81 @@
+import random
 import json
 import os
 import sys
 
 from configs import settings
+from . import decorators, agent, dt, telegram, translator
 
 
 __all__ = [
     'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
-    'get_default_values_from_config', 'prettify_float', 'prettify_percent', 'catch_exc'
+    'get_default_rates', 'prettify_float', 'prettify_percent', 'catch_exc',
+    'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
 
 
-def merge_dicts(*dcts):
-    assert len(dcts) > 0, 'you must pass minimum one dictionary'
-    start_dct = dcts[0]
-    for dct in dcts[1:]:
+def merge_dicts(*dicts):
+    assert len(dicts) > 0, 'you must pass minimum one dictionary'
+    start_dct = dicts[0]
+    for dct in dicts[1:]:
         start_dct = {**start_dct, **dct}
     return start_dct
 
 
-def prettify_utcoffset(utcoffset:int=0):
-    assert utcoffset in range(-11, 13), 'time zones are in range from -11 to +12'
+@decorators.rangetest(_strict_comp=False, utcoffset=(-11, 12))
+def prettify_utcoffset(utcoffset: int = 0):
     return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}:00'.format(utcoffset))
 
 
 def get_json_config():
     with open(os.path.join('configs', 'config.json'), 'r', encoding='utf-8') as f:
         return json.load(f)
-    
 
-def get_default_values_from_config(*args):
+
+def get_random_proxy():
+    with open(os.path.join('configs', 'http_proxies.txt'), 'r') as f:
+        return "http://" + random.choice(f.read().strip().split('\n'))
+
+
+def get_default_rates(*args, to_print: bool = True):
     if len(args) == 0:
         return None
-    print('[ERROR] Default value was used for: ' + ', '.join(args))
+    if to_print:
+        print('[ERROR] Default value was used for: ' + ', '.join(args))
     json_config = get_json_config()
     return {curr: json_config.get('initialValue' + curr, 1) for curr in args}
 
 
-
-def prettify_float(num:float):
+def prettify_float(num: float):
     round_num = settings.PRECISION_NUMBER + (0 if num // 1 > 0 else 3)
-    return round(num, round_num)
+    return int(num) if num % 1 == 0 else round(num, round_num)
 
 
-def prettify_percent(n:float):
-    res = round(n*100, settings.PRECISION_NUMBER)
-    return str(int(res) if res % 1 == 0 else res) + '%'
+def prettify_percent(n: float, to_sign: bool = False):
+    res = n*100
+    res = round(res, settings.PERCENT_PRECISION_NUMBER if res > 1 else 6)
+    return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res) 
 
 
-def catch_exc(func):
-    def inner(*args, **kwargs):
-        try:
-            res = func(*args, **kwargs)
-        except Exception:
-            print(f'\nException\nFunc name: {func.__name__}\nType: {sys.exc_info()[0].__name__}\nMessage: {str(sys.exc_info()[1])}\n')
-        else:
-            return res
-    return inner
+def catch_exc(to_print: bool = True):
+    def on_func(func):
+        def on_args(*args, **kwargs):
+            try:
+                res = func(*args, **kwargs)
+            except Exception:
+                if to_print:
+                    print('\n'.join([
+                        "Exception", f"Func name: {func.__name__}", 
+                        f"Type: {sys.exc_info()[0].__name__}",
+                        f"Message: {str(sys.exc_info()[1])}"
+                    ]) + '\n')
+            else:
+                return res
+        return on_args
+    return on_func
 
 
 def infinite_loop(func, *args, **kwargs):
-    func = catch_exc(func)
+    func = catch_exc(to_print=True)(func)
     while True:
         func(*args, **kwargs)

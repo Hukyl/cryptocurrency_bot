@@ -21,11 +21,11 @@ None for now
 Because this is a Python project, you need a Python Intepreter (3.8.7)
 Besides the standart library, you need libraries, referenced in `requirements.txt`
 
-Main file is `bot.py`
-Insert bot token in `TOKEN.py`
-Settings are defined in `config.json` and `_globals.py`
+Main file is `manage.py`
+Insert bot token in `settings.py`
+Settings are defined in `config.json` and `settings.py`
 
-`$ python3 bot.py` - and the bot starts!
+`$ python3 manage.py run` - and the bot starts!
 
 
 
@@ -52,4 +52,4 @@ Telegram: @Hukyl
 
 
 ----------------------------------------
-**Copyright (C) 2020 Andrey Shalaev**
+**Copyright (C) 2020-2021 Andrey Shalaev**
