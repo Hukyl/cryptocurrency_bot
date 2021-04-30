@@ -212,7 +212,7 @@ def get_currency_rates_today(msg):
     bot.send_message(
         msg.chat.id,
         currency_parser.to_telegram_string(user.language),
-        parse_mode='html',
+        parse_mode='Markdown',
         reply_markup=kbs(list(buttons_dct))
     )
     bot.register_next_step_handler(msg, choose_option_inner)

@@ -277,28 +277,15 @@ class CurrencyExchanger(CurrencyParser):
         ])
 
     def to_telegram_string(self, user_language:str):
-        # main_currs = sorted(settings.MAIN_CURRENCIES)
-        # other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
-        biggest_length = len(max(self.PARSERS, key=lambda x: len(x))) + 6
-        return (
-            "{:<{max_length}s}".format(_("Price", user_language), max_length=biggest_length) + "($)\n"
-            f"<b>BRENT</b>        = {prettify_float(self.PARSERS['BRENT'].start_value)}\n"
-            f"<b>BTC</b>             = {prettify_float(self.PARSERS['BTC'].start_value)}\n"
-            f"<b>RTS</b>              = {prettify_float(self.PARSERS['RTS'].start_value)}\n"
-            f"Crude         = {prettify_float(self.PARSERS['CRUDE'].start_value)}\n"
-            f"Copper       = {prettify_float(self.PARSERS['Copper'].start_value)}\n"
-            f"Gas             = {prettify_float(self.PARSERS['GAS'].start_value)}\n"
-            f"Gas-Oil       = {prettify_float(self.PARSERS['GAS-OIL'].start_value)}\n"
-            f"Gold            = {prettify_float(self.PARSERS['Gold'].start_value)}\n"
-            f"Palladium  = {prettify_float(self.PARSERS['Palladium'].start_value)}\n"
-            f"Platinum    = {prettify_float(self.PARSERS['Platinum'].start_value)}\n"
-            f"Silver          = {prettify_float(self.PARSERS['Silver'].start_value)}"
-        )
-        # return start_string + '\n'.join([
-        #     ('*{}*' if curr in main_currs else '{}').format(
-        #         "{:<{max_length}s}".format(
-        #             (curr if curr in main_currs else curr.title()), max_length=biggest_length
-        #         ) + f"= {prettify_float(self.PARSERS[curr].start_value)}"
-        #     )
-        #     for curr in main_currs + other_currs
-        # ])
+        main_currs = sorted(settings.MAIN_CURRENCIES)
+        other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
+        biggest_length = len(max(self.PARSERS, key=lambda x: len(x)))
+        start_string = "`{:<{max_length}s}".format(_("Price", user_language), max_length=biggest_length + 1) + "($)`\n"
+        return start_string + '\n'.join([
+            '`{}`'.format(
+                "{:<{max_length}s}".format(
+                    (curr if curr in main_currs else curr.title()), max_length=biggest_length + 2
+                ) + f"= {prettify_float(self.PARSERS[curr].start_value)}"
+            )
+            for curr in main_currs + other_currs
+        ])
