@@ -29,11 +29,7 @@ class DBHandlerBase(abc.ABC):
 
     def execute(self, sql, params=tuple()):
         with LOCK:
-            with sqlite3.connect(self.DB_NAME) as conn:
-                cur = conn.cursor()
-                res = cur.execute(sql, params).fetchall()
-                conn.commit()
-                return res
+            return self.conn.execute(sql, params).fetchall()
 
 
 @private(['get', 'set'], 'execute')
