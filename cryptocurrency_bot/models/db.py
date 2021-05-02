@@ -9,18 +9,26 @@ from utils.dt import check_datetime_in_future, check_check_time_in_rate
 from utils.decorators import private, rangetest
 
 
+LOCK = threading.Lock()
+
 
 class DBHandlerBase(abc.ABC):
     def __init__(self, db_name:str=None):
         self.DB_NAME = db_name or settings.DB_NAME
+        self.conn = sqlite3.connect(self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+        self.conn.row_factory = self.dict_factory
         self.setup_db()
+
+    @staticmethod
+    def dict_factory(cursor, row):
+        return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
     @abc.abstractmethod
     def setup_db(self):
         pass
 
     def execute_and_commit(self, sql, params=tuple()):
-        with threading.Lock():
+        with LOCK:
             with sqlite3.connect(self.DB_NAME) as conn:
                 cur = conn.cursor()
                 res = cur.execute(sql, params).fetchall()
