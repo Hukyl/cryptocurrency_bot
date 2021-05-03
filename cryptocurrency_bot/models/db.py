@@ -311,7 +311,7 @@ class DBHandler(DBHandlerBase):
         )
         return res[0] if res else -1
 
-    def get_closest_neighbours_of_prediction(self, pred_id:int):
+    def get_closest_prediction_neighbours(self, pred_id:int):
         """
         Returns previous and next prediction of prediction by `pred_id`
         :return: dict(previous=X, current=pred_id, next=Y)
@@ -341,9 +341,9 @@ class DBHandler(DBHandlerBase):
             prev = get_previous()
             next = get_next()
             return {
-                'previous': prev[0] if prev else None,  # prev_id
+                'previous': prev['id'] if prev else None,
                 'current': pred_id,
-                'next': next[0] if next else None  # next_id
+                'next': next['id'] if next else None
             }
         raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
 
