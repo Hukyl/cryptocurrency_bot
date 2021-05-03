@@ -189,7 +189,6 @@ class User(UserBase):
     def delete_staff(self):
         self.delete_premium()
         self.update(is_staff=0)
-        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=0)
 
