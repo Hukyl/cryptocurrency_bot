@@ -196,12 +196,11 @@ class DBHandler(DBHandlerBase):
         Get all users, which check times, converted from their timezone to UTC,
         equals to `check_time` (which is in UTC)
         """
-        users_lst = list()
-        for user_id in self.execute('SELECT DISTINCT id FROM users WHERE is_active = 1'):
-            user = self.get_user(user_id['id'])
-            if any(check_check_time_in_rate(rate['check_times'], check_time, user['timezone']) for rate in user['rates']):
-                users_lst.append(user)
-        return users_lst
+        return [
+            self.get_user(user_id['id'])
+            for user_id in self.execute('SELECT DISTINCT id FROM users WHERE is_active = 1')
+            if any(check_time in rate['check_times'] for rate in self.get_user_rates(user_id))
+        ]
 
     def get_user(self, user_id:int):
         """

@@ -4,10 +4,10 @@ from .db import DBHandler, SessionDBHandler
 from configs import settings
 from utils import prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
-    check_datetime_in_future,
-    get_current_datetime,
-    check_check_time_in_rate
+    check_datetime_in_future, get_now, 
+    adapt_datetime, convert_to_country_format
 )
+
 
 
 
@@ -97,8 +97,8 @@ class User(UserBase):
 
     def get_currencies_by_check_time(self, check_time:str):
         return {
-            k: v for k, v in self.rates.items() 
-            if check_check_time_in_rate(v.get('check_times'), check_time, self.timezone)
+            k: v for k, v in self.rates.items()
+            if check_time in v.get('check_times')
         }
 
     @property
@@ -144,22 +144,22 @@ class User(UserBase):
     @classmethod
     def get_pro_users(cls, *args, **kwargs):
         for user_data in cls.db.get_pro_users(*args, **kwargs):
-            yield cls(user_data[0])
+            yield cls.from_dict(user_data)
 
     @classmethod
     def get_all_users(cls, *args, **kwargs):
         for user_data in cls.db.get_all_users(*args, **kwargs):
-            yield cls(user_data[0])
+            yield cls.from_dict(user_data)
 
     @classmethod
     def get_staff_users(cls, *args, **kwargs):
         for user_data in cls.db.get_staff_users(*args, **kwargs):
-            yield cls(user_data[0])
+            yield cls.from_dict(user_data)
 
     @classmethod
     def get_users_by_check_time(cls, check_time):
         for user_data in cls.db.get_users_by_check_time(check_time):
-            yield cls(user_data[0])
+            yield cls.from_dict(user_data)
 
     def init_premium(self, up_to_datetime:datetime):
         self.update(is_pro=up_to_datetime)
@@ -176,7 +176,7 @@ class User(UserBase):
                 self.update_rates(k, check_times=settings.DEFAULT_CHECK_TIMES)
 
     def init_staff(self):
-        until_datetime = get_current_datetime(utcoffset=self.timezone) + timedelta(days=100*365)
+        until_datetime = get_now() + timedelta(days=100*365)
         self.init_premium(until_datetime)
         self.update(is_staff=1)
         for prediction in self.get_predictions(True):
@@ -268,14 +268,15 @@ class Prediction(object):
         pred_data = cls.db.get_random_prediction()
         return cls.from_dict(pred_data) if pred_data else None
 
-    def __repr__(self):
-        return f"{self.iso_from}-{self.iso_to}, {self.up_to_date}"
+    def repr(self, user:User):
+        return f"{self.iso_from}-{self.iso_to}, {convert_to_country_format(adapt_datetime(self.up_to_date), user.language)}"
 
-    def __str__(self):
+    def str(self, user:User):
         return '\n'.join(
             [
                 "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
-                f"Up to: {self.up_to_date}", f"Exchange Rate: {prettify_float(self.value)}"
+                f"Up to: {convert_to_country_format(adapt_datetime(self.up_to_date), user.language)}",
+                f"Exchange Rate: {prettify_float(self.value)}"
             ] +
             ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
         )

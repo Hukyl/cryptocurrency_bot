@@ -35,7 +35,7 @@ def runbot(*args):
         for target in targets:
             threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
     print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_current_datetime()}"
+        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_now()}"
     )
     while True:
         try:
@@ -43,7 +43,7 @@ def runbot(*args):
         except KeyboardInterrupt:
             break
     print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_current_datetime()}"
+        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_now()}"
     )
 
 
@@ -55,7 +55,7 @@ def check_subscribed(*args):
             continue
         user = User(user_id)
         if user.is_pro:
-            print(f"SUCCESS: User {user_id} IS subscribed until {dt.convert_to_country_format(user.is_pro, 'ru')}")
+            print(f"SUCCESS: User {user_id} IS subscribed until {dt.convert_to_country_format(user.is_pro, 'ru')} UTC")
         else:
             print(f"SUCCESS: User {user_id} IS NOT subscribed")
 

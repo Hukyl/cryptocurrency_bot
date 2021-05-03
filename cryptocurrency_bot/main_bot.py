@@ -222,16 +222,15 @@ def get_currency_rates_today(msg):
 def make_user_currency_prediction(msg):
     user: User = bot.session.user
     date = None
-    iso_from: str = ''
-    iso_to: str = ''
-    value: float = 0.0
+    iso_from = None
+    iso_to = None
+    value = None
 
     def get_date(msg_inner):
         nonlocal date
         try:
-            up_to_date = convert_from_country_format(
-                msg_inner.text,
-                user.language,
+            up_to_date = convert_datetime(
+                convert_from_country_format(msg_inner.text, user.language),
                 user.timezone
             )
             assert check_datetime_in_future(up_to_date)
@@ -300,7 +299,7 @@ def make_user_currency_prediction(msg):
                     'forecast creation?',
                     user.language
                 ).format(
-                    convert_to_country_format(date, user.language),
+                    convert_to_country_format(adapt_datetime(date, user.timezone), user.language),
                     iso_from,
                     iso_to,
                     prettify_float(value)
@@ -319,7 +318,10 @@ def make_user_currency_prediction(msg):
                             '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
                             usr.language
                         ).format(
-                            convert_to_country_format(prediction.up_to_date, usr.language),
+                            convert_to_country_format(
+                                adapt_datetime(prediction.up_to_date, usr.timezone), 
+                                usr.language
+                            ),
                             prettify_float(prediction.value)
                         )
                     )
@@ -354,18 +356,17 @@ def make_user_currency_prediction(msg):
         msg.chat.id,
         _('To exit anywhere, enter {}', user.language).format('/menu')
     )
-    datetime_check_str = get_country_dt_example(user.language)
+    datetime_format = get_country_dt_example(user.language)
     datetime_example = convert_to_country_format(
-        get_current_datetime(utcoffset=user.timezone),
-        user.language,
-        no_offset=True
+        adapt_datetime(get_now(), user.timezone),
+        user.language
     )
     bot.send_message(
         msg.chat.id,
         _(
             'Select the forecast validity period in the format `{}`\nFor example, {}',
             user.language
-        ).format(datetime_check_str, datetime_example),
+        ).format(datetime_format, datetime_example),
         parse_mode='Markdown'
     )
     bot.register_next_step_handler(msg, get_date)
@@ -396,7 +397,7 @@ def see_users_currency_predictions(msg):
             experts_str = (
                 '⚜ Experts predictions ⚜ are:;'
                 +
-                (';;'.join([str(x) for x in Prediction.get_experts_predictions()][:5]) or ' none')
+                (';;'.join([x.str(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
@@ -409,7 +410,7 @@ def see_users_currency_predictions(msg):
         liked_preds_str = (
             'Most liked predictions are:;'
             +
-            (';;'.join([str(x) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
+            (';;'.join([x.str(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
@@ -450,7 +451,7 @@ def see_users_currency_predictions(msg):
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg_inner.chat.id,
-                _(str(random_pred).replace('\n', ';'), user.language, parse_mode='newline'),
+                _(random_pred.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
                 reply_markup=inline_kb
             )
             return see_users_currency_predictions(msg_inner)
@@ -508,7 +509,7 @@ def get_closest_prediction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(str(following_pred).replace('\n', ';'), user.language, parse_mode='newline'),
+            text=_(following_pred.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
             reply_markup=inline_kb
         )
 
@@ -525,7 +526,7 @@ def toggle_user_reaction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
+            text=_(prediction.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
             reply_markup=get_prediction_inline_kb_for_liking(prediction)
         )
     bot.answer_callback_query(
@@ -543,7 +544,7 @@ def get_prediction_details(call):
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text=_(str(prediction).replace('\n', ';'), user.language, parse_mode='newline'),
+        text=_(prediction.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
             _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -563,7 +564,7 @@ def ask_delete_prediction(call):
             text=_(
                 "Are you sure you want to delete this prediction:\n{}?",
                 user.language
-            ).format(repr(prediction)),
+            ).format(prediction.repr(user)),
             reply_markup=inline_kbs({
                 _('Yes', user.language): f'delete_prediction_{pred_id}',
                 _('No', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -591,7 +592,7 @@ def delete_prediction(call):
         answer_msg = _(
             "Prediction ({}) was deleted",
             user.language
-        ).format(repr(prediction))
+        ).format(prediction.repr(user))
     else:
         answer_msg = _('You cannot delete a verified prediction!', user.language)
     bot.answer_callback_query(
@@ -605,7 +606,7 @@ def delete_prediction(call):
 def get_user_predictions(call):
     user = bot.session.user
     kb_inline = inline_kbs({
-        repr(x): f'get_prediction_{x.id}'
+        x.repr(user): f'get_prediction_{x.id}'
         for x in user.get_predictions()
     }, row_width=1)
     return bot.edit_message_text(
@@ -659,7 +660,7 @@ def convert_currency(msg):
                 msg_inner.chat.id,
                 _('Conversion by {}:\n{} {} - {} {}', user.language).format(
                     convert_to_country_format(
-                        get_current_datetime(utcoffset=user.timezone),
+                        adapt_datetime(get_now(), user.timezone),
                         user.language
                     ),
                     prettify_float(rate[iso_from]),
@@ -715,7 +716,7 @@ def get_callback_for_change_currency_converter_amount(call):
                             user.language
                         ).format(
                             convert_to_country_format(
-                                get_current_datetime(utcoffset=user.timezone),
+                                adapt_datetime(get_now(), user.timezone),
                                 user.language
                             ),
                             prettify_float(change_amount),
@@ -938,7 +939,12 @@ def change_user_rate_check_times(msg):
                         user.language
                     ).format(
                         currency,
-                        ', '.join(user.rates.get(currency).get('check_times'))
+                        ','.join(
+                            adapt_check_times(
+                                user.rates.get(currency).get('check_times'), 
+                                user.timezone
+                            )
+                        )
                     )
                 )
                 bot.send_message(
@@ -947,13 +953,14 @@ def change_user_rate_check_times(msg):
                         'Select {} time(s)',
                         user.language
                     ).format(start),
-                    reply_markup=kbs(available_times))
+                    reply_markup=kbs(adapt_check_times(available_times, user.timezone))
+                )
                 bot.register_next_step_handler(msg_inner, inner2, start)
         else:
             bot.send_message(
                 msg_inner.chat.id,
                 _('❗ Please enter only valid currencies ❗', user.language),
-                reply_markup=kbs(settings.CURRENCIES)
+                reply_markup=kbs(adapt_check_times(settings.CURRENCIES, user.timezone))
             )
             bot.register_next_step_handler(msg_inner, inner1)
 
@@ -999,10 +1006,10 @@ def change_user_rate_check_times(msg):
                 _(
                     f"Enter more {iteration_num} time(s)",
                     user.language),
-                reply_markup=kbs(available_times)
+                reply_markup=kbs(adapt_check_times(available_times, user.timezone))
             )
             bot.register_next_step_handler(msg_inner, inner2, iteration_num)
-    kb = kbs(list(user.rates))
+    kb = kbs(user.rates.keys())
     bot.send_message(
         msg.chat.id,
         _("Select the currency of the alert time change", user.language),
@@ -1331,17 +1338,19 @@ def checkout_handler(pre_checkout_query):
 def subscription_payment_success(msg):
     user = bot.session.user
     n_months = int(msg.successful_payment.invoice_payload)
-    datetime_expires = (
-        get_current_datetime(utcoffset=user.timezone) +
-        datetime.timedelta(days=n_months*31)
-    )
+    datetime_expires = get_now() + datetime.timedelta(days=n_months*31)
     user.init_premium(datetime_expires)
     bot.send_message(
         msg.chat.id,
         _(
             "You have activated the Subscription until {}\nHappy trades!",
             user.language
-        ).format(convert_to_country_format(datetime_expires, user.language))
+        ).format(
+            convert_to_country_format(
+                adapt_datetime(datetime_expires, user.timezone), 
+                user.language
+            )
+        )
     )
     return start_bot(msg)
 
@@ -1474,7 +1483,7 @@ def update_rates():
 @catch_exc(to_print=True)
 def check_premium_ended():
     def check_user_premium_ended(usr):
-        if datetime.datetime.utcnow() > usr.is_pro:
+        if not check_datetime_in_future(usr.is_pro):
             bot.send_message(
                 usr.user_id,
                 _('Your premium has expired, but you can always refresh it!', usr.language)
@@ -1492,10 +1501,10 @@ def check_premium_ended():
 def verify_predictions():
     while True:
         for pred in Prediction.get_unverified_predictions():
+            user = User(pred.user_id)
             try:
                 pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
             except ValueError:
-                user = User(pred.user_id)
                 user.create_prediction(
                     pred.iso_from,
                     pred.iso_to,
@@ -1505,14 +1514,13 @@ def verify_predictions():
                 bot.send_messsage(
                     pred.user_id,
                     _(
-                        "The quotes are unreachable, the prediction {} was scheduled for 5 minutes later",
+                        "The quotes are unreachable, the prediction `{}` was scheduled for 5 minutes later",
                         user.language
-                    ).format(repr(pred))
+                    ).format(pred.repr(user))
                 )
                 pred.delete(force=True)
             else:
                 pred.update(real_value=pred_res.get(pred.iso_to))
-                user = User(pred.user_id)
                 diff = currency_parser.calculate_difference(old=pred.value, new=pred.real_value)
                 bot.send_message(
                     pred.user_id,
@@ -1520,7 +1528,7 @@ def verify_predictions():
                         'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
                         user.language
                     ).format(
-                        repr(pred),
+                        pred.repr(user),
                         prettify_float(pred.value),
                         prettify_float(pred.real_value),
                         prettify_percent(diff.get('percentage_difference'), to_sign=True)
@@ -1532,7 +1540,7 @@ def verify_predictions():
 @catch_exc(to_print=True)
 def check_alarm_times():
     while True:
-        t_ = get_current_datetime(utcoffset=0).time()
+        t_ = get_now().time()
         if t_.minute == 0:
             thread = threading.Thread(
                 target=start_alarms,
@@ -1598,9 +1606,9 @@ def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
     start_checking_threads()
-    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_current_datetime())}")
+    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_now())}")
     bot.polling()
-    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_current_datetime())}")
+    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_now())}")
 
 
 ####################################################################################################
