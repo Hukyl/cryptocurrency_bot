@@ -272,13 +272,16 @@ class Prediction(object):
         return cls.from_dict(pred_data) if pred_data else None
 
     def repr(self, user:User):
-        return f"{self.iso_from}-{self.iso_to}, {convert_to_country_format(adapt_datetime(self.up_to_date), user.language)}"
+        return (
+            f"{self.iso_from}-{self.iso_to}, "
+            f"{convert_to_country_format(adapt_datetime(self.up_to_date, user.timezone), user.language)}"
+        )
 
     def str(self, user:User):
         return '\n'.join(
             [
                 "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
-                f"Up to: {convert_to_country_format(adapt_datetime(self.up_to_date), user.language)}",
+                f"Up to: {convert_to_country_format(adapt_datetime(self.up_to_date, user.timezone), user.language)}",
                 f"Exchange Rate: {prettify_float(self.value)}"
             ] +
             ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
