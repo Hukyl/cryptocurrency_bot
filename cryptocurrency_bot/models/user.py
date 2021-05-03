@@ -7,6 +7,7 @@ from utils.dt import (
     check_datetime_in_future, get_now, 
     adapt_datetime, convert_to_country_format
 )
+from . import exceptions
 
 
 
@@ -15,7 +16,7 @@ class UserBase(object):
     """
     User base class
 
-    user_id:int: - user's id in Telegram
+    id:int: - user's id in Telegram
     is_pro:None or datetime.datetime: - has user bought the subscription
     is_active:bool: - if to send the notifications
     is_staff:bool: - is user staff
@@ -107,28 +108,28 @@ class User(UserBase):
 
     def get_predictions(self, only_actual:bool=True):
         for pred_data in self.db.get_user_predictions(self.id, only_actual=only_actual):
-            yield Prediction(pred_data)
+            yield Prediction.from_dict(pred_data)
 
     def update_rates(self, iso, **kwargs):
-        self.db.change_user_rate(self.user_id, iso, **kwargs)
-        self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
+        self.db.change_user_rate(self.id, iso, **kwargs)
+        self.rates = self.normalize_rates(self.db.get_user_rates(self.id))
 
     def create_prediction(self, iso_from:str, iso_to:str, value:float, up_to_date:datetime):
         assert check_datetime_in_future(up_to_date)
         self.db.add_prediction(
-            self.user_id, iso_from, iso_to, 
+            self.id, iso_from, iso_to, 
             value, up_to_date, is_by_experts=self.is_staff
         )
 
     def add_rate(self, iso: str, **kwargs):
-        self.db.add_user_rate(self.user_id, iso, **kwargs)
-        self.rates = self.normalize_rates(self.db.get_user_rates(self.user_id))
+        self.db.add_user_rate(self.id, iso, **kwargs)
+        self.rates = self.normalize_rates(self.db.get_user_rates(self.id))
         return True
 
     def delete_rate(self, iso: str):
         assert iso not in settings.CURRENCIES, f"can't delete {iso}, since it is in default currencies"
         assert iso in self.rates, f"can't delete non-present currency {iso}"
-        self.db.delete_user_rate(self.user_id, iso)
+        self.db.delete_user_rate(self.id, iso)
         del self.rates[iso]
         return True
 
@@ -168,7 +169,10 @@ class User(UserBase):
 
     def delete_premium(self):
         self.update(is_pro=0)
-        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
+        try:
+            Session.db.set_count(self.id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
+        except exceptions.SessionDoesNotExistError:
+            pass
         for k, v in self.rates.items():
             if k not in settings.CURRENCIES:
                 self.delete_rate(k)
@@ -185,7 +189,6 @@ class User(UserBase):
     def delete_staff(self):
         self.delete_premium()
         self.update(is_staff=0)
-        Session.db.set_count(self.user_id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=0)
 
@@ -226,7 +229,7 @@ class Prediction(object):
                 self.__dict__[k] = v
 
     def get_closest_neighbours(self):
-        res = self.db.get_closest_neighbours_of_prediction(self.id)
+        res = self.db.get_closest_prediction_neighbours(self.id)
         prev_id, next_id = res['previous'], res['next']
         return {
             'previous': Prediction(prev_id) if prev_id else None,
@@ -239,11 +242,11 @@ class Prediction(object):
 
     @property
     def likes(self):
-        return self.db.get_number_likes(self.id)
+        return self.db.get_prediction_likes(self.id)
 
     @property
     def dislikes(self):
-        return self.db.get_number_dislikes(self.id)
+        return self.db.get_prediction_dislikes(self.id)
 
     @classmethod
     def get_experts_predictions(cls, *, only_actual:bool=False):

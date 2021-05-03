@@ -22,7 +22,7 @@ def merge_dicts(*dicts):
     return start_dct
 
 
-@decorators.rangetest(_strict_comp=False, utcoffset=(-11, 12))
+@decorators.rangetest(strict_range=False, utcoffset=(-11, 12))
 def prettify_utcoffset(utcoffset: int = 0):
     return "UTC" + ('' if utcoffset == 0 else '{:0=+3d}:00'.format(utcoffset))
 

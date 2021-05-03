@@ -5,7 +5,7 @@ import threading
 
 from configs import settings
 
-from utils.dt import check_datetime_in_future, check_check_time_in_rate
+from utils.dt import check_datetime_in_future
 from utils.decorators import private, rangetest
 from . import exceptions
 
@@ -18,16 +18,13 @@ sqlite3.register_converter(
     "datetime", 
     lambda x: datetime.strptime(x.decode("ascii"), '%Y-%m-%d %H:%M:%S') if x.decode("ascii") != '0' else False
 )
-
-sqlite3.register_converter(list, lambda x: ','.join(x).encode('ascii'))
-sqlite3.register_adapter("list", lambda x: list(map(str, x.split(b","))))
+sqlite3.register_adapter(list, lambda x: ','.join(x).encode('ascii'))
+sqlite3.register_converter("list", lambda x: [el.decode('ascii') for el in x.split(b",")])
 
 
 class DBHandlerBase(abc.ABC):
     def __init__(self, db_name:str=None):
         self.DB_NAME = db_name or settings.DB_NAME
-        self.conn = sqlite3.connect(self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
-        self.conn.row_factory = self.dict_factory
         self.setup_db()
 
     @staticmethod
@@ -40,7 +37,9 @@ class DBHandlerBase(abc.ABC):
 
     def execute(self, sql, params=tuple()):
         with LOCK:
-            return self.conn.execute(sql, params).fetchall()
+            with sqlite3.connect(self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
+                conn.row_factory = self.dict_factory
+                return conn.execute(sql, params).fetchall()
 
 
 @private(['get', 'set'], 'execute')
@@ -49,8 +48,7 @@ class DBHandler(DBHandlerBase):
     DB Format:
 
     users:
-        id: Just incrementing id
-        user_id: user's id in Telegram
+        id: user's id in Telegram
         is_pro: is user subscribed
         is_staff: is user staff
         timezone: offset from UTC (+3, -2)
@@ -184,7 +182,7 @@ class DBHandler(DBHandlerBase):
         raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
 
     def check_user_exists(self, user_id: int):
-        return len(self.execute('SELECT id FROM users WHERE user_id = ?', (user_id,))) > 0
+        return len(self.execute('SELECT id FROM users WHERE id = ?', (user_id,))) > 0
 
     def check_prediction_exists(self, pred_id: int):
         return len(self.execute(
@@ -199,7 +197,7 @@ class DBHandler(DBHandlerBase):
         return [
             self.get_user(user_id['id'])
             for user_id in self.execute('SELECT DISTINCT id FROM users WHERE is_active = 1')
-            if any(check_time in rate['check_times'] for rate in self.get_user_rates(user_id))
+            if any(check_time in rate['check_times'] for rate in self.get_user_rates(user_id['id']))
         ]
 
     def get_user(self, user_id:int):
@@ -210,7 +208,7 @@ class DBHandler(DBHandlerBase):
         """
         if self.check_user_exists(user_id):
             return {
-                **self.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))[0],
+                **self.execute('SELECT * FROM users WHERE id = ?', (user_id,))[0],
                 **{'rates': self.get_user_rates(user_id)}
             }
         raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
@@ -266,7 +264,7 @@ class DBHandler(DBHandlerBase):
                 'SELECT \
                 u_r.iso, u_r.start_value, u_r.percent_delta, u_r.check_times \
                 FROM users u JOIN users_rates u_r \
-                ON u.user_id = u_r.user_id AND u.user_id = ?',
+                ON u.id = u_r.user_id AND u.id = ?',
                 (user_id,)
             )
         raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
@@ -337,12 +335,10 @@ class DBHandler(DBHandlerBase):
             return res[0] if res else None
 
         if self.check_prediction_exists(pred_id):
-            prev = get_previous()
-            next = get_next()
             return {
-                'previous': prev['id'] if prev else None,
+                'previous': prev['id'] if (prev := get_previous()) else None,
                 'current': pred_id,
-                'next': next['id'] if next else None
+                'next': next['id'] if (next := get_next()) else None
             }
         raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
 
@@ -365,7 +361,7 @@ class DBHandler(DBHandlerBase):
             try:
                 for k, v in kwargs.items():
                     self.execute(
-                        'UPDATE users SET %s = ? WHERE user_id = ?' % k,
+                        'UPDATE users SET %s = ? WHERE id = ?' % k,
                         (v, user_id)
                     )
             except sqlite3.OperationalError:
@@ -510,10 +506,8 @@ class SessionDBHandler(DBHandlerBase):
         return len(self.execute('SELECT user_id FROM sessions WHERE user_id = ?', (user_id,))) > 0
 
     def add_session(self, user_id:int):
-        if not self.check_session_exists(user_id):
-            self.execute('INSERT INTO sessions(user_id) VALUES (?)', (user_id,))
-            return True
-        raise exceptions.SessionDoesNotExistError(f"session with user id {user_id} does not exist", cause='user_id')
+        self.execute('INSERT INTO sessions(user_id) VALUES (?)', (user_id,))
+        return True
 
     def delete_session(self, user_id:int):
         self.execute('DELETE FROM sessions WHERE user_id = ?', (user_id,))
@@ -548,10 +542,10 @@ class SessionDBHandler(DBHandlerBase):
     def fetch_count(self, user_id:int, *, with_decrease:bool=False):
         if self.check_session_exists(user_id):
             is_user_pro = self.execute(
-                'SELECT is_pro != 0 FROM users WHERE user_id = ?',
+                'SELECT is_pro FROM users WHERE id = ?',
                 (user_id,)
             )
-            if len(is_user_pro) > 0 and is_user_pro[0]['is_pro']:
+            if len(is_user_pro) > 0 and is_user_pro[0]['is_pro'] != 0:
                 return 1
             count = self.execute(
                 'SELECT free_notifications_count FROM sessions WHERE user_id = ?',

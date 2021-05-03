@@ -24,7 +24,7 @@ def convert_datetime(d:dt.datetime, utcoffset:int=0):
 
 
 def get_now():
-    return dt.datetime.utcnow()
+    return dt.datetime.utcnow().replace(microsecond=0)
 
 
 def check_datetime_in_future(up_to_date:dt.datetime):
