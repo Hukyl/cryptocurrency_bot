@@ -33,7 +33,7 @@ def public(types=None, *attributes):
     return accessControl(types, failIf=(lambda attr: attr not in attributes))
 
 
-def rangetest(_strict_comp:bool=True, **kargs):
+def rangetest(strict_range:bool=True, **kargs):
     """
     Test if argument in range of values, otherwise AssertionError
 
@@ -54,17 +54,17 @@ def rangetest(_strict_comp:bool=True, **kargs):
             for argname, (low, high) in privates.items():
                 if argname in kwargs:
                     value = kwargs.get(argname)
-                    if _strict_comp:
+                    if strict_range:
                         assert low < value < high, f"unexpected value '{value}' for argument '{argname}'"
                     else:
                         assert low <= value <= high, f"unexpected value '{value}' for argument '{argname}'"                        
 
                 elif argname in allvars:
                     pos = allvars.index(argname)
-                    if _strict_comp:
+                    if strict_range:
                         assert low < args[pos] < high, f"unexpected value '{args[pos]}' for argument '{argname}'"
                     else:
-                        assert low <= args[pos] <=  high, f"unexpected value '{args[pos]}' for argument '{argname}'"
+                        assert low <= args[pos] <= high, f"unexpected value '{args[pos]}' for argument '{argname}'"
             return func(*args, **kwargs)
         return wrapper
     return inner
