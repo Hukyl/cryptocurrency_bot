@@ -44,7 +44,7 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-currency_parser = CurrencyExchanger()
+currency_parser = CurrencyExchanger(proxy_list=get_proxy_list())
 
 proxy_fetcher = Proxy()
 
@@ -1211,12 +1211,12 @@ def buy_subscription(msg):
                 label=f"Cost of subscription for {price.get('period')} month" + (
                     's' if price.get('period') > 1 else ''
                 ),
-                amount=int(round(start_price * price.get('period'), 2) * 100)
+                amount=int(prettify_float(start_price * price.get('period')) * 100)
             )
         ] + ([
             LabeledPrice(
                 label=f'Discount {price.get("discount")*100}%',
-                amount=-int(round(start_price * price.get('period') * price.get('discount') * 100, 2))
+                amount=-int(prettify_float(start_price * price.get('period') * price.get('discount')) * 100)
                 # * 100 because `amount` is interpreted in cents
             )
         ] if price.get('discount') > 0 else [])
@@ -1231,9 +1231,7 @@ def buy_subscription(msg):
         if msg_inner.text == _('Yes, I want to!', user.language):
             prices_str = ''
             for price in prices_json_list:
-                period = price.get('period')
-                word_ending = '' if period == 1 else 'a' if period in range(2, 5) else 'ов'
-                total_sum = int(round(start_price * period * (100 - price.get('discount')) / 100, 2))
+                total_sum = substract_percent(price.get('period') * start_price, price.get('discount'))
                 prices_str += f';{period} месяц{word_ending} - {total_sum} USD'
             bot.send_message(
                 msg_inner.chat.id,
@@ -1608,15 +1606,17 @@ def send_alarm(user, t):
                     # not to sent notifications anymore, since chat is not reachable
 
 
-def start_checking_threads():
-    for target in [check_alarm_times, update_rates, check_premium_ended, verify_predictions, update_proxies]:
-        threading.Thread(target=target, daemon=True).start()
+THREAD_LIST = [
+    check_alarm_times, update_proxies, update_rates, 
+    check_premium_ended, verify_predictions
+]
 
 
 def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
-    start_checking_threads()
+    for target in THREAD_LIST:
+        threading.Thread(target=target, daemon=True).start()
     print(f"[INFO] [FULL DEBUG] Bot started at {str(get_now())}")
     bot.polling()
     print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_now())}")

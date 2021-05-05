@@ -22,11 +22,7 @@ def runbot(*args):
     import main_bot
     if_debug = '-d' in args or '--DEBUG' in args
     targets = [
-        main_bot.check_alarm_times,
-        main_bot.update_rates,
-        main_bot.check_premium_ended,
-        main_bot.verify_predictions,
-        main_bot.update_proxies,
+        *main_bot.THREAD_LIST,
         main_bot.bot.infinity_polling,
     ]
     if if_debug:

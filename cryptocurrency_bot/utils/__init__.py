@@ -3,14 +3,18 @@ import json
 import os
 import sys
 
+from proxy import Proxy
+
 from configs import settings
 from . import decorators, agent, dt, telegram, translator
 
 
+proxy_fetcher = Proxy()
+
 __all__ = [
     'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
-    'get_default_rates', 'prettify_float', 'prettify_percent', 'catch_exc',
-    'decorators', 'agent', 'dt', 'telegram', 'translator'
+    'get_default_rates', 'prettify_float', 'prettify_percent', 'get_proxy_list',
+    'catch_exc', 'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
 
 
@@ -32,10 +36,14 @@ def get_json_config():
         return json.load(f)
 
 
-def get_random_proxy(proxy_list:list):
-    if not proxy_list:
+def get_proxy_list():
+    return [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
+
+
+def get_random_safe(l:list):
+    if not l:
         return None
-    return random.choice(proxy_list)
+    return random.choice(l)
 
 
 def get_default_rates(*args, to_print: bool = True):
@@ -56,6 +64,11 @@ def prettify_percent(n: float, to_sign: bool = False):
     res = n*100
     res = round(res, settings.PERCENT_PRECISION_NUMBER if res > 1 else 6)
     return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res) 
+
+
+@decorators.rangetest(strict_range=False, percent=(0.0, 1.0))
+def substract_percent(value:float, percent:float):
+    return prettify_float(value - (value * percent))
 
 
 def catch_exc(to_print: bool = True):

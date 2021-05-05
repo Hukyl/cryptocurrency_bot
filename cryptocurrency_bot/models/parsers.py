@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
 from utils.translator import translate as _
-from utils import get_default_rates, prettify_float, merge_dicts, get_random_proxy
+from utils import get_default_rates, prettify_float, merge_dicts, get_random_safe
 from configs import settings
 
 
@@ -29,11 +29,16 @@ class CurrencyParser(abc.ABC):
                 'difference': `difference`
     """
 
-    def __init__(self, link:str, css_selector:str, iso:str, start_value:float=None):
+    def __new__(cls, *args, **kwargs):
+        obj = object().__new__(cls)
+        object.__setattr__(obj, 'proxy_list', None)
+        return obj
+
+    def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None, proxy_list:list=None):
         self.link = link
         self.css_selector = css_selector
         self.iso = iso
-        self.proxy_list = None
+        self.proxy_list = proxy_list
         try:
             self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
@@ -51,15 +56,13 @@ class CurrencyParser(abc.ABC):
         return self.get_rate()
 
     def get_response(self, link:str=None):
-        # breakpoint()
         link = link or self.link
-        headers = {"Connection": "Close", "User-Agent": get_useragent()}
         lambda_get = lambda x: requests.get(
-            x, headers=headers, 
-            proxies={'http': get_random_proxy(self.proxy_list if hasattr(self, 'proxy_list') else None)}
+            x, headers={"Connection": "Close", "User-Agent": get_useragent()}, 
+            proxies={'http': get_random_safe(self.proxy_list)}
         )
         q = lambda_get(link)
-        for i in range(3):
+        for i in range(int(len(self.proxy_list) / 2) if self.proxy_list else 5):
             if not q.ok:
                 q = lambda_get(link)
             else:
@@ -117,12 +120,12 @@ class CurrencyParser(abc.ABC):
 class RTSParser(CurrencyParser):
     iso = "RTS"
 
-    def __init__(self, start_value:float=None):
+    def __init__(self, *args, **kwargs):
         link = "https://www.investing.com/indices/rts-cash-settled-futures-chart"
         css_selector = "#last_last"
         super().__init__(
             link=link, css_selector=css_selector, 
-            iso=self.iso, start_value=start_value
+            iso=self.iso, *args, **kwargs
         )
 
 
@@ -130,7 +133,7 @@ class RTSParser(CurrencyParser):
 class BitcoinParser(CurrencyParser):
     iso = "BTC"
 
-    def __init__(self, start_value:float=None):
+    def __init__(self, *args, **kwargs):
         link = "https://www.coindesk.com/price/bitcoin"
         # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
         css_selector = "#export-chart-element > div > section > \
@@ -139,14 +142,15 @@ class BitcoinParser(CurrencyParser):
         # css_selector = "#amount2"
         super().__init__(
             link=link, css_selector=css_selector, 
-            iso=self.iso, start_value=start_value
+            iso=self.iso, *args, **kwargs
         )
 
 
 
 class FreecurrencyratesParser(CurrencyParser):
-    def __init__(self):
+    def __init__(self, *, proxy_list:list=None):
         self.link = "https://freecurrencyrates.com/ru/%s-exchange-rate-calculator"
+        self.proxy_list = proxy_list
 
     def get_rate(self, iso_from:str, iso_to:str="USD"):
         iso_from, iso_to = iso_from.upper(), iso_to.upper()
@@ -207,7 +211,7 @@ class InvestingParser(CurrencyParser):
         'london-gas-oil': 'GAS-OIL'
     }
 
-    def __init__(self, market_product:str, start_value:float=None):
+    def __init__(self, market_product:str, *args, **kwargs):
         assert (
             market_product in self.AVAILABLE_PRODUCTS
         ), 'not supported market product - {}'.format(repr(market_product))
@@ -215,21 +219,21 @@ class InvestingParser(CurrencyParser):
         css_selector = '#last_last'
         super().__init__(
             link=link, css_selector=css_selector, 
-            iso=self.AVAILABLE_PRODUCTS[market_product], start_value=start_value
+            iso=self.AVAILABLE_PRODUCTS[market_product], *args, **kwargs
         )
 
 
 
 class CurrencyExchanger(CurrencyParser):
-    def __init__(self):
+    def __init__(self, *, proxy_list:list=None):
         self.PARSERS = merge_dicts(
-            {parser.iso: parser for parser in [RTSParser(), BitcoinParser()]},
+            {parser.iso: parser for parser in [RTSParser(proxy_list=proxy_list), BitcoinParser(proxy_list=proxy_list)]},
             {
-                InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x)
+                InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x, proxy_list=proxy_list)
                 for x in list(InvestingParser.AVAILABLE_PRODUCTS)
             }
         )
-        self.DEFAULT_PARSER = FreecurrencyratesParser()
+        self.DEFAULT_PARSER = FreecurrencyratesParser(proxy_list=proxy_list)
 
     def get_rate(self, iso_from, iso_to):
         p_from = self.PARSERS.get(iso_from, self.DEFAULT_PARSER)
