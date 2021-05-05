@@ -314,9 +314,9 @@ def make_user_currency_prediction(msg):
     def resend_prediction_all_users(prediction):
         for usr in User.get_all_users(if_all=False):
             if usr.to_notify_by_experts:
-                if Session.db.fetch_count(usr.user_id) > 0:
+                if Session.db.fetch_count(usr.id) > 0:
                     bot.send_message(
-                        usr.user_id,
+                        usr.id,
                         _(
                             '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
                             usr.language
@@ -328,10 +328,10 @@ def make_user_currency_prediction(msg):
                             prettify_float(prediction.value)
                         )
                     )
-                    Session.db.decrease_count(usr.user_id)
+                    Session.db.decrease_count(usr.id)
                 else:
                     bot.send_message(
-                        usr.user_id,
+                        usr.id,
                         _(
                             "❗ Your limit on receiving predictions has expired, contact our support team ❗",
                             usr.language
@@ -834,7 +834,7 @@ def toggle_user_experts_predictions(msg):
 def see_user_info(msg):
     user = bot.session.user
     info = f"Пользователь @{msg.from_user.username}\
-            ;Telegram ID: {user.user_id}\
+            ;Telegram ID: {user.id}\
             ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
             ;Персонал: {'да' if user.is_staff else 'нет'}\
             ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
@@ -1443,7 +1443,7 @@ def send_message_to_techsupport(call):
             text=call.message.text
         )  # make the button disappear
         bot.send_message(
-            user.user_id,
+            user.id,
             _(
                 'Напишите сообщение техподдержке ({} - возврат в меню)',
                 user.language,
@@ -1494,7 +1494,7 @@ def check_premium_ended():
     def check_user_premium_ended(usr):
         if not check_datetime_in_future(usr.is_pro):
             bot.send_message(
-                usr.user_id,
+                usr.id,
                 _('Your premium has expired, but you can always refresh it!', usr.language)
             )
             usr.delete_premium()
@@ -1577,7 +1577,7 @@ def send_alarm(user, t):
             )
         except ValueError:
             bot.send_message(
-                user.user_id,
+                user.id,
                 _("The quotes are not available, the notification can not be sent", user.language)
             )
         else:
@@ -1586,7 +1586,7 @@ def send_alarm(user, t):
                 user.update_rates(k, start_value=new)
                 try:
                     bot.send_message(
-                        user.user_id,
+                        user.id,
                         _(
                             '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
                             user.language
