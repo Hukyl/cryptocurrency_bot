@@ -26,6 +26,7 @@ def runbot(*args):
         main_bot.update_rates,
         main_bot.check_premium_ended,
         main_bot.verify_predictions,
+        main_bot.update_proxies,
         main_bot.bot.infinity_polling,
     ]
     if if_debug:

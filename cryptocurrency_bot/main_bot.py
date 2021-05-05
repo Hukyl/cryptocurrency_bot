@@ -6,6 +6,7 @@ import time
 
 import telebot
 from telebot.types import LabeledPrice
+from proxy import Proxy
 
 from configs import settings
 from models.parsers import *
@@ -44,6 +45,8 @@ bot.short_bot_commands = {
 bot.skip_pending = True
 
 currency_parser = CurrencyExchanger()
+
+proxy_fetcher = Proxy()
 
 USERS_SESSIONS = {}
 
@@ -1480,6 +1483,14 @@ def update_rates():
             time.sleep(sleep_time)
 
 
+def update_proxies():
+    while True:
+        proxies = [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
+        for parser in currency_parser.PARSERS.values():
+            parser.proxy_list = proxies
+        time.sleep(605)  # 5 secs longer than proxy website update time
+
+
 @catch_exc(to_print=True)
 def check_premium_ended():
     def check_user_premium_ended(usr):
@@ -1598,7 +1609,7 @@ def send_alarm(user, t):
 
 
 def start_checking_threads():
-    for target in [check_alarm_times, update_rates, check_premium_ended, verify_predictions]:
+    for target in [check_alarm_times, update_rates, check_premium_ended, verify_predictions, update_proxies]:
         threading.Thread(target=target, daemon=True).start()
 
 

@@ -33,6 +33,7 @@ class CurrencyParser(abc.ABC):
         self.link = link
         self.css_selector = css_selector
         self.iso = iso
+        self.proxy_list = None
         try:
             self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
@@ -50,17 +51,19 @@ class CurrencyParser(abc.ABC):
         return self.get_rate()
 
     def get_response(self, link:str=None):
+        # breakpoint()
         link = link or self.link
         headers = {"Connection": "Close", "User-Agent": get_useragent()}
-        lambda_get = lambda x: requests.get(x, headers=headers, proxies={'http': get_random_proxy()})
+        lambda_get = lambda x: requests.get(
+            x, headers=headers, 
+            proxies={'http': get_random_proxy(self.proxy_list if hasattr(self, 'proxy_list') else None)}
+        )
         q = lambda_get(link)
         for i in range(3):
             if not q.ok:
                 q = lambda_get(link)
             else:
                 break
-        # else:
-        #     print("q is not ok: {0.status_code}".format(q))
         return q
 
     def get_html(self, link:str=None):

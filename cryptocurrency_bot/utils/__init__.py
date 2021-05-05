@@ -32,9 +32,10 @@ def get_json_config():
         return json.load(f)
 
 
-def get_random_proxy():
-    with open(os.path.join('configs', 'http_proxies.txt'), 'r') as f:
-        return "http://" + random.choice(f.read().strip().split('\n'))
+def get_random_proxy(proxy_list:list):
+    if not proxy_list:
+        return None
+    return random.choice(proxy_list)
 
 
 def get_default_rates(*args, to_print: bool = True):
