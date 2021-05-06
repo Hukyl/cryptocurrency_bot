@@ -1,3 +1,4 @@
+import os
 import threading
 import sys
 from time import sleep
@@ -40,8 +41,14 @@ def runbot(*args):
         except KeyboardInterrupt:
             break
     print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_now()}"
+        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot stopped at {dt.get_now()}"
     )
+    if sys.platform == 'linux':
+        os.system("pkill chrome")
+    elif sys.platform.startswith('win'):
+        os.system("taskkill /F /T /IM chrome.exe")
+    else:
+        print("Couldn't kill the browser automatically, you can close it manually")
 
 
 def check_subscribed(*args):

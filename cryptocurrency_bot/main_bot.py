@@ -6,7 +6,6 @@ import time
 
 import telebot
 from telebot.types import LabeledPrice
-from proxy import Proxy
 
 from configs import settings
 from models.parsers import *
@@ -44,9 +43,8 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-currency_parser = CurrencyExchanger(proxy_list=get_proxy_list())
-
-proxy_fetcher = Proxy()
+# currency_parser = CurrencyExchanger(proxy_list=get_proxy_list())
+currency_parser = SeleniumCurrencyExchanger()
 
 USERS_SESSIONS = {}
 
@@ -1477,16 +1475,16 @@ def send_bot_help(msg):
 
 def update_rates():
     while True:
-        sleep_time = 180 / (len(currency_parser.PARSERS))  # one update per three minutes
-        for curr in currency_parser.PARSERS:
-            currency_parser.PARSERS[curr].update_start_value()
+        sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
+        for curr in currency_parser.parsers:
+            currency_parser.parsers[curr].update_start_value()
             time.sleep(sleep_time)
 
 
 def update_proxies():
     while True:
-        proxies = [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
-        for parser in currency_parser.PARSERS.values():
+        proxies = get_proxy_list()
+        for parser in currency_parser.parsers.values():
             parser.proxy_list = proxies
         time.sleep(605)  # 5 secs longer than proxy website update time
 
@@ -1609,8 +1607,11 @@ def send_alarm(user, t):
 
 
 THREAD_LIST = [
-    check_alarm_times, update_proxies, update_rates, 
-    check_premium_ended, verify_predictions
+    check_alarm_times,
+    # update_proxies,
+    update_rates, 
+    check_premium_ended, 
+    verify_predictions,
 ]
 
 

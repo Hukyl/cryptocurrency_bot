@@ -26,3 +26,9 @@ class SessionDoesNotExistError(Exception):
     def __init__(self, message:str, *, cause:str=None):
         super().__init__(message)
         self.cause = cause
+
+
+class CurrencyDoesnotExistError(Exception):
+    def __init__(self, message:str, *, cause:str=None):
+        super().__init__(message)
+        self.cause = cause
