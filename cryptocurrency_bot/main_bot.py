@@ -1231,8 +1231,10 @@ def buy_subscription(msg):
         if msg_inner.text == _('Yes, I want to!', user.language):
             prices_str = ''
             for price in prices_json_list:
-                total_sum = substract_percent(price.get('period') * start_price, price.get('discount'))
-                prices_str += f';{period} месяц{word_ending} - {total_sum} USD'
+                period = price.get('period')
+                word_ending = '' if period == 1 else 'a' if period in range(2, 5) else 'ов'                
+                total_sum = int(substract_percent(period * start_price, price.get('discount')))
+                prices_str += f';{period} месяц{word_ending} - {total_sum} $'
             bot.send_message(
                 msg_inner.chat.id,
                 _(

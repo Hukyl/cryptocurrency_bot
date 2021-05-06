@@ -11,7 +11,7 @@ from . import decorators, agent, dt, telegram, translator
 proxy_fetcher = Proxy()
 
 __all__ = [
-    'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
+    'merge_dicts', 'prettify_utcoffset', 'get_json_config', 'substract_percent',
     'get_default_rates', 'prettify_float', 'prettify_percent', 'get_proxy_list',
     'catch_exc', 'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
