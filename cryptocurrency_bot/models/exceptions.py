@@ -24,5 +24,5 @@ class SessionDoesNotExistError(Exception):
     pass
 
 
-class CurrencyDoesnotExistError(Exception):
+class CurrencyDoesNotExistError(Exception):
     pass

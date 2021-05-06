@@ -255,7 +255,7 @@ class SeleniumCurrencyExchanger(CurrencyParser):
 
     def get_rate(self, iso_from:str, iso_to:str):
         if not self.check_rate_exists(iso_from, iso_to):
-            raise exceptions.CurrencyDoesnotExistError("some of the currencies do not exist", cause="iso")
+            raise exceptions.CurrencyDoesNotExistError("some of the currencies do not exist", cause="iso")
         p_from = self.parsers.get(iso_from, self.default_parser)
         p_to = self.parsers.get(iso_to, self.default_parser)
         try:
