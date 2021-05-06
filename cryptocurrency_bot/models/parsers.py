@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
 from utils.translator import translate as _
-from utils import get_default_rates, prettify_float, merge_dicts, get_random_safe
+from utils import get_default_rates, prettify_float, merge_dicts
 from configs import settings
 
 
@@ -57,16 +57,20 @@ class CurrencyParser(abc.ABC):
 
     def get_response(self, link:str=None):
         link = link or self.link
-        lambda_get = lambda x: requests.get(
+        lambda_get = lambda x, p: requests.get(
             x, headers={"Connection": "Close", "User-Agent": get_useragent()}, 
-            proxies={'http': get_random_safe(self.proxy_list)}
+            proxies={'http': 'http://' + p} if p else None
         )
-        q = lambda_get(link)
-        for i in range(int(len(self.proxy_list) / 2) if self.proxy_list else 5):
-            if not q.ok:
-                q = lambda_get(link)
-            else:
-                break
+        if self.proxy_list:
+            for proxy in self.proxy_list:
+                q = lambda_get(link, proxy)
+                if q.ok:
+                    break
+        else:
+            for _i in range(5):
+                q = lambda_get(link, None)
+                if q.ok:
+                    break
         return q
 
     def get_html(self, link:str=None):

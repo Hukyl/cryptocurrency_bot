@@ -1,4 +1,3 @@
-import random
 import json
 import os
 import sys
@@ -38,12 +37,6 @@ def get_json_config():
 
 def get_proxy_list():
     return [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
-
-
-def get_random_safe(l:list):
-    if not l:
-        return None
-    return random.choice(l)
 
 
 def get_default_rates(*args, to_print: bool = True):
