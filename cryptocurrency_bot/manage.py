@@ -40,7 +40,7 @@ def runbot(*args):
         except KeyboardInterrupt:
             break
     print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_now()}"
+        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot stopped at {dt.get_now()}"
     )
 
 

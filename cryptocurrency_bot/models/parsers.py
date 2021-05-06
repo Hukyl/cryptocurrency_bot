@@ -5,8 +5,9 @@ from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
 from utils.translator import translate as _
-from utils import get_default_rates, prettify_float, merge_dicts
+from utils import get_default_rates, prettify_float
 from configs import settings
+from . import exceptions
 
 
 __all__ = ['CurrencyExchanger']
@@ -233,6 +234,8 @@ class CurrencyExchanger(CurrencyParser):
         self.default_parser = FreecurrencyratesParser(proxy_list=proxy_list)
 
     def get_rate(self, iso_from, iso_to):
+        if not self.check_rate_exists(iso_from, iso_to):
+            raise exceptions.CurrencyDoesNotExistError("some of the currencies do not exist", cause="iso")        
         p_from = self.parsers.get(iso_from, self.default_parser)
         p_to = self.parsers.get(iso_to, self.default_parser)
         try:
