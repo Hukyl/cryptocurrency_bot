@@ -1,34 +1,28 @@
-class UserDoesNotExistError(Exception):
+class ExceptionWithCause(Exception):
     def __init__(self, message:str, *, cause:str=None):
         super().__init__(message)
-        self.cause = cause
+        self.cause = cause    
+
+
+class UserDoesNotExistError(Exception):
+    pass
 
 
 class UserAlreadyExistsError(Exception):
-    def __init__(self, message:str, *, cause:str=None):
-        super().__init__(message)
-        self.cause = cause
+    pass
 
 
 class PredictionDoesNotExistError(Exception):
-    def __init__(self, message:str, *, cause:str=None):
-        super().__init__(message)
-        self.cause = cause
+    pass
 
 
 class RateDoesNotExistError(Exception):
-    def __init__(self, message:str, *, cause:str=None):
-        super().__init__(message)
-        self.cause = cause
+    pass
 
 
 class SessionDoesNotExistError(Exception):
-    def __init__(self, message:str, *, cause:str=None):
-        super().__init__(message)
-        self.cause = cause
+    pass
 
 
 class CurrencyDoesnotExistError(Exception):
-    def __init__(self, message:str, *, cause:str=None):
-        super().__init__(message)
-        self.cause = cause
+    pass

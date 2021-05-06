@@ -2,17 +2,14 @@ import json
 import os
 import sys
 
-from proxy import Proxy
-
 from configs import settings
 from . import decorators, agent, dt, telegram, translator
 
 
-proxy_fetcher = Proxy()
 
 __all__ = [
     'merge_dicts', 'prettify_utcoffset', 'get_json_config', 'substract_percent',
-    'get_default_rates', 'prettify_float', 'prettify_percent', 'get_proxy_list',
+    'get_default_rates', 'prettify_float', 'prettify_percent',
     'catch_exc', 'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
 
@@ -33,10 +30,6 @@ def prettify_utcoffset(utcoffset: int = 0):
 def get_json_config():
     with open(os.path.join('configs', 'config.json'), 'r', encoding='utf-8') as f:
         return json.load(f)
-
-
-def get_proxy_list():
-    return [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
 
 
 def get_default_rates(*args, to_print: bool = True):

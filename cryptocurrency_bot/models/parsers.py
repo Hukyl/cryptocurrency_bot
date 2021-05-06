@@ -14,7 +14,7 @@ from configs import settings
 from . import exceptions
 
 
-__all__ = ['CurrencyExchanger', 'SeleniumCurrencyExchanger']
+__all__ = ['SeleniumCurrencyExchanger']
 
 
 
@@ -34,11 +34,10 @@ class CurrencyParser(abc.ABC):
                 'difference': `difference`
     """
 
-    def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None, proxy_list:list=None):
+    def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None):
         self.link = link
         self.css_selector = css_selector
         self.iso = iso
-        self.proxy_list = proxy_list
         try:
             self.start_value = start_value or self.get_rate().get('USD')
         except ValueError:
@@ -57,20 +56,13 @@ class CurrencyParser(abc.ABC):
 
     def get_response(self, link:str=None):
         link = link or self.link
-        lambda_get = lambda x, p: requests.get(
-            x, headers={"Connection": "Close", "User-Agent": get_useragent()}, 
-            proxies={'http': 'http://' + p} if p else None
+        lambda_get = lambda x: requests.get(
+            x, headers={"Connection": "Close", "User-Agent": get_useragent()}
         )
-        if self.proxy_list:
-            for proxy in self.proxy_list:
-                q = lambda_get(link, proxy)
-                if q.ok:
-                    break
-        else:
-            for _i in range(5):
-                q = lambda_get(link, None)
-                if q.ok:
-                    break
+        for _i in range(5):
+            q = lambda_get(link)
+            if q.ok:
+                break
         return q
 
     def get_html(self, link:str=None):
@@ -225,16 +217,41 @@ class InvestingParser(CurrencyParser):
 
 
 
-class CurrencyExchanger(CurrencyParser):
-    def __init__(self, *, proxy_list:list=None):
+class SeleniumCurrencyExchanger(CurrencyParser):
+    def __init__(self):
+        self.driver, self.chrome_options = self.create_webdriver()
         self.parsers = {
             parser.iso: parser 
             for parser in [
-                RTSParser(proxy_list=proxy_list), BitcoinParser(proxy_list=proxy_list), 
-                *[InvestingParser(x, proxy_list=proxy_list) for x in InvestingParser.AVAILABLE_PRODUCTS]
+                RTSParser(start_value=-1), BitcoinParser(start_value=-1), 
+                *[InvestingParser(x, start_value=-1) for x in InvestingParser.AVAILABLE_PRODUCTS]
             ]
         }
-        self.default_parser = FreecurrencyratesParser(proxy_list=proxy_list)
+        self.windows_isos = {}
+        for idx, parser in enumerate(self.parsers.values(), start=1):
+            self.driver.execute_script(f"window.open({repr(parser.link)})")
+            self.windows_isos[parser.iso] = len(self.parsers) - idx + 1
+            parser.get_html = self.get_html(parser.iso)
+        self.default_parser = FreecurrencyratesParser()
+        self.update_start_value()
+
+    def create_webdriver(self):
+        chrome_options = Options()
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        if sys.platform == 'linux':
+            chrome_options.add_argument("--no-sandbox")  # linux only
+        driver = webdriver.Chrome(
+            executable_path=path.join("..", "chromedriver.exe"), 
+            options=chrome_options
+        )
+        return (driver, chrome_options)
+
+    def get_html(self, iso):
+        def inner(*args, **kwargs):
+            self.driver.switch_to.window(self.driver.window_handles[self.windows_isos[iso]])
+            return self.driver.page_source
+        return inner
 
     def get_rate(self, iso_from:str, iso_to:str):
         if not self.check_rate_exists(iso_from, iso_to):
@@ -280,10 +297,10 @@ class CurrencyExchanger(CurrencyParser):
             for x in [iso_from, iso_to]
         )
 
-    def __str__(self):
+    def to_string(self, *, to_update:bool=False):
         return '\n'.join([
-            f"{curr} = {prettify_float(self.parsers[curr].start_value)} USD" 
-            for curr in sorted(self.parsers)
+            f"{parser} = {prettify_float(parser.rate if to_update else parser.start_value)} USD" 
+            for parser in self.parsers.values()
         ])
 
     def to_telegram_string(self, user_language:str):
@@ -299,46 +316,6 @@ class CurrencyExchanger(CurrencyParser):
             )
             for curr in main_currs + other_currs
         ])
-
-
-
-class SeleniumCurrencyExchanger(CurrencyExchanger):
-    def __init__(self):
-        self.driver, self.chrome_options = self.create_webdriver()
-        self.parsers = {
-            parser.iso: parser 
-            for parser in [
-                RTSParser(start_value=-1), BitcoinParser(start_value=-1), 
-                *[InvestingParser(x, start_value=-1) for x in InvestingParser.AVAILABLE_PRODUCTS]
-            ]
-        }
-        self.windows_isos = {}
-        for idx, parser in enumerate(self.parsers.values(), start=1):
-            self.driver.execute_script(f"window.open({repr(parser.link)})")
-            self.windows_isos[parser.iso] = len(self.parsers) - idx + 1
-            parser.get_html = self.get_html(parser.iso)
-        self.default_parser = FreecurrencyratesParser()
-        self.update_start_value()
-
-    def create_webdriver(self):
-        chrome_options = Options()
-        chrome_options.add_argument("--disable-extensions")
-        # chrome_options.add_argument("--disable-gpu")
-        # chrome_options.add_argument("--headless")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
-        if sys.platform == 'linux':
-            chrome_options.add_argument("--no-sandbox")  # linux only
-        driver = webdriver.Chrome(
-            executable_path=path.join("..", "chromedriver.exe"), 
-            options=chrome_options
-        )
-        return (driver, chrome_options)
-
-    def get_html(self, iso):
-        def inner(*args, **kwargs):
-            self.driver.switch_to.window(self.driver.window_handles[self.windows_isos[iso]])
-            return self.driver.page_source
-        return inner
 
     def __delete__(self):
         self.__del__()

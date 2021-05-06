@@ -43,7 +43,6 @@ bot.short_bot_commands = {
 }
 bot.skip_pending = True
 
-# currency_parser = CurrencyExchanger(proxy_list=get_proxy_list())
 currency_parser = SeleniumCurrencyExchanger()
 
 USERS_SESSIONS = {}
@@ -1481,14 +1480,6 @@ def update_rates():
             time.sleep(sleep_time)
 
 
-def update_proxies():
-    while True:
-        proxies = get_proxy_list()
-        for parser in currency_parser.parsers.values():
-            parser.proxy_list = proxies
-        time.sleep(605)  # 5 secs longer than proxy website update time
-
-
 @catch_exc(to_print=True)
 def check_premium_ended():
     def check_user_premium_ended(usr):
@@ -1608,7 +1599,6 @@ def send_alarm(user, t):
 
 THREAD_LIST = [
     check_alarm_times,
-    # update_proxies,
     update_rates, 
     check_premium_ended, 
     verify_predictions,
