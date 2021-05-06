@@ -29,11 +29,6 @@ class CurrencyParser(abc.ABC):
                 'difference': `difference`
     """
 
-    def __new__(cls, *args, **kwargs):
-        obj = object().__new__(cls)
-        object.__setattr__(obj, 'proxy_list', None)
-        return obj
-
     def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None, proxy_list:list=None):
         self.link = link
         self.css_selector = css_selector
@@ -44,7 +39,7 @@ class CurrencyParser(abc.ABC):
         except ValueError:
             self.start_value = get_default_rates(iso or '')
 
-    def to_string(self, to_update:bool=True):
+    def to_string(self, *, to_update:bool=True):
         iso_str = self.iso or ""
         rate = self.get_rate().get('USD') if to_update else self.start_value
         if iso_str:
@@ -139,11 +134,9 @@ class BitcoinParser(CurrencyParser):
 
     def __init__(self, *args, **kwargs):
         link = "https://www.coindesk.com/price/bitcoin"
-        # link = "https://ru.investing.com/crypto/bitcoin/btc-usd-converter"
         css_selector = "#export-chart-element > div > section > \
                         div.coin-info-list.price-list > div:nth-child(1) > \
                         div.data-definition > div"
-        # css_selector = "#amount2"
         super().__init__(
             link=link, css_selector=css_selector, 
             iso=self.iso, *args, **kwargs
@@ -204,44 +197,44 @@ class InvestingParser(CurrencyParser):
     Can parse only from AVAILABLE_PRODUCTS dict's keys
     """
     AVAILABLE_PRODUCTS = {
-        'gold': 'Gold', 
-        'silver': 'Silver', 
-        'palladium': 'Palladium', 
-        'copper': 'Copper', 
-        'platinum': 'Platinum', 
-        'brent-oil': 'BRENT', 
-        'crude-oil': 'CRUDE',
-        'natural-gas': 'GAS',
-        'london-gas-oil': 'GAS-OIL'
+        'Gold': 'gold', 
+        'Silver': 'silver', 
+        'Palladium': 'palladium', 
+        'Copper': 'copper', 
+        'Platinum': 'platinum', 
+        'BRENT': 'brent-oil', 
+        'CRUDE': 'crude-oil', 
+        'GAS': 'natural-gas', 
+        'GAS-OIL': 'london-gas-oil'
     }
 
     def __init__(self, market_product:str, *args, **kwargs):
         assert (
             market_product in self.AVAILABLE_PRODUCTS
         ), 'not supported market product - {}'.format(repr(market_product))
-        link = "https://m.investing.com/commodities/{}".format(market_product)
+        link = "https://m.investing.com/commodities/{}".format(self.AVAILABLE_PRODUCTS[market_product])
         css_selector = '#last_last'
         super().__init__(
             link=link, css_selector=css_selector, 
-            iso=self.AVAILABLE_PRODUCTS[market_product], *args, **kwargs
+            iso=market_product, *args, **kwargs
         )
 
 
 
 class CurrencyExchanger(CurrencyParser):
     def __init__(self, *, proxy_list:list=None):
-        self.PARSERS = merge_dicts(
-            {parser.iso: parser for parser in [RTSParser(proxy_list=proxy_list), BitcoinParser(proxy_list=proxy_list)]},
-            {
-                InvestingParser.AVAILABLE_PRODUCTS[x]: InvestingParser(x, proxy_list=proxy_list)
-                for x in list(InvestingParser.AVAILABLE_PRODUCTS)
-            }
-        )
-        self.DEFAULT_PARSER = FreecurrencyratesParser(proxy_list=proxy_list)
+        self.parsers = {
+            parser.iso: parser 
+            for parser in [
+                RTSParser(proxy_list=proxy_list), BitcoinParser(proxy_list=proxy_list), 
+                *[InvestingParser(x, proxy_list=proxy_list) for x in InvestingParser.AVAILABLE_PRODUCTS]
+            ]
+        }
+        self.default_parser = FreecurrencyratesParser(proxy_list=proxy_list)
 
     def get_rate(self, iso_from, iso_to):
-        p_from = self.PARSERS.get(iso_from, self.DEFAULT_PARSER)
-        p_to = self.PARSERS.get(iso_to, self.DEFAULT_PARSER)
+        p_from = self.parsers.get(iso_from, self.default_parser)
+        p_to = self.parsers.get(iso_to, self.default_parser)
         try:
             rate_from = (
                 p_from.get_rate(iso_from) 
@@ -263,8 +256,8 @@ class CurrencyExchanger(CurrencyParser):
             ) from None
 
     def update_start_value(self):
-        for curr in self.PARSERS:
-            self.PARSERS[curr].update_start_value()
+        for curr in self.parsers:
+            self.parsers[curr].update_start_value()
 
     def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
         new = self.get_rate(iso_from, iso_to).get(iso_to)
@@ -275,28 +268,28 @@ class CurrencyExchanger(CurrencyParser):
             del rate['new'], rate['percentage_difference'], rate['difference']
         return rate
 
-    def check_rate_exists(self, iso_from, iso_to):
+    def check_rate_exists(self, iso_from:str, iso_to:str):
         return all(
-            x in self.PARSERS or self.DEFAULT_PARSER.check_currency_exists(x)
+            x in self.parsers or self.default_parser.check_currency_exists(x)
             for x in [iso_from, iso_to]
         )
 
-    def __str__(self):
+    def to_string(self, *, to_update:bool=False):
         return '\n'.join([
-            f"{curr} = {prettify_float(self.PARSERS[curr].start_value)} USD" 
-            for curr in sorted(self.PARSERS)
+            f"{parser.iso} = {prettify_float(parser.start_value if not to_update else parser.rate)} USD" 
+            for parser in self.parsers.values()
         ])
 
     def to_telegram_string(self, user_language:str):
         main_currs = sorted(settings.MAIN_CURRENCIES)
-        other_currs = sorted(list(set(self.PARSERS) - set(settings.MAIN_CURRENCIES)))
-        biggest_length = len(max(self.PARSERS, key=lambda x: len(x)))
+        other_currs = sorted(list(set(self.parsers) - set(settings.MAIN_CURRENCIES)))
+        biggest_length = len(max(self.parsers, key=lambda x: len(x)))
         start_string = "`{:<{max_length}s}".format(_("Price", user_language), max_length=biggest_length + 1) + "($)`\n"
         return start_string + '\n'.join([
             '`{}`'.format(
                 "{:<{max_length}s}".format(
                     (curr if curr in main_currs else curr.title()), max_length=biggest_length + 2
-                ) + f"= {prettify_float(self.PARSERS[curr].start_value)}"
+                ) + f"= {prettify_float(self.parsers[curr].start_value)}"
             )
             for curr in main_currs + other_currs
         ])
