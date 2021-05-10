@@ -1,11 +1,12 @@
 import abc
+import random
 
 import requests
 from bs4 import BeautifulSoup as bs
 
 from utils.agent import get_useragent
 from utils.translator import translate as _
-from utils import get_default_rates, prettify_float
+from utils import get_default_rates, prettify_float, get_proxy_list
 from configs import settings
 from . import exceptions
 
@@ -30,7 +31,8 @@ class CurrencyParser(abc.ABC):
                 'difference': `difference`
     """
 
-    def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None, proxy_list:list=None):
+    def __init__(self, link:str, css_selector:str, iso:str, *, start_value:float=None, proxy_list:list=get_proxy_list()):
+        self.session = requests.Session()
         self.link = link
         self.css_selector = css_selector
         self.iso = iso
@@ -53,11 +55,12 @@ class CurrencyParser(abc.ABC):
 
     def get_response(self, link:str=None):
         link = link or self.link
-        lambda_get = lambda x, p: requests.get(
-            x, headers={"Connection": "Close", "User-Agent": get_useragent()}, 
+        lambda_get = lambda x, p: self.session.get(
+            x, headers={"User-Agent": get_useragent()}, 
             proxies={'http': 'http://' + p} if p else None
         )
         if self.proxy_list:
+            random.shuffle(self.proxy_list)
             for proxy in self.proxy_list:
                 q = lambda_get(link, proxy)
                 if q.ok:
@@ -146,7 +149,7 @@ class BitcoinParser(CurrencyParser):
 
 
 class FreecurrencyratesParser(CurrencyParser):
-    def __init__(self, *, proxy_list:list=None):
+    def __init__(self, *, proxy_list:list=get_proxy_list()):
         self.link = "https://freecurrencyrates.com/ru/%s-exchange-rate-calculator"
         self.proxy_list = proxy_list
 
@@ -223,7 +226,7 @@ class InvestingParser(CurrencyParser):
 
 
 class CurrencyExchanger(CurrencyParser):
-    def __init__(self, *, proxy_list:list=None):
+    def __init__(self, *, proxy_list:list=get_proxy_list()):
         self.parsers = {
             parser.iso: parser 
             for parser in [
