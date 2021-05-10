@@ -2,6 +2,8 @@
 # Author: Hukyl
 # Email: a.shalaev7125@gmail.com
 
+import os
+
 
 TOKEN = '1421475661:AAFR0vGFtWo4rmd7eq-MMZctr2rxfzfqf1c'
 PAYMENT_TOKEN = '401643678:TEST:36b3e5b5-0ab7-4fbd-beca-8a11ce7100d8'  # test token from Sberbank
@@ -11,6 +13,9 @@ ACCESSIBLE_LINK = "https://t.me/{}?start=support"  # {} - bot username
 
 
 DB_NAME = 'db.sqlite3'  # 'db.sqlite3' - for production use, 'test.sqlite3' -  for tests
+CHROMEDRIVER_PATH = os.path.join("..", 'chromedriver.exe')
+# os.path.join is used to join the directories of the path
+# e.g. os.path.join("..", "chromedriver.exe") will mean "..\chromedriver.exe" on Windows and "../chromedrvier.exe" on Linux or MacOS
 
 
 CHECK_TIMES = [

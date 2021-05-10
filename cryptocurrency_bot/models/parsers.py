@@ -235,14 +235,15 @@ class SeleniumCurrencyExchanger(CurrencyParser):
         self.default_parser = FreecurrencyratesParser()
         self.update_start_value()
 
-    def create_webdriver(self):
+    @staticmethod
+    def create_webdriver():
         chrome_options = Options()
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
         if sys.platform == 'linux':
             chrome_options.add_argument("--no-sandbox")  # linux only
         driver = webdriver.Chrome(
-            executable_path=path.join("..", "chromedriver.exe"), 
+            executable_path=settings.CHROMEDRIVER_PATH, 
             options=chrome_options
         )
         return (driver, chrome_options)
