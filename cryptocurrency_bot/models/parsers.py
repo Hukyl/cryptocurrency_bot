@@ -239,9 +239,11 @@ class SeleniumCurrencyExchanger(CurrencyParser):
     def create_webdriver():
         chrome_options = Options()
         chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--headless")
         chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
         if sys.platform == 'linux':
             chrome_options.add_argument("--no-sandbox")  # linux only
+            chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(
             executable_path=settings.CHROMEDRIVER_PATH, 
             options=chrome_options
