@@ -1177,7 +1177,7 @@ def add_new_currency(msg):
                 )
                 return start_bot(msg_inner)
             elif user.is_pro:
-                user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
+                user.add_rate(iso, value=rate, check_times=settings.CHECK_TIMES)
                 bot.send_message(
                     msg_inner.chat.id,
                     _(
@@ -1476,7 +1476,7 @@ def update_rates():
     while True:
         sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
         for curr in currency_parser.parsers:
-            currency_parser.parsers[curr].update_start_value()
+            currency_parser.parsers[curr].update_value(safe=True)
             time.sleep(sleep_time)
 
 
@@ -1572,7 +1572,7 @@ def send_alarm(user, t):
         try:
             rate = currency_parser.check_delta(
                 k, 'USD',
-                v.get('start_value'), v.get('percent_delta')
+                v.get('value'), v.get('percent_delta')
             )
         except ValueError:
             bot.send_message(
@@ -1582,7 +1582,7 @@ def send_alarm(user, t):
         else:
             if rate.get('new', None) is not None:  # WARNING: CAN BE DELETED
                 new, old = rate.get('new'), rate.get('old')
-                user.update_rates(k, start_value=new)
+                user.update_rates(k, value=new)
                 try:
                     bot.send_message(
                         user.id,

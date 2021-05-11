@@ -26,3 +26,7 @@ class SessionDoesNotExistError(ExceptionWithCause):
 
 class CurrencyDoesNotExistError(ExceptionWithCause):
     pass
+
+
+class ParsingError(ExceptionWithCause):
+    pass

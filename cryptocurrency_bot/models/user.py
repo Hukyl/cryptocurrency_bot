@@ -24,7 +24,7 @@ class UserBase(object):
         iso_code:str: - currnies str:
             'check_times': list of times (IN USER'S UTCOFFSET)
             'percent_delta':float: not in percent format (not 23%, 0.23)
-            'start_value':float: just normal
+            'value':float: just normal
     timezone:int: - utcoffset ( in range (-11, 13) )
     language:str: - user's language
     """
@@ -46,7 +46,7 @@ class UserBase(object):
             rate['iso']: { 
                 'check_times': rate['check_times'],
                 'percent_delta': rate['percent_delta'],
-                'start_value': rate['start_value']
+                'value': rate['value']
             }
             for rate in rates
         }
@@ -140,7 +140,7 @@ class User(UserBase):
             cls.db.add_user(user_id)
             defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
-                cls.db.add_user_rate(user_id, currency, start_value=defaults.get(currency)) 
+                cls.db.add_user_rate(user_id, currency, value=defaults.get(currency)) 
 
     @classmethod
     def get_pro_users(cls, *args, **kwargs):
