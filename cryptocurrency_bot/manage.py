@@ -115,6 +115,9 @@ def create_db_dump(*args, **kwargs):
         print(f"FAILURE: unsupported number of operands: {len(args)}")
         sys.exit(1)
     input_db_name, output_filename = args
+    if not os.path.isfile(input_db_name):
+        print(f"FAILURE: Database {repr(input_db_name)} does not exist")
+        sys.exit(1)
     with sqlite3.connect(input_db_name) as conn:
         with open(output_filename, 'w') as file:
             for line in conn.iterdump():
@@ -127,6 +130,11 @@ def load_db_from_dump(*args, **kwargs):
         print(f"FAILURE: unsupported number of operands: {len(args)}")
         sys.exit(1)
     input_dump_filename, output_db_name = args
+    if not os.path.isfile(input_dump_filename):
+        print(f"FAILURE: dump {repr(input_dump_filename)} does not exist")
+        sys.exit(1)
+    if os.path.isfile(output_db_name):
+        os.remove(output_db_name)
     with sqlite3.connect(output_db_name) as conn:
         with open(input_dump_filename, 'r') as file:
             conn.executescript(file.read())
@@ -176,7 +184,6 @@ if __name__ == '__main__':
         else:
             try:
                 func(*args)
-            except Exception as e:
+            except Exception:
                 print("FAILURE: Some error occurred, please check input arguments")
-                print(e)
             sys.exit(0)
