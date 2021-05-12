@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import threading
 import sys
@@ -184,6 +185,7 @@ if __name__ == '__main__':
         else:
             try:
                 func(*args)
-            except Exception:
+            except Exception as e:
                 print("FAILURE: Some error occurred, please check input arguments")
+                print(e)
             sys.exit(0)
