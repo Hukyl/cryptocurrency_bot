@@ -32,9 +32,12 @@ class Parser(object):
         else:
             proxies = [None] * 5
         for proxy in proxies:
-            q = lambda_get(self.link, proxy)
-            if q.ok:
-                break
+            try:
+                q = lambda_get(self.link, proxy)
+                if q.ok:
+                    break
+            except requests.ConnectionError:
+                self.session = requests.Session()
         return q
 
     def get_html(self):
