@@ -55,7 +55,7 @@ class UserBase(object):
     def prettify_rates(rates: list):
         total_str = ''
         for idx, (k, v) in enumerate(rates.items(), start=1):
-            total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
+            total_str += "\t{}. {}:\n\t\t▫ Процент - {}\n\t\t▫ Время проверки - {}\n".format(
                     idx, 
                     k, 
                     prettify_percent(v.get('percent_delta')), 
