@@ -256,7 +256,7 @@ class Prediction(object):
     @classmethod
     def get_most_liked_predictions(cls, *args, **kwargs):
         for pred_data in cls.db.get_max_liked_predictions(*args, **kwargs):
-            yield cls(pred_data[0])
+            yield cls.from_dict(pred_data)
 
     @classmethod
     def get_unverified_predictions(cls, *args, **kwargs):
