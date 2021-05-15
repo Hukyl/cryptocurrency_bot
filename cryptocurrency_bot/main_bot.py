@@ -314,15 +314,17 @@ def make_user_currency_prediction(msg):
                     bot.send_message(
                         usr.id,
                         _(
-                            '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
+                            '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
                             usr.language
                         ).format(
+                            prediction.iso_from, prediction.iso_to,
                             convert_to_country_format(
                                 adapt_datetime(prediction.up_to_date, usr.timezone), 
                                 usr.language
                             ),
                             prettify_float(prediction.value)
-                        )
+                        ),
+                        parse_mode='Markdown'
                     )
                     Session.db.decrease_count(usr.id)
                 else:

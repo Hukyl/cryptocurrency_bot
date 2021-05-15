@@ -200,9 +200,9 @@ translation_dict = {
         'en': "Price",
         'ru': "Цена"
     },
-    '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}': {
-        'en': '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
-        'ru': '*⚜ Прогноз от эксперта ⚜*\n*До:* {}\n*Прогнозируемое значение:* {}'
+    '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}': {
+        'en': '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
+        'ru': '*⚜ Прогноз от эксперта ⚜*\n*Валюты: {}-{}*\n*До:* {}\n*Прогнозируемое значение:* {}'
     },
     '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *': {
         'en': '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
