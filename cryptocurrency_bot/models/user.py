@@ -17,12 +17,12 @@ class UserBase(object):
     User base class
 
     id:int: - user's id in Telegram
-    is_pro:None or datetime.datetime: - has user bought the subscription
+    is_pro:False or datetime.datetime: - has user bought the subscription
     is_active:bool: - if to send the notifications
     is_staff:bool: - is user staff
     rates:dict:
-        iso_code:str: - currnies str:
-            'check_times': list of times (IN USER'S UTCOFFSET)
+        iso_code:str: - currencies str:
+            'check_times': list of times
             'percent_delta':float: not in percent format (not 23%, 0.23)
             'value':float: just normal
     timezone:int: - utcoffset ( in range (-11, 13) )

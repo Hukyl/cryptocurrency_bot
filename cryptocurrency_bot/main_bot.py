@@ -377,7 +377,7 @@ def see_users_currency_predictions(msg):
     user = bot.session.user
 
     def see_self_predictions(msg_inner):
-        preds = {repr(x): f'get_prediction_{x.id}' for x in user.get_predictions()}
+        preds = {x.repr(): f'get_prediction_{x.id}' for x in user.get_predictions()}
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
             bot.send_message(
