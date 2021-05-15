@@ -108,6 +108,7 @@ class CurrencyParser(Parser):
         except exceptions.ParsingError as e:
             if not safe:
                 raise e from None
+            print(f"[ERROR] Default value was used for currency {self.iso if self.iso else ''}")
             self.value = self.default_value
 
     @staticmethod
