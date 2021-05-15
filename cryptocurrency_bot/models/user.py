@@ -269,7 +269,7 @@ class Prediction(object):
     @classmethod
     def get_random_prediction(cls):
         pred_data = cls.db.get_random_prediction()
-        return cls.from_dict(pred_data) if pred_data else None
+        return cls.from_dict(pred_data) if pred_data != -1 else None
 
     def repr(self, user:User):
         return (
