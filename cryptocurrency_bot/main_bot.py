@@ -134,13 +134,12 @@ def start_bot(msg, to_show_commands: bool = True):
     ]
     kb = kbs(buttons, one_time_keyboard=False)
     if to_show_commands:
-        str_ = ';'.join(['{} - %s' % v for k, v in bot.short_bot_commands.items()])
+        str_ = '\n'.join(['{} - %s' % v for k, v in bot.short_bot_commands.items()])
         bot.send_message(
             msg.chat.id,
             _(
                 str_,
                 user.language,
-                parse_mode='newline'
             ).format(*list(bot.short_bot_commands)),
             reply_markup=kb
         )
@@ -315,15 +314,17 @@ def make_user_currency_prediction(msg):
                     bot.send_message(
                         usr.id,
                         _(
-                            '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
+                            '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
                             usr.language
                         ).format(
+                            prediction.iso_from, prediction.iso_to,
                             convert_to_country_format(
                                 adapt_datetime(prediction.up_to_date, usr.timezone), 
                                 usr.language
                             ),
                             prettify_float(prediction.value)
-                        )
+                        ),
+                        parse_mode='Markdown'
                     )
                     Session.db.decrease_count(usr.id)
                 else:
@@ -377,7 +378,7 @@ def see_users_currency_predictions(msg):
     user = bot.session.user
 
     def see_self_predictions(msg_inner):
-        preds = {repr(x): f'get_prediction_{x.id}' for x in user.get_predictions()}
+        preds = {x.repr(user): f'get_prediction_{x.id}' for x in user.get_predictions()}
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
             bot.send_message(
@@ -395,32 +396,31 @@ def see_users_currency_predictions(msg):
     def see_other_users_predictions(msg_inner):
         if user.is_pro:
             experts_str = (
-                '⚜ Experts predictions ⚜ are:;'
+                '⚜ Experts predictions ⚜ are:\n'
                 +
-                (';;'.join([x.str(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
+                ('\n\n'.join([x.str(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
-                experts_str = experts_str.replace(';', '')
+                experts_str = experts_str.replace('\n', '')
             bot.send_message(
                 msg_inner.chat.id,
-                _(experts_str, user.language, parse_mode='newline'),
+                _(experts_str, user.language),
             )
 
         liked_preds_str = (
-            'Most liked predictions are:;'
+            'Most liked predictions are:\n'
             +
-            (';;'.join([x.str(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
+            ('\n\n'.join([x.str(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
-            liked_preds_str = liked_preds_str.replace(';', '')
+            liked_preds_str = liked_preds_str.replace('\n', '')
         bot.send_message(
             msg_inner.chat.id,
             _(
                 liked_preds_str,
-                user.language,
-                parse_mode='newline'
+                user.language
             ),
         )
         return see_users_currency_predictions(msg_inner)
@@ -451,7 +451,7 @@ def see_users_currency_predictions(msg):
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg_inner.chat.id,
-                _(random_pred.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
+                _(random_pred.str(user), user.language),
                 reply_markup=inline_kb
             )
             return see_users_currency_predictions(msg_inner)
@@ -509,7 +509,7 @@ def get_closest_prediction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(following_pred.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
+            text=_(following_pred.str(user), user.language),
             reply_markup=inline_kb
         )
 
@@ -526,7 +526,7 @@ def toggle_user_reaction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(prediction.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
+            text=_(prediction.str(user), user.language),
             reply_markup=get_prediction_inline_kb_for_liking(prediction)
         )
     bot.answer_callback_query(
@@ -544,7 +544,7 @@ def get_prediction_details(call):
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text=_(prediction.str(user).replace('\n', ';'), user.language, parse_mode='newline'),
+        text=_(prediction.str(user), user.language),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
             _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -831,15 +831,15 @@ def toggle_user_experts_predictions(msg):
 def see_user_info(msg):
     user = bot.session.user
     info = f"Пользователь @{msg.from_user.username}\
-            ;Telegram ID: {user.id}\
-            ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
-            ;Персонал: {'да' if user.is_staff else 'нет'}\
-            ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
-            ;Оповещения: {'включены' if user.is_active else 'отключены'}\
-            ;Прогнозы от экспертов: {'включены' if user.to_notify_by_experts else 'отключены'}\
-            ;Оповещения:\
-            ;{User.prettify_rates(user.rates)}"
-    bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
+            \nTelegram ID: {user.id}\
+            \nПодписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
+            \nПерсонал: {'да' if user.is_staff else 'нет'}\
+            \nЧасовой пояс: {prettify_utcoffset(user.timezone)}\
+            \nОповещения: {'включены' if user.is_active else 'отключены'}\
+            \nПрогнозы от экспертов: {'включены' if user.to_notify_by_experts else 'отключены'}\
+            \nОповещения:\
+            \n{User.prettify_rates(user.rates)}"
+    bot.send_message(msg.chat.id, _(info, user.language))
     return start_bot(msg)
 
 
@@ -1177,7 +1177,7 @@ def add_new_currency(msg):
                 )
                 return start_bot(msg_inner)
             elif user.is_pro:
-                user.add_rate(iso, start_value=rate, check_times=settings.CHECK_TIMES)
+                user.add_rate(iso, value=rate, check_times=settings.CHECK_TIMES)
                 bot.send_message(
                     msg_inner.chat.id,
                     _(
@@ -1235,11 +1235,8 @@ def buy_subscription(msg):
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    f'Отлично!\
-                    ;Выберите длительность Подписки (в месяцах)\
-                    ;{prices_str}',
-                    user.language,
-                    parse_mode='newline'
+                    f'Отлично!\nВыберите длительность Подписки (в месяцах)\n{prices_str}',
+                    user.language
                 ),
                 reply_markup=kbs(list(prices_easy))
             )
@@ -1445,8 +1442,7 @@ def send_message_to_techsupport(call):
             user.id,
             _(
                 'Напишите сообщение техподдержке ({} - возврат в меню)',
-                user.language,
-                parse_mode='newline'
+                user.language
             ).format('/menu', bot.get_me().username)
         )
         bot.register_next_step_handler(call.message, send_message)
@@ -1455,15 +1451,14 @@ def send_message_to_techsupport(call):
 @bot.message_handler(commands=['help'])
 def send_bot_help(msg):
     user = bot.session.user
-    help_message = 'Bot\'s commands:;' + ';'.join([
+    help_message = "Bot's commands:\n" + '\n'.join([
         '{} - %s' % v for k, v in bot.full_bot_commands.items()
     ])
     bot.send_message(
         msg.chat.id,
         _(
             help_message,
-            user.language,
-            parse_mode='newline'
+            user.language
         ).replace('{ }', '{}').format(*list(bot.full_bot_commands.keys()))
     )
     return start_bot(msg, to_show_commands=False)
@@ -1476,7 +1471,7 @@ def update_rates():
     while True:
         sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
         for curr in currency_parser.parsers:
-            currency_parser.parsers[curr].update_start_value()
+            currency_parser.parsers[curr].update_value(safe=True)
             time.sleep(sleep_time)
 
 
@@ -1564,7 +1559,7 @@ def send_alarm(user, t):
         try:
             rate = currency_parser.check_delta(
                 k, 'USD',
-                v.get('start_value'), v.get('percent_delta')
+                v.get('value'), v.get('percent_delta')
             )
         except ValueError:
             bot.send_message(
@@ -1574,7 +1569,7 @@ def send_alarm(user, t):
         else:
             if rate.get('new', None) is not None:  # WARNING: CAN BE DELETED
                 new, old = rate.get('new'), rate.get('old')
-                user.update_rates(k, start_value=new)
+                user.update_rates(k, value=new)
                 try:
                     bot.send_message(
                         user.id,
@@ -1598,10 +1593,8 @@ def send_alarm(user, t):
 
 
 THREAD_LIST = [
-    check_alarm_times,
-    update_rates, 
-    check_premium_ended, 
-    verify_predictions,
+    check_alarm_times, update_rates, 
+    check_premium_ended, verify_predictions
 ]
 
 

@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import threading
 import sys
 from time import sleep
@@ -116,6 +117,37 @@ def set_notification_count(*args):
     print(f"SUCCESS: User {user_id} notification count has been set to {new_count}")
 
 
+def create_db_dump(*args, **kwargs):
+    if len(args) != 2:
+        print(f"FAILURE: unsupported number of operands: {len(args)}")
+        sys.exit(1)
+    input_db_name, output_filename = args
+    if not os.path.isfile(input_db_name):
+        print(f"FAILURE: Database {repr(input_db_name)} does not exist")
+        sys.exit(1)
+    with sqlite3.connect(input_db_name) as conn:
+        with open(output_filename, 'w') as file:
+            for line in conn.iterdump():
+                file.write("%s\n" % line)
+    print("SUCCESS: dump was created successfully")
+
+
+def load_db_from_dump(*args, **kwargs):
+    if len(args) != 2:
+        print(f"FAILURE: unsupported number of operands: {len(args)}")
+        sys.exit(1)
+    input_dump_filename, output_db_name = args
+    if not os.path.isfile(input_dump_filename):
+        print(f"FAILURE: dump {repr(input_dump_filename)} does not exist")
+        sys.exit(1)
+    if os.path.isfile(output_db_name):
+        os.remove(output_db_name)
+    with sqlite3.connect(output_db_name) as conn:
+        with open(input_dump_filename, 'r') as file:
+            conn.executescript(file.read())
+    print("SUCCESS: database was created successfully")
+
+
 
 def help_message():
     message = """Utility for bot managing
@@ -127,6 +159,8 @@ commands:
     check-subscribed [user_id] [user_id] [...] - check whether users are subscribed.
     get-notification-count [user_id] [user_id] [...] - get notifications count for users.
     set-notification-count [user_id] [count] - set new notifications count.
+    create-db-dump [db_filename] [output_dump_file] - create a dump from 'db_filename' database.
+    load-db-from-dump [dump_filename] [output_db_filename] - create a db from dump.
     help - see help.
 """
     print(message)
@@ -140,6 +174,8 @@ if __name__ == '__main__':
         'run': runbot,
         'get-notification-count': get_notification_count,
         'set-notification-count': set_notification_count,
+        'create-db-dump': create_db_dump,
+        'load-db-from-dump': load_db_from_dump,
         'help': help_message
     }
     filename, *args = sys.argv[:]
@@ -153,5 +189,9 @@ if __name__ == '__main__':
             print("FAILURE: Unknown command.")
             help_message()
         else:
-            func(*args)
+            try:
+                func(*args)
+            except Exception as e:
+                print("FAILURE: Some error occurred, please check input arguments")
+                print(e)
             sys.exit(0)

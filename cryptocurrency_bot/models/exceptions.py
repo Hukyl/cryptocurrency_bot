@@ -1,28 +1,32 @@
 class ExceptionWithCause(Exception):
     def __init__(self, message:str, *, cause:str=None):
         super().__init__(message)
-        self.cause = cause    
+        self.cause = cause
 
 
-class UserDoesNotExistError(Exception):
+class UserDoesNotExistError(ExceptionWithCause):
     pass
 
 
-class UserAlreadyExistsError(Exception):
+class UserAlreadyExistsError(ExceptionWithCause):
     pass
 
 
-class PredictionDoesNotExistError(Exception):
+class PredictionDoesNotExistError(ExceptionWithCause):
     pass
 
 
-class RateDoesNotExistError(Exception):
+class RateDoesNotExistError(ExceptionWithCause):
     pass
 
 
-class SessionDoesNotExistError(Exception):
+class SessionDoesNotExistError(ExceptionWithCause):
     pass
 
 
-class CurrencyDoesNotExistError(Exception):
+class CurrencyDoesNotExistError(ExceptionWithCause):
+    pass
+
+
+class ParsingError(ExceptionWithCause):
     pass
