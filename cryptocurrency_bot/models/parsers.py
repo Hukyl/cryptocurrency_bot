@@ -34,20 +34,23 @@ class Parser(object):
         for proxy in proxies:
             try:
                 q = lambda_get(self.link, proxy)
-                if q.ok:
+                if self.test_response(q):
                     break
             except requests.ConnectionError:
                 self.session = requests.Session()
         return q
 
-    def get_html(self):
-        return self.get_response().text
+    def test_response(self, q:requests.Response) -> bool:
+        return q.ok and self.get_element(soup=self.get_soup(html=self.get_html(response=q))) is not None
 
-    def get_soup(self):
-        return bs(self.get_html(), "html.parser")
+    def get_html(self, *, response:requests.Response=None) -> str:
+        return (response or self.get_response()).text
 
-    def get_element(self):
-        return self.get_soup().select_one(self.css_selector)
+    def get_soup(self, *, html:str=None) -> bs:
+        return bs(html or self.get_html(), "html.parser")
+
+    def get_element(self, *, soup:bs=None):
+        return (soup or self.get_soup()).select_one(self.css_selector)
 
 
 class CurrencyParser(Parser):
