@@ -26,11 +26,9 @@ class Parser(object):
             x, headers={"User-Agent": get_useragent()}, 
             proxies={'http': 'http://' + p} if p else None
         )
-        if self.proxy_list:
-            proxies = self.proxy_list
+        if (proxies := (self.proxy_list or [])):
             random.shuffle(proxies)
-        else:
-            proxies = [None] * 5
+        proxies.extend([None] * 5)
         for proxy in proxies:
             try:
                 q = lambda_get(self.link, proxy)
