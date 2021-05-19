@@ -1563,7 +1563,6 @@ def start_alarms(time_):
 
 @catch_exc(to_print=True)
 def send_alarm(user, t):
-    breakpoint()
     for k, v in user.get_currencies_by_check_time(t).items():
         try:
             rate = currency_parser.check_delta(
