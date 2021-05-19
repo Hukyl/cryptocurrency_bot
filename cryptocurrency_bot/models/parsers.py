@@ -106,11 +106,12 @@ class CurrencyParser(Parser):
     def update_value(self, *, safe:bool=False):
         try:
             self.value = self.get_rate().get('USD')
+            return True
         except exceptions.ParsingError as e:
             if not safe:
                 raise e from None
-            print(f"[ERROR] Default value was used for currency {self.iso if self.iso else ''}")
             self.value = self.default_value
+            return False
 
     @staticmethod
     def calculate_difference(old:float, new:float):
@@ -265,7 +266,7 @@ class CurrencyExchanger(CurrencyParser):
                 iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
             }
         except Exception:
-            raise ValueError(
+            raise exceptions.ParsingError(
                 "`iso_from` or `iso_to` is invalid or network cannot be reached"
             ) from None
 

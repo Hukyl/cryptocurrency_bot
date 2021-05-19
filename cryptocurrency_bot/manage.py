@@ -22,28 +22,24 @@ def get_ints_safe(args):
 
 def runbot(*args):
     import main_bot
-    if_debug = '-d' in args or '--DEBUG' in args
+    is_debug = '-d' in args or '--DEBUG' in args
     targets = [
         *main_bot.THREAD_LIST,
         main_bot.bot.infinity_polling,
     ]
-    if if_debug:
+    if is_debug:
         for target in targets:
             threading.Thread(target=target, daemon=True).start()
     else:
         for target in targets:
             threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
-    print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot started at {dt.get_now()}"
-    )
+    main_bot.settings.logger.log("Bot started", kind="debug" if is_debug else "info")
     while True:
         try:
             sleep(100000)
         except KeyboardInterrupt:
             break
-    print(
-        f"[INFO]{' [DEBUG]' if if_debug else ''} Bot stopped at {dt.get_now()}"
-    )
+    main_bot.settings.logger.log("Bot stopped", kind="debug" if is_debug else "info")
 
 
 def check_subscribed(*args):

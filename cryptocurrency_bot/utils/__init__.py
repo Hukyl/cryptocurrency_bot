@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 
 from proxy import Proxy
 
@@ -13,7 +12,7 @@ proxy_fetcher = Proxy()
 __all__ = [
     'merge_dicts', 'prettify_utcoffset', 'get_json_config', 'substract_percent',
     'get_default_rates', 'prettify_float', 'prettify_percent', 'get_proxy_list',
-    'catch_exc', 'decorators', 'agent', 'dt', 'telegram', 'translator'
+    'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
 
 
@@ -64,25 +63,7 @@ def substract_percent(value:float, percent:float):
     return prettify_float(value - (value * percent))
 
 
-def catch_exc(to_print: bool = True):
-    def on_func(func):
-        def on_args(*args, **kwargs):
-            try:
-                res = func(*args, **kwargs)
-            except Exception:
-                if to_print:
-                    print('\n'.join([
-                        "Exception", f"Func name: {func.__name__}", 
-                        f"Type: {sys.exc_info()[0].__name__}",
-                        f"Message: {str(sys.exc_info()[1])}"
-                    ]) + '\n')
-            else:
-                return res
-        return on_args
-    return on_func
-
-
 def infinite_loop(func, *args, **kwargs):
-    func = catch_exc(to_print=True)(func)
+    func = settings.logger.catch_error(func)
     while True:
         func(*args, **kwargs)

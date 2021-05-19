@@ -88,7 +88,7 @@ def check_if_command(bot_instance, message):
 ####################################################################################################
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 @bot.message_handler(commands=['start'])
 def start_message(msg):
     user = bot.session.user
@@ -843,7 +843,7 @@ def see_user_info(msg):
     return start_bot(msg)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 @bot.message_handler(commands=['change_delta'])
 def change_user_rate_percent_delta(msg):
     user = bot.session.user
@@ -905,7 +905,7 @@ def change_user_rate_percent_delta(msg):
     return bot.register_next_step_handler(msg, inner1)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 @bot.message_handler(commands=['change_checktime'])
 def change_user_rate_check_times(msg):
     user = bot.session.user
@@ -1018,7 +1018,7 @@ def change_user_rate_check_times(msg):
     return bot.register_next_step_handler(msg, inner1)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 @bot.message_handler(commands=['change_timezone'])
 def change_user_timezone(msg):
     user = bot.session.user
@@ -1085,7 +1085,7 @@ def other_user_currencies_menu(msg):
     bot.register_next_step_handler(msg, next_step)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def delete_user_currency(msg):
     user = bot.session.user
     curr = None
@@ -1152,7 +1152,7 @@ def delete_user_currency(msg):
         return start_bot(msg)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def add_new_currency(msg):
     user = bot.session.user
 
@@ -1195,7 +1195,7 @@ def add_new_currency(msg):
     bot.register_next_step_handler(msg, ask_new_iso)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 @bot.message_handler(commands=['subscription'])
 def buy_subscription(msg):
     user = bot.session.user
@@ -1349,6 +1349,7 @@ def subscription_payment_success(msg):
             )
         )
     )
+    settings.logger.log(f"User {user.id} paid for subscription until {adapt(datetime_expires, 0)}", kind="info")
     return start_bot(msg)
 
 
@@ -1470,8 +1471,9 @@ def send_bot_help(msg):
 def update_rates():
     while True:
         sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
-        for curr in currency_parser.parsers:
-            currency_parser.parsers[curr].update_value(safe=True)
+        for parser in currency_parser.parsers.values():
+            if not parser.update_value(safe=True):
+                settings.logger.log(f"Rate {parser.iso}-USD can not be updated", kind="error")
             time.sleep(sleep_time)
 
 
@@ -1480,10 +1482,11 @@ def update_proxies():
         proxies = get_proxy_list()
         for parser in currency_parser.parsers.values():
             parser.proxy_list = proxies
+        settings.logger.log("Proxies updated", kind="info")
         time.sleep(605)  # 5 secs longer than proxy website update time
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def check_premium_ended():
     def check_user_premium_ended(usr):
         if not check_datetime_in_future(usr.is_pro):
@@ -1492,6 +1495,7 @@ def check_premium_ended():
                 _('Your premium has expired, but you can always refresh it!', usr.language)
             )
             usr.delete_premium()
+            settings.logger.log(f"User {usr.id} lost premium", kin="info")
 
     while True:
         with futures.ThreadPoolExecutor(max_workers=50) as executor:
@@ -1500,14 +1504,15 @@ def check_premium_ended():
         time.sleep(180)  # 3 min
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def verify_predictions():
     while True:
         for pred in Prediction.get_unverified_predictions():
             user = User(pred.user_id)
             try:
                 pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
-            except ValueError:
+            except exceptions.ParserError:
+                settings.logger.log(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable", kind="error")
                 user.create_prediction(
                     pred.iso_from,
                     pred.iso_to,
@@ -1517,7 +1522,7 @@ def verify_predictions():
                 bot.send_messsage(
                     pred.user_id,
                     _(
-                        "The quotes are unreachable, the prediction `{}` was scheduled for 5 minutes later",
+                        "The rates are unreachable, the prediction `{}` was scheduled for 5 minutes later",
                         user.language
                     ).format(pred.repr(user))
                 )
@@ -1540,7 +1545,7 @@ def verify_predictions():
                 )
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def check_alarm_times():
     while True:
         t_ = get_now().time()
@@ -1554,14 +1559,14 @@ def check_alarm_times():
         time.sleep(59.9)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def start_alarms(time_):
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in User.get_users_by_check_time(time_):
             executor.submit(send_alarm, user, time_)
 
 
-@catch_exc(to_print=True)
+@settings.logger.catch_error
 def send_alarm(user, t):
     for k, v in user.get_currencies_by_check_time(t).items():
         try:
@@ -1569,10 +1574,11 @@ def send_alarm(user, t):
                 k, 'USD',
                 v.get('value'), v.get('percent_delta')
             )
-        except ValueError:
+        except exceptions.ParsingError:
+            settings.logger.log(f"Rate {k}-USD is unreachable", kind="error")
             bot.send_message(
                 user.id,
-                _("The quotes are not available, the notification can not be sent", user.language)
+                _("The rates are not available, the notification can not be sent", user.language)
             )
         else:
             if rate.get('new', None) is not None:  # WARNING: CAN BE DELETED
@@ -1597,6 +1603,7 @@ def send_alarm(user, t):
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
                     user.update(is_active=0)
+                    settings.logger.log(f"User {user.id} is not reachable", kind="warning")
                     # not to sent notifications anymore, since chat is not reachable
 
 
@@ -1611,9 +1618,9 @@ def main():
     telebot.logger.setLevel(logging.DEBUG)
     for target in THREAD_LIST:
         threading.Thread(target=target, daemon=True).start()
-    print(f"[INFO] [FULL DEBUG] Bot started at {str(get_now())}")
+    settings.logger.log("Bot started", kind="debug")
     bot.polling()
-    print(f"[INFO] [FULL DEBUG] Bot stopped at {str(get_now())}")
+    settings.logger.log("Bot stopped", kind="debug")
 
 
 ####################################################################################################
