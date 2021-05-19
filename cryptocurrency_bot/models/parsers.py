@@ -181,6 +181,9 @@ class FreecurrencyratesParser(Parser):
         finally:
             self.link = None
 
+    def test_response(self, q:requests.Response) -> bool:
+        return q.ok
+
     def check_delta(self, iso_from:str, iso_to:str, value:float=1, percent_delta:float=0.01):
         old, new = value, self.get_rate(iso_from, iso_to).get(iso_to)
         res = self.calculate_difference(old, new)
