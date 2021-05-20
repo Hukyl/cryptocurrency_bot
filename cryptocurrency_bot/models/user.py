@@ -17,14 +17,14 @@ class UserBase(object):
     User base class
 
     id:int: - user's id in Telegram
-    is_pro:None or datetime.datetime: - has user bought the subscription
+    is_pro:False or datetime.datetime: - has user bought the subscription
     is_active:bool: - if to send the notifications
     is_staff:bool: - is user staff
     rates:dict:
-        iso_code:str: - currnies str:
-            'check_times': list of times (IN USER'S UTCOFFSET)
+        iso_code:str: - currencies str:
+            'check_times': list of times
             'percent_delta':float: not in percent format (not 23%, 0.23)
-            'start_value':float: just normal
+            'value':float: just normal
     timezone:int: - utcoffset ( in range (-11, 13) )
     language:str: - user's language
     """
@@ -46,7 +46,7 @@ class UserBase(object):
             rate['iso']: { 
                 'check_times': rate['check_times'],
                 'percent_delta': rate['percent_delta'],
-                'start_value': rate['start_value']
+                'value': rate['value']
             }
             for rate in rates
         }
@@ -55,7 +55,7 @@ class UserBase(object):
     def prettify_rates(rates: list):
         total_str = ''
         for idx, (k, v) in enumerate(rates.items(), start=1):
-            total_str += "\t{}. {}:;\t\t▫ Процент - {};\t\t▫ Время проверки - {};".format(
+            total_str += "\t{}. {}:\n\t\t▫ Процент - {}\n\t\t▫ Время проверки - {}\n".format(
                     idx, 
                     k, 
                     prettify_percent(v.get('percent_delta')), 
@@ -140,7 +140,7 @@ class User(UserBase):
             cls.db.add_user(user_id)
             defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
-                cls.db.add_user_rate(user_id, currency, start_value=defaults.get(currency)) 
+                cls.db.add_user_rate(user_id, currency, value=defaults.get(currency)) 
 
     @classmethod
     def get_pro_users(cls, *args, **kwargs):
@@ -256,7 +256,7 @@ class Prediction(object):
     @classmethod
     def get_most_liked_predictions(cls, *args, **kwargs):
         for pred_data in cls.db.get_max_liked_predictions(*args, **kwargs):
-            yield cls(pred_data[0])
+            yield cls.from_dict(pred_data)
 
     @classmethod
     def get_unverified_predictions(cls, *args, **kwargs):
@@ -269,7 +269,7 @@ class Prediction(object):
     @classmethod
     def get_random_prediction(cls):
         pred_data = cls.db.get_random_prediction()
-        return cls.from_dict(pred_data) if pred_data else None
+        return cls.from_dict(pred_data) if pred_data != -1 else None
 
     def repr(self, user:User):
         return (

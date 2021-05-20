@@ -200,9 +200,9 @@ translation_dict = {
         'en': "Price",
         'ru': "Цена"
     },
-    '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}': {
-        'en': '*⚜ Experts prediction ⚜*\n*Up to:* {}\n*Predicted value:* {}',
-        'ru': '*⚜ Прогноз от эксперта ⚜*\n*До:* {}\n*Прогнозируемое значение:* {}'
+    '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}': {
+        'en': '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
+        'ru': '*⚜ Прогноз от эксперта ⚜*\n*Валюты: {}-{}*\n*До:* {}\n*Прогнозируемое значение:* {}'
     },
     '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *': {
         'en': '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
@@ -484,7 +484,7 @@ translation_dict = {
 }
 
 
-def translate(text:str, dest:str='ru', parse_mode:str='casual'):
+def translate(text:str, dest:str='ru'):
     """
     Translates text into language, by translation_dct or Google Translator
 
@@ -492,11 +492,13 @@ def translate(text:str, dest:str='ru', parse_mode:str='casual'):
     char>" newline: R"some text;some more;one more" -> translation... -> R"some text<newline char>some more<newline
     char>one more"
     """
-    assert parse_mode in ['casual', 'newline']
     res = translation_dict.get(text, {}).get(dest, None)
     if res is None:
         try:
-            res = gt_t.translate(text, lang_tgt=dest).strip()
+            res = gt_t.translate(
+                text.replace('\n', '; '), 
+                lang_tgt=dest
+            ).strip().replace('; ', '\n').replace(';', '\n')
         except google_new_transError:
             res = text
-    return res.replace('; ', '\n').replace(';', '\n') if parse_mode == 'newline' else res
+    return res

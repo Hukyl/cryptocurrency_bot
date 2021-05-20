@@ -529,15 +529,6 @@ class UtilsTestCase(unittest.TestCase):
         with self.assertRaises(AssertionError):
             utils.prettify_utcoffset(-18)
 
-    def test_catch_exc(self):
-        def raise_exc():
-            return 1 / 0
-
-        with self.assertRaises(ZeroDivisionError):
-            raise_exc()
-        raise_exc = utils.catch_exc(to_print=False)(raise_exc)
-        self.assertIsNone(raise_exc())
-
     def test_check_datetime_in_future(self):
         d = utils.dt.get_now().replace(year=2120)
         self.assertTrue(utils.dt.check_datetime_in_future(d))
@@ -555,7 +546,6 @@ class UtilsTestCase(unittest.TestCase):
                     year=2000, tzinfo=dt.tzinfo(0, dt.timedelta(0, 3*3600))
                 )
             )
-
 
 
 class SessionModelTestCase(BasicTestCase):

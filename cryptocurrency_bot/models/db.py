@@ -57,7 +57,7 @@ class DBHandler(DBHandlerBase):
     user_rates: notifying user if currency rate changed by some percent
         user_id: user's id in Telegram
         iso: currency's iso-code
-        start_value: A value from which to calculate difference
+        value: A value from which to calculate difference
         percent_delta: A percent delta at which to notify
         check_times: Times at which to check (in user's time zone)
         !!! Checking of rate is by `iso`-USD rate !!!
@@ -101,7 +101,7 @@ class DBHandler(DBHandlerBase):
             '''CREATE TABLE IF NOT EXISTS users_rates( 
                     user_id INTEGER NOT NULL,
                     iso VARCHAR(5),
-                    start_value DOUBLE DEFAULT 0,
+                    value DOUBLE DEFAULT 0,
                     percent_delta REAL DEFAULT 1,
                     check_times LIST,
                     UNIQUE(user_id, iso) ON CONFLICT REPLACE,
@@ -146,15 +146,15 @@ class DBHandler(DBHandlerBase):
         )
         return True
 
-    @rangetest(start_value=(0, float('inf')))
+    @rangetest(value=(0, float('inf')))
     def add_user_rate(
-            self, user_id:int, iso:str, start_value:float=1,
+            self, user_id:int, iso:str, value:float=1,
             percent_delta:float=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES
     ):
         if self.check_user_exists(user_id):
             self.execute(
                 "INSERT INTO users_rates VALUES (?, ?, ?, ?, ?)",
-                (user_id, iso, start_value, percent_delta, check_times)
+                (user_id, iso, value, percent_delta, check_times)
             )
             return True
         raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
@@ -256,13 +256,13 @@ class DBHandler(DBHandlerBase):
     def get_user_rates(self, user_id:int):
         """
         Get users rates
-        Returns list of tuples (iso, start_value, percent_delta, check_times) 
+        Returns list of tuples (iso, value, percent_delta, check_times) 
         If no rates found, returns empty list
         """
         if self.check_user_exists(user_id):
             return self.execute(
                 'SELECT \
-                u_r.iso, u_r.start_value, u_r.percent_delta, u_r.check_times \
+                u_r.iso, u_r.value, u_r.percent_delta, u_r.check_times \
                 FROM users u JOIN users_rates u_r \
                 ON u.id = u_r.user_id AND u.id = ?',
                 (user_id,)
@@ -384,7 +384,7 @@ class DBHandler(DBHandlerBase):
                 return True
         raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
 
-    @rangetest(start_value=(0, float("inf")))
+    @rangetest(value=(0, float("inf")))
     def change_user_rate(self, user_id:int, iso:str, **kwargs):
         if self.check_user_exists(user_id):
             for k, v in kwargs.items():

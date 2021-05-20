@@ -2,3 +2,5 @@ pyTelegramBotAPI==3.7.3
 requests==2.23.0
 beautifulsoup4==4.9.3
 google-trans-new==1.1.9
+py-proxy==0.2.6
+termcolor==1.1.0

@@ -1,15 +1,17 @@
-import random
 import json
 import os
-import sys
+
+from proxy import Proxy
 
 from configs import settings
 from . import decorators, agent, dt, telegram, translator
 
 
+proxy_fetcher = Proxy()
+
 __all__ = [
-    'merge_dicts', 'prettify_utcoffset', 'get_json_config', 
-    'get_default_rates', 'prettify_float', 'prettify_percent', 'catch_exc',
+    'merge_dicts', 'prettify_utcoffset', 'get_json_config', 'substract_percent',
+    'get_default_rates', 'prettify_float', 'prettify_percent', 'get_proxy_list',
     'decorators', 'agent', 'dt', 'telegram', 'translator'
 ]
 
@@ -32,9 +34,8 @@ def get_json_config():
         return json.load(f)
 
 
-def get_random_proxy():
-    with open(os.path.join('configs', 'http_proxies.txt'), 'r') as f:
-        return "http://" + random.choice(f.read().strip().split('\n'))
+def get_proxy_list():
+    return [':'.join(x[:2]) for x in proxy_fetcher.fetch_proxies()]
 
 
 def get_default_rates(*args, to_print: bool = True):
@@ -57,25 +58,12 @@ def prettify_percent(n: float, to_sign: bool = False):
     return ("{:+}%" if to_sign else "{}%").format(int(res) if res % 1 == 0 else res) 
 
 
-def catch_exc(to_print: bool = True):
-    def on_func(func):
-        def on_args(*args, **kwargs):
-            try:
-                res = func(*args, **kwargs)
-            except Exception:
-                if to_print:
-                    print('\n'.join([
-                        "Exception", f"Func name: {func.__name__}", 
-                        f"Type: {sys.exc_info()[0].__name__}",
-                        f"Message: {str(sys.exc_info()[1])}"
-                    ]) + '\n')
-            else:
-                return res
-        return on_args
-    return on_func
+@decorators.rangetest(strict_range=False, percent=(0.0, 1.0))
+def substract_percent(value:float, percent:float):
+    return prettify_float(value - (value * percent))
 
 
 def infinite_loop(func, *args, **kwargs):
-    func = catch_exc(to_print=True)(func)
+    func = settings.logger.catch_error(func)
     while True:
         func(*args, **kwargs)

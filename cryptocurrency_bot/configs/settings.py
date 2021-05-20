@@ -2,6 +2,8 @@
 # Author: Hukyl
 # Email: a.shalaev7125@gmail.com
 
+from utils.logger import Logger
+
 
 TOKEN = '1421475661:AAFR0vGFtWo4rmd7eq-MMZctr2rxfzfqf1c'
 PAYMENT_TOKEN = '401643678:TEST:36b3e5b5-0ab7-4fbd-beca-8a11ce7100d8'  # test token from Sberbank
@@ -12,6 +14,7 @@ ACCESSIBLE_LINK = "https://t.me/{}?start=support"  # {} - bot username
 
 DB_NAME = 'db.sqlite3'  # 'db.sqlite3' - for production use, 'test.sqlite3' -  for tests
 
+logger = Logger()
 
 CHECK_TIMES = [
     '05:00', '07:00', '09:00', '11:00', '13:00', 
