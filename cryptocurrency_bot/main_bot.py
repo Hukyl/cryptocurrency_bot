@@ -1482,7 +1482,6 @@ def update_proxies():
         proxies = get_proxy_list()
         for parser in currency_parser.parsers.values():
             parser.proxy_list = proxies
-        settings.logger.log("Proxies updated", kind="info")
         time.sleep(605)  # 5 secs longer than proxy website update time
 
 
