@@ -11,6 +11,7 @@ import schedule
 from configs import settings
 from models.parsers import *
 from models.user import User, Prediction, Session
+from models import exceptions
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
