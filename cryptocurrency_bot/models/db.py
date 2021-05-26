@@ -10,7 +10,6 @@ from utils.decorators import private, rangetest
 from . import exceptions
 
 
-LOCK = threading.Lock()
 
 
 sqlite3.register_adapter(datetime, lambda x: x.strftime('%Y-%m-%d %H:%M:%S').encode('ascii'))
@@ -36,7 +35,7 @@ class DBHandlerBase(abc.ABC):
         pass
 
     def execute(self, sql, params=tuple()):
-        with LOCK:
+        with threading.Lock():
             with sqlite3.connect(self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
                 conn.row_factory = self.dict_factory
                 return conn.execute(sql, params).fetchall()

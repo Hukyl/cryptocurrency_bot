@@ -61,23 +61,23 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(len(rates[0]), 4)
         rate = rates[0]
         self.assertEqual(rate['iso'], 'BRENT')
-        self.assertEqual(rate['start_value'], 55.0)
+        self.assertEqual(rate['value'], 55.0)
         self.assertEqual(rate['percent_delta'], 0.01)
         self.assertEqual(rate['check_times'], configs.settings.DEFAULT_CHECK_TIMES)
 
     def test_change_user_rate(self):
         self.db.add_user(0)
         self.db.add_user_rate(0, 'BRENT', 55.0)
-        self.db.change_user_rate(0, 'BRENT', start_value=52, percent_delta=0.08)
+        self.db.change_user_rate(0, 'BRENT', value=52, percent_delta=0.08)
         rate = self.db.get_user_rates(0)[0]
-        self.assertEqual(rate['start_value'], 52.0)
+        self.assertEqual(rate['value'], 52.0)
         self.assertEqual(rate['percent_delta'], 0.08)
         with self.assertRaises(ValueError):
             self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
         with self.assertRaises(AssertionError):
-            self.db.change_user_rate(0, 'BRENT', start_value=-5)
+            self.db.change_user_rate(0, 'BRENT', value=-5)
         with self.assertRaises(models.exceptions.UserDoesNotExistError):
-            self.db.change_user_rate(-1, 'BRENT', start_value=35.0)
+            self.db.change_user_rate(-1, 'BRENT', value=35.0)
         # not user is found, so returns None
 
     def test_delete_user_rate(self):
@@ -254,8 +254,8 @@ class DBTestCase(BasicTestCase):
 class UserModelTestCase(BasicTestCase):
     def test_add_user(self):
         self.db.add_user(0, timezone=+2, language='ru', is_staff=True)
-        self.db.add_user_rate(0, 'BRENT', start_value=56.3, percent_delta=0.2, check_times=['09:00', '18:00', '11:12']) 
-        self.db.add_user_rate(0, 'BTC', start_value=31_000, percent_delta=0.01, check_times=['07:00', '09:00', '10:30']) 
+        self.db.add_user_rate(0, 'BRENT', value=56.3, percent_delta=0.2, check_times=['09:00', '18:00', '11:12']) 
+        self.db.add_user_rate(0, 'BTC', value=31_000, percent_delta=0.01, check_times=['07:00', '09:00', '10:30']) 
         user = models.user.UserBase(self.db.get_user(0))
         self.assertDictEqual(
             user.rates, 
@@ -263,12 +263,12 @@ class UserModelTestCase(BasicTestCase):
                 'BRENT': {
                     'check_times': ['09:00', '18:00', '11:12'], 
                     'percent_delta': 0.2,
-                    'start_value': 56.3
+                    'value': 56.3
                 },
                 'BTC': {
                     'check_times': ['07:00', '09:00', '10:30'], 
                     'percent_delta': 0.01,
-                    'start_value': 31000 
+                    'value': 31000 
                 }
             }
         )
@@ -281,7 +281,7 @@ class UserModelTestCase(BasicTestCase):
                 {k: {
                     'check_times': configs.settings.DEFAULT_CHECK_TIMES, 
                     'percent_delta': 0.01, 
-                    'start_value': utils.get_default_rates(k, to_print=False).get(k)
+                    'value': utils.get_default_rates(k, to_print=False).get(k)
                 }} == {k: v}
                 for k, v in user.rates.items()
             ])
@@ -305,16 +305,16 @@ class UserModelTestCase(BasicTestCase):
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), configs.settings.DEFAULT_CHECK_TIMES)
         user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         self.assertListEqual(user.rates.get('BRENT').get('check_times'), ['09:00', '10:00', '11:00'])
-        self.assertEqual(user.rates.get('BRENT').get('start_value'), 55)
-        user.update_rates('BRENT', start_value=58.2)
-        self.assertEqual(user.rates.get('BRENT').get('start_value'), 58.2)
+        self.assertEqual(user.rates.get('BRENT').get('value'), 55)
+        user.update_rates('BRENT', value=58.2)
+        self.assertEqual(user.rates.get('BRENT').get('value'), 58.2)
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.01)
         user.update_rates('BRENT', percent_delta=0.2)
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.2)
         with self.assertRaises(ValueError):
             user.update_rates('BRENT', ababgalamaga=123123123)
         with self.assertRaises(TypeError):
-            user.update_rates('BRENT', start_value='abcdef')
+            user.update_rates('BRENT', value='abcdef')
 
     def test_premium_dbuser(self):
         user = models.user.User(0)
@@ -355,11 +355,11 @@ class UserModelTestCase(BasicTestCase):
     def test_add_dbuser_rates(self):
         user = models.user.User(0)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
-        user.add_rate('UAH', check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+        user.add_rate('UAH', check_times=['09:00', '10:00', '12:00'], value=0.03, percent_delta=0.05)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
         self.assertDictEqual(
             user.rates.get('UAH'), 
-            dict(check_times=['09:00', '10:00', '12:00'], start_value=0.03, percent_delta=0.05)
+            dict(check_times=['09:00', '10:00', '12:00'], value=0.03, percent_delta=0.05)
         )
 
     def test_delete_dbuser_rates(self):
@@ -547,6 +547,52 @@ class UtilsTestCase(unittest.TestCase):
                 )
             )
 
+    def test_adapt_datetime(self):
+        start_dt = utils.dt.get_now().replace(hour=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.adapt_datetime(start_dt, utcoffset=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.adapt_datetime(start_dt, utcoffset=-12)
+        result_dt = utils.dt.adapt_datetime(start_dt, utcoffset=3)
+        self.assertIsNotNone(result_dt.tzinfo)
+        self.assertEqual(result_dt.hour, 18)
+
+    def test_convert_datetime(self):
+        start_dt = utils.dt.get_now().replace(hour=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.convert_datetime(start_dt, utcoffset=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.convert_datetime(start_dt, utcoffset=-12)
+        result_dt = utils.dt.convert_datetime(start_dt, 5)
+        self.assertEqual(result_dt.hour, 10)
+
+    def test_convert_check_times(self):
+        start_check_times = ['09:00', '15:00', '21:00']
+        with self.assertRaises(AssertionError):
+            utils.dt.convert_check_times(start_check_times, utcoffset=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.convert_check_times(start_check_times, utcoffset=-12)
+        result_check_times = utils.dt.convert_check_times(
+            start_check_times, utcoffset=3
+        )
+        self.assertListEqual(
+            result_check_times, ['06:00', '12:00', '18:00']
+        )
+
+    def test_adapt_check_times(self):
+        start_check_times = ['09:00', '15:00', '21:00']
+        with self.assertRaises(AssertionError):
+            utils.dt.adapt_check_times(start_check_times, utcoffset=15)
+        with self.assertRaises(AssertionError):
+            utils.dt.adapt_check_times(start_check_times, utcoffset=-12)
+        result_check_times = utils.dt.adapt_check_times(
+            start_check_times, utcoffset=1
+        )
+        self.assertListEqual(
+            result_check_times, ['10:00', '16:00', '22:00']
+        )
+
+
 
 class SessionModelTestCase(BasicTestCase):
     def test_add_session(self):
@@ -605,7 +651,7 @@ class SessionModelTestCase(BasicTestCase):
         self.assertEqual(
             self.session_db.fetch_count(0), 
             configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
-        )        
+        )
 
     def test_session_decrease_count(self):
         models.user.User(123)
@@ -618,7 +664,7 @@ class SessionModelTestCase(BasicTestCase):
         self.assertEqual(
             self.session_db.fetch_count(123), 
             configs.settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER - 1
-        )        
+        )
 
 
 
