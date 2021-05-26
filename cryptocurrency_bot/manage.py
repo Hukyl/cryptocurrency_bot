@@ -48,7 +48,7 @@ def runbot(*args):
 def check_subscribed(*args):
     args = get_ints_safe(args)
     for user_id in args:
-        if not User.db.check_user_exists(user_id):
+        if not User.exists(user_id):
             print(f"FAILURE: No user found by id: {user_id}")
             continue
         user = User(user_id)
@@ -61,7 +61,7 @@ def check_subscribed(*args):
 def give_staff(*args):
     args = get_ints_safe(args)
     for user_id in args:
-        if not User.db.check_user_exists(user_id):
+        if not User.exists(user_id):
             print(f"FAILURE: No user found by id: {user_id}")
             continue
         user = User(user_id)
@@ -75,7 +75,7 @@ def give_staff(*args):
 def remove_staff(*args):
     args = get_ints_safe(args)
     for user_id in args:
-        if not User.db.check_user_exists(user_id):
+        if not User.exists(user_id):
             print(f"FAILURE: No user found by id: {user_id}")
             continue
         user = User(user_id)
@@ -89,7 +89,7 @@ def remove_staff(*args):
 def get_notification_count(*args):
     args = get_ints_safe(args)
     for user_id in args:
-        if not User.db.check_user_exists(user_id):
+        if not User.exists(user_id):
             print(f"FAILURE: No user found by id: {user_id}")
             continue
         session = Session(user_id)
@@ -102,7 +102,7 @@ def set_notification_count(*args):
         print(f"FAILURE: unsupported number of operands: {len(args)}")
         sys.exit(1)
     user_id, new_count = args
-    if not User.db.check_user_exists(user_id):
+    if not User.exists(user_id):
         print(f"FAILURE: No user found by id: {user_id}")
         sys.exit(1)
     session = Session(user_id)

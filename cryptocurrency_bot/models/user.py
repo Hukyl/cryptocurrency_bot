@@ -135,12 +135,16 @@ class User(UserBase):
 
     @classmethod
     def init_user(cls, user_id: int):
-        if not cls.db.check_user_exists(user_id):
+        if not cls.exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
             defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
                 cls.db.add_user_rate(user_id, currency, value=defaults.get(currency)) 
+
+    @classmethod
+    def exists(cls, user_id:int):
+        return cls.db.check_user_exists(user_id)
 
     @classmethod
     def get_pro_users(cls, *args, **kwargs):
@@ -247,6 +251,10 @@ class Prediction(object):
     @property
     def dislikes(self):
         return self.db.get_prediction_dislikes(self.id)
+
+    @classmethod
+    def exists(cls, pred_id:int):
+        return cls.db.check_prediction_exists(pred_id)
 
     @classmethod
     def get_experts_predictions(cls, *, only_actual:bool=False):
