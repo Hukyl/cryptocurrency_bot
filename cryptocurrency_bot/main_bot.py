@@ -6,6 +6,7 @@ import time
 
 import telebot
 from telebot.types import LabeledPrice
+import schedule
 
 from configs import settings
 from models.parsers import *
@@ -1468,23 +1469,21 @@ def send_bot_help(msg):
 #################################################################################################################
 
 
+@schedule.repeat(schedule.every(3).minutes)
 def update_rates():
-    while True:
-        sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
-        for parser in currency_parser.parsers.values():
-            if not parser.update_value(safe=True):
-                settings.logger.log(f"Rate {parser.iso}-USD can not be updated", kind="error")
-            time.sleep(sleep_time)
+    for parser in currency_parser.parsers.values():
+        if not parser.update_value(safe=True):
+            settings.logger.log(f"Rate {parser.iso}-USD can not be updated", kind="error")
 
 
+@schedule.repeat(schedule.every(10).minutes)
 def update_proxies():
-    while True:
-        proxies = get_proxy_list()
-        for parser in currency_parser.parsers.values():
-            parser.proxy_list = proxies
-        time.sleep(605)  # 5 secs longer than proxy website update time
+    proxies = get_proxy_list()
+    for parser in currency_parser.parsers.values():
+        parser.proxy_list = proxies
 
 
+@schedule.repeat(schedule.every(3).minutes)
 @settings.logger.catch_error
 def check_premium_ended():
     def check_user_premium_ended(usr):
@@ -1496,73 +1495,59 @@ def check_premium_ended():
             usr.delete_premium()
             settings.logger.log(f"User {usr.id} lost premium", kin="info")
 
-    while True:
-        with futures.ThreadPoolExecutor(max_workers=50) as executor:
-            for user in User.get_pro_users():
-                executor.submit(check_user_premium_ended, user)
-        time.sleep(180)  # 3 min
+    with futures.ThreadPoolExecutor(max_workers=50) as executor:
+        for user in User.get_pro_users():
+            executor.submit(check_user_premium_ended, user)
 
 
+@schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
 def verify_predictions():
-    while True:
-        for pred in Prediction.get_unverified_predictions():
-            user = User(pred.user_id)
-            try:
-                pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
-            except exceptions.ParserError:
-                settings.logger.log(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable", kind="error")
-                user.create_prediction(
-                    pred.iso_from,
-                    pred.iso_to,
-                    pred.value,
-                    pred.up_to_date + datetime.timedelta(0, 5*60)  # 5 minutes
-                )
-                bot.send_messsage(
-                    pred.user_id,
-                    _(
-                        "The rates are unreachable, the prediction `{}` was scheduled for 5 minutes later",
-                        user.language
-                    ).format(pred.repr(user))
-                )
-                pred.delete(force=True)
-            else:
-                pred.update(real_value=pred_res.get(pred.iso_to))
-                diff = currency_parser.calculate_difference(old=pred.value, new=pred.real_value)
-                bot.send_message(
-                    pred.user_id,
-                    _(
-                        'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
-                        user.language
-                    ).format(
-                        pred.repr(user),
-                        prettify_float(pred.value),
-                        prettify_float(pred.real_value),
-                        prettify_percent(diff.get('percentage_difference'), to_sign=True)
-                    ),
-                    parse_mode='Markdown'
-                )
-
-
-@settings.logger.catch_error
-def check_alarm_times():
-    while True:
-        t_ = get_now().time()
-        if t_.minute == 0:
-            thread = threading.Thread(
-                target=start_alarms,
-                args=(str(t_.strftime('%H:%M')),),
-                daemon=True
+    for pred in Prediction.get_unverified_predictions():
+        user = User(pred.user_id)
+        try:
+            pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
+        except exceptions.ParserError:
+            settings.logger.log(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable", kind="error")
+            user.create_prediction(
+                pred.iso_from,
+                pred.iso_to,
+                pred.value,
+                pred.up_to_date + datetime.timedelta(0, 5*60)  # 5 minutes
             )
-            thread.start()
-        time.sleep(59.9)
+            bot.send_messsage(
+                pred.user_id,
+                _(
+                    "The rates are unreachable, the prediction `{}` was scheduled for 5 minutes later",
+                    user.language
+                ).format(pred.repr(user))
+            )
+            pred.delete(force=True)
+        else:
+            pred.update(real_value=pred_res.get(pred.iso_to))
+            diff = currency_parser.calculate_difference(old=pred.value, new=pred.real_value)
+            bot.send_message(
+                pred.user_id,
+                _(
+                    'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
+                    user.language
+                ).format(
+                    pred.repr(user),
+                    prettify_float(pred.value),
+                    prettify_float(pred.real_value),
+                    prettify_percent(diff.get('percentage_difference'), to_sign=True)
+                ),
+                parse_mode='Markdown'
+            )
 
 
+@schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
-def start_alarms(time_):
+def start_alarms():
+    t = get_now().strftime('%H:%M')
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        for user in User.get_users_by_check_time(time_):
-            executor.submit(send_alarm, user, time_)
+        for user in User.get_users_by_check_time(t):
+            executor.submit(send_alarm, user, t)
 
 
 @settings.logger.catch_error
@@ -1606,18 +1591,17 @@ def send_alarm(user, t):
                     # not to sent notifications anymore, since chat is not reachable
 
 
-THREAD_LIST = [
-    check_alarm_times, update_proxies, update_rates, 
-    check_premium_ended, verify_predictions
-]
+def schedule_thread():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
-    for target in THREAD_LIST:
-        threading.Thread(target=target, daemon=True).start()
     settings.logger.log("Bot started", kind="debug")
+    threading.Thread(target=schedule_thread, daemon=True).start()
     bot.polling()
     settings.logger.log("Bot stopped", kind="debug")
 

@@ -4,6 +4,8 @@ import threading
 import sys
 from time import sleep
 
+import schedule
+
 from models.user import *
 from utils import dt
 from utils import infinite_loop
@@ -24,7 +26,7 @@ def runbot(*args):
     import main_bot
     is_debug = '-d' in args or '--DEBUG' in args
     targets = [
-        *main_bot.THREAD_LIST,
+        main_bot.schedule_thread,
         main_bot.bot.infinity_polling,
     ]
     if is_debug:
@@ -39,6 +41,7 @@ def runbot(*args):
             sleep(100000)
         except KeyboardInterrupt:
             break
+    schedule.clear()
     main_bot.settings.logger.log("Bot stopped", kind="debug" if is_debug else "info")
 
 
