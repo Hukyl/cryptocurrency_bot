@@ -16,17 +16,17 @@ class UserBase(object):
     """
     User base class
 
-    id:int: - user's id in Telegram
-    is_pro:False or datetime.datetime: - has user bought the subscription
-    is_active:bool: - if to send the notifications
-    is_staff:bool: - is user staff
-    rates:dict:
-        iso_code:str: - currencies str:
-            'check_times': list of times
-            'percent_delta':float: not in percent format (not 23%, 0.23)
-            'value':float: just normal
-    timezone:int: - utcoffset ( in range (-11, 13) )
-    language:str: - user's language
+    id(int): user's id in Telegram
+    is_pro(bool | datetime.datetime): has user bought the subscription
+    is_active(bool): if to send the notifications
+    is_staff(bool): is user staff
+    rates(dict):
+        iso_code(str): currencies str:
+            'check_times'(str): list of times
+            'percent_delta'(float): not in percent format (not 23%, 0.23)
+            'value'(float): just normal
+    timezone(int): utcoffset (in range (-11, 13))
+    language(str): user's language
     """
 
     def __init__(self, user_data:dict):
@@ -84,7 +84,17 @@ class User(UserBase):
         data = self.db.get_user(user_id)
         super().__init__(data)
 
-    def update(self, **kwargs):
+    def update(self, **kwargs) -> None:
+        """
+        Update some user attributes, also in database
+        type: instancemethod
+        
+        Keyword parameters:
+            **kwargs(dict): attributes to change with corresponding values
+        Raises:
+            DBHandler.change_user errors
+        Return: None            
+        """
         self.db.change_user(self.id, **kwargs)
         for k, v in kwargs.items():
             if k in self.__dict__:
@@ -96,7 +106,16 @@ class User(UserBase):
         super(cls, bare_user).__init__(data)
         return bare_user
 
-    def get_currencies_by_check_time(self, check_time:str):
+    def get_currencies_by_check_time(self, check_time:str, /) -> dict:
+        """
+        Get currencies info where its check time equals some check_time
+        type: instancemethod
+
+        Positional parameters:
+            check_time(str): time in '%H:%M' format
+        Return:
+            currencies(dict): rates dict which have `check_time` in check times
+        """
         return {
             k: v for k, v in self.rates.items()
             if check_time in v.get('check_times')
@@ -106,42 +125,121 @@ class User(UserBase):
     def predictions(self):
         return list(self.get_predictions())
 
-    def get_predictions(self, only_actual:bool=True):
+    def get_predictions(self, *, only_actual:bool=True) -> 'Prediction':
+        """
+        Get user's predictions
+        type: instancemethod
+
+        Keyword parameters:
+            only_actual(bool)=True: to return only actual predictions
+        Yield:
+            prediction(Prediction): user's prediction
+        """
         for pred_data in self.db.get_user_predictions(
                 self.id, only_actual=only_actual
                 ):
             yield Prediction.from_dict(pred_data)
 
-    def update_rates(self, iso, **kwargs):
+    def update_rates(self, iso:str, **kwargs) -> None:
+        """
+        Update some rates values, also in database
+        type: instancemethod
+
+        Parameters:
+            iso(str): iso of currency to change values
+        Keyword parameters:
+            check_times(list): list of check times in format '%H:%M'
+            percent_delta(float): a percent at which to notify 
+                                  (0 < `percent_delta` < 1)
+            value(float): exchange rate according to `iso`-USD
+        Raises:
+            DBHandler.change_user_rate errors
+        Return: None
+        """
         self.db.change_user_rate(self.id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.id))
 
     def create_prediction(
             self, iso_from:str, iso_to:str, value:float, 
             up_to_date:datetime
-            ):
+            ) -> None:
+        """
+        Create a prediction by user
+        type: instancemethod
+
+        Parameters:
+            iso_from(str): currency's iso from which to convert
+            iso_to(str): currency's iso to which to convert
+            value(str): 1 `iso_from` - `value` `iso_to`
+            up_to_date(datetime.datetime): when to check the prediction
+        Return: None
+        Raises:
+            AssertionError: if `up_to_date` is in past
+            DBHandler.add_prediction errors
+        """
         assert check_datetime_in_future(up_to_date)
         self.db.add_prediction(
             self.id, iso_from, iso_to, 
             value, up_to_date, is_by_experts=self.is_staff
         )
 
-    def add_rate(self, iso: str, **kwargs):
+    def add_rate(self, iso: str, **kwargs) -> bool:
+        """
+        Add some rate
+        type: instancemethod
+
+        Parameters:
+            iso(str): currency's iso which to add
+        Keyword parameters:
+            check_times(list): list of check times in format '%H:%M'
+            percent_delta(float): a percent at which to notify 
+                                  (0 < `percent_delta` < 1)
+            value(float): exchange rate according to `iso`-USD
+        Raises:
+            DBHandler.add_user_rate errors
+        Return:
+            success_status(bool)=True
+        """
         self.db.add_user_rate(self.id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.id))
         return True
 
-    def delete_rate(self, iso: str):
-        assert iso not in settings.CURRENCIES, \
-            f"can't delete {iso}, since it is in default currencies"
-        assert iso in self.rates, \
-            f"can't delete non-present currency {iso}"
+    def delete_rate(self, iso: str) -> bool:
+        """
+        Delete a rate
+        type: instancemethod
+
+        Parameters:
+            iso(str): currency's iso which to delete
+        Return:
+            success_status(bool)=True
+        Raises:
+            ValueError: if `iso` in `settings.CURRENCIES`
+            KeyError: if `iso` not in user's rates
+            DBHandler.delete_user_rate errors
+        """
+        if iso not in settings.CURRENCIES:
+            raise ValueError(
+                f"can't delete {iso}, since it is in default currencies"
+            )
+        if iso not in self.rates: 
+            raise KeyError(f"can't delete non-present currency {iso}")
         self.db.delete_user_rate(self.id, iso)
         del self.rates[iso]
         return True
 
     @classmethod
-    def init_user(cls, user_id: int):
+    def init_user(cls, user_id: int) -> None:
+        """
+        Initialize user in database
+        type: classmethod
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Return: None
+        Raises:
+            UserAlreadyExistsError: if user with `user_id` exists
+        """
         if not cls.exists(user_id):
             # if user not exists, create user and all his rates
             cls.db.add_user(user_id)
@@ -149,38 +247,104 @@ class User(UserBase):
             for currency in settings.CURRENCIES:
                 cls.db.add_user_rate(
                     user_id, currency, value=defaults.get(currency)
-                ) 
+                )
+        raise exceptions.UserAlreadyExistsError(
+            f"user {user_id} already exists", cause="id"
+        )
 
     @classmethod
-    def exists(cls, user_id:int):
+    def exists(cls, user_id:int) -> bool:
+        """
+        Check if user with user_id exists
+        type: classmethod
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Return:
+            exists(bool): does user exist or not
+        """
         return cls.db.check_user_exists(user_id)
 
     @classmethod
     def get_pro_users(cls, *args, **kwargs):
+        """
+        Get all users who have `is_pro` not set to False
+        type: classmethod
+
+        Yield:
+            user(User): some pro user
+        """
         for user_data in cls.db.get_pro_users(*args, **kwargs):
             yield cls.from_dict(user_data)
 
     @classmethod
     def get_all_users(cls, *args, **kwargs):
+        """
+        Get all users
+        type: classmethod
+
+        Keyword parameters:
+            if_all(bool)=True: to include staff users
+        Yield:
+            user(User): some user
+        """
         for user_data in cls.db.get_all_users(*args, **kwargs):
             yield cls.from_dict(user_data)
 
     @classmethod
     def get_staff_users(cls, *args, **kwargs):
+        """
+        Get all users who have `is_staff` = True
+        type: classmethod
+
+        Yield:
+            user(User): some staff user
+        """
         for user_data in cls.db.get_staff_users(*args, **kwargs):
             yield cls.from_dict(user_data)
 
     @classmethod
-    def get_users_by_check_time(cls, check_time):
+    def get_users_by_check_time(cls, check_time:str):
+        """
+        Get users which have in some of their rates check_times `check_time`
+        type: classmethod
+
+        Parameters:
+            check_time(str): a time in format '%H:%M'
+        Yield:
+            user(User): some user referenced above
+        """
         for user_data in cls.db.get_users_by_check_time(check_time):
             yield cls.from_dict(user_data)
 
-    def init_premium(self, up_to_datetime:datetime):
+    def init_premium(self, up_to_datetime:datetime) -> bool:
+        """
+        Init user premium (`is_pro`),
+        set all possible check times for all rates,
+        add infinite experts notification count (see Session)
+        type: instancemethod
+
+        Parameters:
+            up_to_datetime(datetime.datetime): datetime until user has premium
+        Return:
+            success_status(bool)=True
+        """
         self.update(is_pro=up_to_datetime)
         for k, v in self.rates.items():
             self.update_rates(k, check_times=settings.CHECK_TIMES)
+        return True
 
-    def delete_premium(self):
+    def delete_premium(self) -> bool:
+        """
+        Delete user premium (`is_pro`=False),
+        set default check times for all rates,
+        remove all additional rates,
+        set default experts notification count (see Session)
+        type: instancemethod
+        
+        Return:
+            success_status(bool)=True
+        """
         self.update(is_pro=0)
         try:
             Session.db.set_count(
@@ -194,18 +358,31 @@ class User(UserBase):
                 self.delete_rate(k)
             else:
                 self.update_rates(k, check_times=settings.DEFAULT_CHECK_TIMES)
+        return True
 
-    def init_staff(self):
+    def init_staff(self) -> bool:
+        """
+        Init all `init_premium` features,
+        set actual predictions `is_by_experts` to True (see Prediction)
+
+        Return:
+            success_status(bool)=True
+        """
         until_datetime = get_now() + timedelta(days=100*365)
         self.init_premium(until_datetime)
         self.update(is_staff=1)
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=1)
+        return True
 
     def delete_staff(self):
+        """
+        Remove all `init_premium` features,
+        set actual predictions `is_by_experts` to False (see Prediction)
+        """
         self.delete_premium()
         self.update(is_staff=0)
-        for prediction in self.get_predictions(True):
+        for prediction in self.get_predictions(only_actual=True):
             prediction.update(is_by_experts=0)
 
     def __str__(self):
@@ -230,27 +407,71 @@ class Prediction(object):
             bare_pred.__dict__[k] = v
         return bare_pred
 
-    def toggle_like(self, user_id:int, if_like:bool=True):
+    def toggle_like(self, user_id:int, reaction:bool=True):
         """
-        if_like:
-            True - like prediction
-            False - dislike prediction
-            None - delete any reaction
-        """
-        self.db.toggle_prediction_reaction(self.id, user_id, if_like)
+        Set a reaction to a prediction by user
+        type: instancemethod
 
-    def delete(self, *, force:bool=False):
+        Parameters:
+            user_id(int): user's id in Telegram who reacts
+            reaction(bool): a reaction to a prediction
+                True - like prediction
+                False - dislike prediction
+                None - delete any reaction
+        Raises:
+            DBHandler.toggle_prediction_reaction errors
+        Return: None
+        """
+        self.db.toggle_prediction_reaction(self.id, user_id, reaction)
+
+    def delete(self, *, force:bool=False) -> bool:
+        """
+        Delete a prediction from database
+        type: instancemethod
+
+        Keyword parameters:
+            force(bool)=False: to delete a prediction if it is verified
+        Raises:
+            AssertionError: if `force` is False and `is_actual` is False
+        Return:
+            success_status(bool)=True    
+        """
         if not force:
             assert self.is_actual, "can't delete a past prediction"
         self.db.delete_prediction(self.id)
+        return True
 
-    def update(self, **kwargs):
+    def update(self, **kwargs) -> None:
+        """
+        Update prediction attributes, also in database
+        type: instancemethod
+
+        Keyword arguments:
+            is_by_experts(bool): is made by expert (at least at verifying time)
+            up_to_date(datetime.datetime): when will be verified
+            value(float): which value was predicted
+            real_value(float | None): which value was at `up_to_date`
+        Raises:
+            DBHandler.change_prediction errors
+        Return: None 
+        """
         self.db.change_prediction(self.id, **kwargs)
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
 
     def get_closest_neighbours(self):
+        """
+        Get closest unverified prediction before and next the prediction id
+        type: instancemethod
+
+        Raises:
+            DBHandler.get_closest_prediction_neighbours errors
+        Return:
+            neighbors(dict): neighbors of the prediction
+                'previous'(Prediction | None): previous prediction
+                'next'(Prediction | None): next prediction
+        """
         res = self.db.get_closest_prediction_neighbours(self.id)
         prev_id, next_id = res['previous'], res['next']
         return {
@@ -271,11 +492,29 @@ class Prediction(object):
         return self.db.get_prediction_dislikes(self.id)
 
     @classmethod
-    def exists(cls, pred_id:int):
+    def exists(cls, pred_id:int) -> bool:
+        """
+        Check if prediction exists
+        type: classmethod
+
+        Parameters:
+            pred_id(int): prediction's id to check
+        Return:
+            success_status(bool): does prediction exist or not 
+        """
         return cls.db.check_prediction_exists(pred_id)
 
     @classmethod
     def get_experts_predictions(cls, *, only_actual:bool=False):
+        """
+        Get all predictions with `is_by_experts` is True
+        type: classmethod
+
+        Keyword parameters:
+            only_actual(bool)=False: to include past predictions
+        Yield:
+            prediction(Prediction): an experts' prediction
+        """
         for pred_data in cls.db.get_experts_predictions(
                 only_actual=only_actual
                 ):
@@ -283,19 +522,35 @@ class Prediction(object):
 
     @classmethod
     def get_most_liked_predictions(cls, *args, **kwargs):
+        """
+        type: classmethod
+
+        Yield:
+            prediction(Prediction)
+        """
         for pred_data in cls.db.get_max_liked_predictions(*args, **kwargs):
             yield cls.from_dict(pred_data)
 
     @classmethod
     def get_unverified_predictions(cls, *args, **kwargs):
         """
-        Get predictions which `up_to_date` is expired and `real_value` is None
+        Get predictions which `up_to_date` is in past and `real_value` is None
+        type: classmethod
+
+        Yield:
+            prediction(Prediction)
         """
         for pred_data in cls.db.get_unverified_predictions(*args, **kwargs):
             yield cls.from_dict(pred_data)
 
     @classmethod
     def get_random_prediction(cls):
+        """
+        type: classmethod
+
+        Yield:
+            prediction(Prediction | None)
+        """
         pred_data = cls.db.get_random_prediction()
         return cls.from_dict(pred_data) if pred_data != -1 else None
 

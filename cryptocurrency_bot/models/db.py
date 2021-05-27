@@ -484,10 +484,10 @@ class DBHandler(DBHandlerBase):
         return True
 
     def toggle_prediction_reaction(
-                self, pred_id:int, user_id:int, if_like:bool=True
+                self, pred_id:int, user_id:int, reaction:bool=True
             ):
         """
-        if_like:
+        reaction:
             True - like prediction
             False - dislike prediction
             None - delete any reaction
@@ -505,10 +505,10 @@ class DBHandler(DBHandlerBase):
             WHERE pred_id = ? and user_id = ?',
             (pred_id, user_id)
         )
-        if if_like is not None:
+        if reaction is not None:
             self.execute(
                 'INSERT INTO predictions_reactions VALUES (?, ?, ?)',
-                (pred_id, user_id, if_like)
+                (pred_id, user_id, reaction)
             )
         return True
 
