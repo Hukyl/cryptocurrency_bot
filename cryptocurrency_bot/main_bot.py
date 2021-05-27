@@ -55,7 +55,10 @@ USERS_SESSIONS = {}
 def get_or_create_session(chat_id):
     global USERS_SESSIONS
     try:
-        USERS_SESSIONS[chat_id] = USERS_SESSIONS.get(chat_id, Session(chat_id))
+        session = USERS_SESSIONS.get(chat_id)
+        if not session:
+            settings.logger.debug(f"User logged in: {session.user.id}")
+        USERS_SESSIONS[chat_id] = session or Session(chat_id)
     except MemoryError:
         for i in range(50):
             USERS_SESSIONS.popitem()
@@ -121,6 +124,7 @@ def start_message(msg):
                 user.language
             )
         )
+        settings.logger.info(f"User {user.id} recieved staff status")
     return start_bot(msg)
 
 
@@ -1351,7 +1355,7 @@ def subscription_payment_success(msg):
             )
         )
     )
-    settings.logger.log(f"User {user.id} paid for subscription until {adapt(datetime_expires, 0)}", kind="info")
+    settings.logger.info(f"User {user.id} paid for subscription until {adapt(datetime_expires, 0)}")
     return start_bot(msg)
 
 
@@ -1474,7 +1478,8 @@ def send_bot_help(msg):
 def update_rates():
     for parser in currency_parser.parsers.values():
         if not parser.update_value(safe=True):
-            settings.logger.log(f"Rate {parser.iso}-USD can not be updated", kind="error")
+            settings.logger.error(f"Rate {parser.iso}-USD can not be updated")
+    settings.logger.debug("Rates updated")
 
 
 @schedule.repeat(schedule.every(10).minutes)
@@ -1482,6 +1487,7 @@ def update_proxies():
     proxies = get_proxy_list()
     for parser in currency_parser.parsers.values():
         parser.proxy_list = proxies
+    settings.logger.debug(f"Proxies updated, length: {len(proxies)}")
 
 
 @schedule.repeat(schedule.every(3).minutes)
@@ -1494,7 +1500,7 @@ def check_premium_ended():
                 _('Your premium has expired, but you can always refresh it!', usr.language)
             )
             usr.delete_premium()
-            settings.logger.log(f"User {usr.id} lost premium", kin="info")
+            settings.logger.info(f"User {usr.id} lost premium")
 
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
         for user in User.get_pro_users():
@@ -1504,12 +1510,15 @@ def check_premium_ended():
 @schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
 def verify_predictions():
-    for pred in Prediction.get_unverified_predictions():
+    predictions = Prediction.get_unverified_predictions()
+    if not predictions:
+        return
+    for pred in predictions:
         user = User(pred.user_id)
         try:
             pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
         except exceptions.ParserError:
-            settings.logger.log(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable", kind="error")
+            settings.logger.error(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable")
             user.create_prediction(
                 pred.iso_from,
                 pred.iso_to,
@@ -1540,6 +1549,7 @@ def verify_predictions():
                 ),
                 parse_mode='Markdown'
             )
+    settings.logger.debug(f"Predictions verified: {', '.join(x.id for x in predictions)}")
 
 
 @schedule.repeat(schedule.every().minutes.at(':00'))
@@ -1547,8 +1557,12 @@ def verify_predictions():
 def start_alarms():
     t = get_now().strftime('%H:%M')
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        for user in User.get_users_by_check_time(t):
+        users = User.get_users_by_check_time(t)
+        if not users:
+            return
+        for user in users:
             executor.submit(send_alarm, user, t)
+        settings.logger.debug(f"Alarms started for {', '.join(x.id for x in users)}")
 
 
 @settings.logger.catch_error
@@ -1560,7 +1574,7 @@ def send_alarm(user, t):
                 v.get('value'), v.get('percent_delta')
             )
         except exceptions.ParsingError:
-            settings.logger.log(f"Rate {k}-USD is unreachable", kind="error")
+            settings.logger.error(f"Rate {k}-USD is unreachable")
             bot.send_message(
                 user.id,
                 _("The rates are not available, the notification can not be sent", user.language)
@@ -1588,7 +1602,7 @@ def send_alarm(user, t):
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
                     user.update(is_active=0)
-                    settings.logger.log(f"User {user.id} is not reachable", kind="warning")
+                    settings.logger.warning(f"User {user.id} is not reachable")
                     # not to sent notifications anymore, since chat is not reachable
 
 
@@ -1601,10 +1615,11 @@ def schedule_thread():
 def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
-    settings.logger.log("Bot started", kind="debug")
+    settings.logger.set_level('debug')
+    settings.logger.info("Bot started")
     threading.Thread(target=schedule_thread, daemon=True).start()
     bot.polling()
-    settings.logger.log("Bot stopped", kind="debug")
+    settings.logger.info("Bot stopped")
 
 
 ####################################################################################################
