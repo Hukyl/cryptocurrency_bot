@@ -4,13 +4,14 @@
 
 
 TOKEN = '1421475661:AAFR0vGFtWo4rmd7eq-MMZctr2rxfzfqf1c'
-PAYMENT_TOKEN = '401643678:TEST:36b3e5b5-0ab7-4fbd-beca-8a11ce7100d8'  # test token from Sberbank
+PAYMENT_TOKEN = '401643678:TEST:36b3e5b5-0ab7-4fbd-beca-8a11ce7100d8'  
+# test token from Sberbank
 
 
 ACCESSIBLE_LINK = "https://t.me/{}?start=support"  # {} - bot username
 
 
-DB_NAME = 'db.sqlite3'  # 'db.sqlite3' - for production use, 'test.sqlite3' -  for tests
+DB_NAME = 'db.sqlite3'  # database filename
 DUMP_NAME = 'dump.sql'  # default name for database dump
 
 
@@ -22,7 +23,10 @@ DEFAULT_CHECK_TIMES = ['09:00', '15:00', '21:00']
 
 
 # Preset rate percentages
-PERCENTAGES = ['0.2', '0.4', '0.6', '0.8', '1.0', '1.2', '1.4', '1.6', '1.8', '2.0']
+PERCENTAGES = [
+    '0.2', '0.4', '0.6', '0.8', '1.0', 
+    '1.2', '1.4', '1.6', '1.8', '2.0'
+]
 
 
 # Currencies supported
@@ -33,7 +37,11 @@ MAIN_CURRENCIES = CURRENCIES[:3]
 # Currency exchange
 ACCEPTABLE_CURRENCIES_CONVERTION = {
     **{'BRENT futures': "BRENT-USD", 'RTS futures': "RTS-USD"}, 
-    **{f"{curr}-USD": f"{curr}-USD" for curr in CURRENCIES if curr != "RTS" and curr != "BRENT"}
+    **{
+        f"{curr}-USD": f"{curr}-USD" 
+        for curr in CURRENCIES 
+        if curr not in ("RTS", "BRENT")
+    }
 }
 CURRENCY_RATES_CHANGE_AMOUNTS = ['Reset', '...']
 

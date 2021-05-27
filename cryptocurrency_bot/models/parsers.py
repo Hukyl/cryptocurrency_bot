@@ -15,7 +15,10 @@ __all__ = ['CurrencyExchanger']
 
 
 class Parser(object):
-    def __init__(self, link:str, css_selector:str, *, proxy_list:list=get_proxy_list()):
+    def __init__(
+            self, link:str, css_selector:str, *, 
+            proxy_list:list=get_proxy_list()
+            ):
         self.session = requests.Session()
         self.link = link
         self.css_selector = css_selector
@@ -39,7 +42,9 @@ class Parser(object):
         return q
 
     def test_response(self, q:requests.Response) -> bool:
-        return q.ok and self.get_element(soup=self.get_soup(html=self.get_html(response=q))) is not None
+        return q.ok and self.get_element(
+            soup=self.get_soup(html=self.get_html(response=q))
+        ) is not None
 
     def get_html(self, *, response:requests.Response=None) -> str:
         return (response or self.get_response()).text
@@ -70,7 +75,9 @@ class CurrencyParser(Parser):
     def __init__(self, iso:str, *args, default_value:float=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.iso = iso
-        self.default_value = default_value or get_default_rates(iso or '', to_print=False).get(iso)
+        self.default_value = default_value or get_default_rates(
+            iso or '', to_print=False
+        ).get(iso)
         self.value = None
         self.update_value(safe=True)
 
@@ -88,15 +95,27 @@ class CurrencyParser(Parser):
     def get_rate(self):
         span = self.get_element()
         if span is None:
-            raise exceptions.ParsingError(f'can not parse currency of "{self.iso}"', cause="empty soup")
+            raise exceptions.ParsingError(
+                f'can not parse currency of "{self.iso}"', cause="empty soup"
+            )
         rate = span.text.strip()
-        rate = rate.replace('$', '')  # since default is USD, sometimes $ sign occurs
+        rate = rate.replace('$', '')  # since default is USD, sometimes $ seen
         # support both `1,812.35` and `1812,34` formats
-        number = float(rate.replace(",", ".") if '.' not in rate else rate.replace(",", ""))
+        number = float(
+            rate.replace(",", ".") 
+            if '.' not in rate 
+            else rate.replace(",", "")
+        )
         return {self.iso: 1, 'USD': number}
 
-    def check_delta(self, old:float=None, new:float=None, percent_delta:float=0.01):
-        res = self.calculate_difference(old or self.value, new or self.get_rate().get('USD'))
+    def check_delta(
+            self, old:float=None, new:float=None, 
+            percent_delta:float=0.01
+            ):
+        res = self.calculate_difference(
+            old or self.value, 
+            new or self.get_rate().get('USD')
+        )
         res['currency_from'] = self.iso
         res['currency_to'] = 'USD'
         if abs(res.get('percentage_difference')) < percent_delta:
@@ -130,7 +149,9 @@ class RTSParser(CurrencyParser):
     iso = "RTS"
 
     def __init__(self, *args, **kwargs):
-        link = "https://www.investing.com/indices/rts-cash-settled-futures-chart"
+        link = (
+            "https://www.investing.com/indices/rts-cash-settled-futures-chart"
+        )
         css_selector = "#last_last"
         super().__init__(
             link=link, css_selector=css_selector, 
@@ -156,7 +177,9 @@ class BitcoinParser(CurrencyParser):
 
 class FreecurrencyratesParser(Parser):
     def __init__(self, *args, **kwargs):
-        self.start_link = "https://freecurrencyrates.com/ru/{}-exchange-rate-calculator"
+        self.start_link = (
+            "https://freecurrencyrates.com/ru/{}-exchange-rate-calculator"
+        )
         self.start_css_selector = "#rate-iso-{}"
         super().__init__(link=None, css_selector=None, *args, **kwargs)
 
@@ -168,7 +191,9 @@ class FreecurrencyratesParser(Parser):
         self.css_selector = self.start_css_selector.format(iso_to)
         rate = self.get_element()
         if rate is None:
-            raise exceptions.CurrencyDoesNotExistError("some of the currencies do not exist", cause="iso")
+            raise exceptions.CurrencyDoesNotExistError(
+                "some of the currencies do not exist", cause="iso"
+            )
         number = float(rate.get("value").strip().replace(",", "."))
         return {iso_from: 1, iso_to: number}
 
@@ -185,7 +210,10 @@ class FreecurrencyratesParser(Parser):
     def test_response(self, q:requests.Response) -> bool:
         return q.ok
 
-    def check_delta(self, iso_from:str, iso_to:str, value:float=1, percent_delta:float=0.01):
+    def check_delta(
+            self, iso_from:str, iso_to:str, value:float=1, 
+            percent_delta:float=0.01
+            ):
         old, new = value, self.get_rate(iso_from, iso_to).get(iso_to)
         res = self.calculate_difference(old, new)
         res['currency_from'] = iso_from
@@ -225,7 +253,9 @@ class InvestingParser(CurrencyParser):
         assert (
             market_product in self.AVAILABLE_PRODUCTS
         ), 'not supported market product - {}'.format(repr(market_product))
-        link = "https://m.investing.com/commodities/{}".format(self.AVAILABLE_PRODUCTS[market_product])
+        link = "https://m.investing.com/commodities/{}".format(
+            self.AVAILABLE_PRODUCTS[market_product]
+        )
         css_selector = '#last_last'
         super().__init__(
             link=link, css_selector=css_selector, 
@@ -239,15 +269,21 @@ class CurrencyExchanger(CurrencyParser):
         self.parsers = {
             parser.iso: parser 
             for parser in [
-                RTSParser(proxy_list=proxy_list), BitcoinParser(proxy_list=proxy_list), 
-                *[InvestingParser(x, proxy_list=proxy_list) for x in InvestingParser.AVAILABLE_PRODUCTS]
+                RTSParser(proxy_list=proxy_list), 
+                BitcoinParser(proxy_list=proxy_list), 
+                *[
+                    InvestingParser(x, proxy_list=proxy_list) 
+                    for x in InvestingParser.AVAILABLE_PRODUCTS
+                ]
             ]
         }
         self.default_parser = FreecurrencyratesParser(proxy_list=proxy_list)
 
     def get_rate(self, iso_from, iso_to):
         if not self.check_rate_exists(iso_from, iso_to):
-            raise exceptions.CurrencyDoesNotExistError("some of the currencies do not exist", cause="iso")        
+            raise exceptions.CurrencyDoesNotExistError(
+                "some of the currencies do not exist", cause="iso"
+            )        
         p_from = self.parsers.get(iso_from, self.default_parser)
         p_to = self.parsers.get(iso_to, self.default_parser)
         try:
@@ -263,18 +299,24 @@ class CurrencyExchanger(CurrencyParser):
             )
             return {
                 iso_from: 1, 
-                iso_to: prettify_float((1 / rate_to["USD"]) * rate_from.get("USD"))
+                iso_to: prettify_float(
+                    (1 / rate_to["USD"]) * rate_from.get("USD")
+                )
             }
         except Exception:
             raise exceptions.ParsingError(
-                "`iso_from` or `iso_to` is invalid or network cannot be reached"
+                "`iso_from` or `iso_to` is invalid or "
+                "network cannot be reached"
             ) from None
 
     def update_value(self, *args, **kwargs):
         for curr in self.parsers:
             self.parsers[curr].update_value(*args, **kwargs)
 
-    def check_delta(self, iso_from:str, iso_to:str, old:float, percent_delta:float=0.01):
+    def check_delta(
+            self, iso_from:str, iso_to:str, old:float, 
+            percent_delta:float=0.01
+            ):
         new = self.get_rate(iso_from, iso_to).get(iso_to)
         rate = self.calculate_difference(old, new)
         rate['currency_from'] = iso_from
@@ -291,19 +333,28 @@ class CurrencyExchanger(CurrencyParser):
 
     def to_string(self, *, to_update:bool=False):
         return '\n'.join([
-            f"{parser.iso} = {prettify_float(parser.value if not to_update else parser.rate)} USD" 
+            "{} = {} USD".format(
+                parser.iso, prettify_float(
+                    parser.value if not to_update else parser.rate
+                )
+            ) 
             for parser in self.parsers.values()
         ])
 
     def to_telegram_string(self, user_language:str):
         main_currs = sorted(settings.MAIN_CURRENCIES)
-        other_currs = sorted(list(set(self.parsers) - set(settings.MAIN_CURRENCIES)))
+        other_currs = sorted(
+            list(set(self.parsers) - set(settings.MAIN_CURRENCIES))
+        )
         biggest_length = len(max(self.parsers, key=lambda x: len(x)))
-        start_string = "`{:<{max_length}s}".format(_("Price", user_language), max_length=biggest_length + 1) + "($)`\n"
+        start_string = "`{:<{max_length}s}".format(
+            _("Price", user_language), max_length=biggest_length + 1
+        ) + "($)`\n"
         return start_string + '\n'.join([
             '`{}`'.format(
                 "{:<{max_length}s}".format(
-                    (curr if curr in main_currs else curr.title()), max_length=biggest_length + 2
+                    (curr if curr in main_currs else curr.title()), 
+                    max_length=biggest_length + 2
                 ) + f"= {prettify_float(self.parsers[curr].value)}"
             )
             for curr in main_currs + other_currs

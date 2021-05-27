@@ -12,13 +12,19 @@ from . import exceptions
 
 
 
-sqlite3.register_adapter(datetime, lambda x: x.strftime('%Y-%m-%d %H:%M:%S').encode('ascii'))
+sqlite3.register_adapter(
+    datetime, lambda x: x.strftime('%Y-%m-%d %H:%M:%S').encode('ascii')
+)
 sqlite3.register_converter(
     "datetime", 
-    lambda x: datetime.strptime(x.decode("ascii"), '%Y-%m-%d %H:%M:%S') if x.decode("ascii") != '0' else False
+    lambda x: datetime.strptime(
+        x.decode("ascii"), '%Y-%m-%d %H:%M:%S'
+    ) if x.decode("ascii") != '0' else False
 )
 sqlite3.register_adapter(list, lambda x: ','.join(x).encode('ascii'))
-sqlite3.register_converter("list", lambda x: [el.decode('ascii') for el in x.split(b",")])
+sqlite3.register_converter(
+    "list", lambda x: [el.decode('ascii') for el in x.split(b",")]
+)
 
 
 class DBHandlerBase(abc.ABC):
@@ -36,7 +42,9 @@ class DBHandlerBase(abc.ABC):
 
     def execute(self, sql, params=tuple()):
         with threading.Lock():
-            with sqlite3.connect(self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
+            with sqlite3.connect(
+                        self.DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES
+                    ) as conn:
                 conn.row_factory = self.dict_factory
                 return conn.execute(sql, params).fetchall()
 
@@ -91,7 +99,9 @@ class DBHandler(DBHandlerBase):
                             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
                         )
                     ),
-                    language VARCHAR(2) DEFAULT "en" CHECK (LENGTH(language) IN (2, 3)), 
+                    language VARCHAR(2) DEFAULT "en" CHECK (
+                        LENGTH(language) IN (2, 3)
+                    ), 
                     UNIQUE(id) ON CONFLICT REPLACE
                 )
             '''
@@ -135,20 +145,24 @@ class DBHandler(DBHandlerBase):
 
     def add_user(
             self, user_id:int, is_active: bool=True, is_pro=False,
-            is_staff:bool=False, to_notify_by_experts:bool=True, timezone:int=0, language:str='en'
+            is_staff:bool=False, to_notify_by_experts:bool=True, 
+            timezone:int=0, language:str='en'
     ):
         self.execute(
-            "INSERT INTO users\
-            (id, is_active, is_pro, is_staff, to_notify_by_experts, timezone, language) \
+            "INSERT INTO users \
             VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, is_active, is_pro, is_staff, to_notify_by_experts, timezone, language)
+            (
+                user_id, is_active, is_pro, is_staff, 
+                to_notify_by_experts, timezone, language
+            )
         )
         return True
 
     @rangetest(value=(0, float('inf')))
     def add_user_rate(
             self, user_id:int, iso:str, value:float=1,
-            percent_delta:float=0.01, check_times:list=settings.DEFAULT_CHECK_TIMES
+            percent_delta:float=0.01, 
+            check_times:list=settings.DEFAULT_CHECK_TIMES
     ):
         if self.check_user_exists(user_id):
             self.execute(
@@ -156,7 +170,9 @@ class DBHandler(DBHandlerBase):
                 (user_id, iso, value, percent_delta, check_times)
             )
             return True
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     @rangetest(value=(0, float("inf")))
     def add_prediction(
@@ -178,10 +194,14 @@ class DBHandler(DBHandlerBase):
                 (user_id, iso_from, iso_to, value, up_to_date, is_by_experts)
             )
             return True
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     def check_user_exists(self, user_id: int):
-        return len(self.execute('SELECT id FROM users WHERE id = ?', (user_id,))) > 0
+        return len(
+            self.execute('SELECT id FROM users WHERE id = ?', (user_id,))
+        ) > 0
 
     def check_prediction_exists(self, pred_id: int):
         return len(self.execute(
@@ -195,28 +215,41 @@ class DBHandler(DBHandlerBase):
         """
         return [
             self.get_user(user_id['id'])
-            for user_id in self.execute('SELECT DISTINCT id FROM users WHERE is_active = 1')
-            if any(check_time in rate['check_times'] for rate in self.get_user_rates(user_id['id']))
+            for user_id in self.execute(
+                'SELECT DISTINCT id FROM users WHERE is_active = 1'
+            )
+            if any(
+                check_time in rate['check_times'] 
+                for rate in self.get_user_rates(user_id['id'])
+            )
         ]
 
     def get_user(self, user_id:int):
         """
-        Get all user data (except the predictions) by its id
-        Returns None if user with this id does not exist
-        otherwise returns list(user_id, is_active, is_pro, is_staff, rates, timezone, language)
+        Get all user data (except the predictions) by his id
+        raise UserDoesNotExistError if user with this id does not exist
+        otherwise returns dict(
+            user_id, is_active, is_pro, is_staff, rates, timezone, language
+        )
         """
         if self.check_user_exists(user_id):
             return {
-                **self.execute('SELECT * FROM users WHERE id = ?', (user_id,))[0],
+                **self.execute(
+                    'SELECT * FROM users WHERE id = ?', (user_id,)
+                )[0],
                 **{'rates': self.get_user_rates(user_id)}
             }
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     def get_all_users(self, *, if_all:bool=True):
         filter_sql = 'WHERE is_staff != 1' if not if_all else ''
         return [
             self.get_user(user_data['id'])
-            for user_data in self.execute('SELECT id FROM users %s' % filter_sql)
+            for user_data in self.execute(
+                'SELECT id FROM users %s' % filter_sql
+            )
         ]
 
     def get_staff_users(self):
@@ -248,7 +281,8 @@ class DBHandler(DBHandlerBase):
         return [
             self.get_user(user_data['id'])
             for user_data in self.execute(
-                'SELECT id FROM users WHERE is_active = TRUE and is_pro != FALSE'
+                'SELECT id FROM users \
+                WHERE is_active = TRUE and is_pro != FALSE'
             )
         ]
 
@@ -266,7 +300,9 @@ class DBHandler(DBHandlerBase):
                 ON u.id = u_r.user_id AND u.id = ?',
                 (user_id,)
             )
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     def get_prediction(self, pred_id:int):
         """
@@ -279,11 +315,12 @@ class DBHandler(DBHandlerBase):
         """
         if self.check_prediction_exists(pred_id):
             return self.execute(
-                'SELECT id, user_id, iso_from, iso_to, value, up_to_date, is_by_experts, real_value \
-                FROM currency_predictions WHERE id = ?',
+                'SELECT * FROM currency_predictions WHERE id = ?',
                 (pred_id,)
             )[0]
-        raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction id {pred_id} does not exist", cause='id'
+        )
 
     def get_actual_predictions(self):
         return self.execute(
@@ -293,7 +330,9 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_user_predictions(self, user_id:int, *, only_actual:bool=False):
-        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if only_actual else ''
+        check_datetime_str = (
+            'datetime() < datetime(up_to_date) and ' if only_actual else ''
+        )
         return self.execute(
             'SELECT * FROM currency_predictions \
             WHERE %s user_id = ? ORDER BY up_to_date ASC' % check_datetime_str,
@@ -310,14 +349,16 @@ class DBHandler(DBHandlerBase):
     def get_closest_prediction_neighbours(self, pred_id:int):
         """
         Returns previous and next prediction of prediction by `pred_id`
+        raise PredictionDoesNotExistError if prediction does not exist
         :return: dict(previous=X, current=pred_id, next=Y)
         """
 
         def get_next():
             res = self.execute(
-                # used `LIMIT` and `id > ?` because selection by certain id can cause errors
+                # used `LIMIT` and `id > ?` because of possible errors
                 "SELECT id FROM currency_predictions \
-                WHERE id > ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime() \
+                WHERE id > ? AND is_by_experts = FALSE \
+                and datetime(up_to_date) > datetime() \
                 ORDER BY id ASC LIMIT 1",
                 (pred_id,)
             )
@@ -325,9 +366,10 @@ class DBHandler(DBHandlerBase):
 
         def get_previous():
             res = self.execute(
-                # used `LIMIT` and `id < ?` because selection by certain id can cause errors
+                # used `LIMIT` and `id < ?` because of possible errors
                 "SELECT * FROM currency_predictions \
-                WHERE id < ? AND is_by_experts = FALSE and datetime(up_to_date) > datetime() \
+                WHERE id < ? AND is_by_experts = FALSE \
+                and datetime(up_to_date) > datetime() \
                 ORDER BY id DESC LIMIT 1",
                 (pred_id,)
             )
@@ -339,10 +381,14 @@ class DBHandler(DBHandlerBase):
                 'current': pred_id,
                 'next': next['id'] if (next := get_next()) else None
             }
-        raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction id {pred_id} does not exist", cause='id'
+        )
 
     def get_experts_predictions(self, only_actual: bool = False):
-        check_datetime_str = 'datetime() < datetime(up_to_date) and ' if only_actual else ''
+        check_datetime_str = (
+            'datetime() < datetime(up_to_date) and ' if only_actual else ''
+        )
         return self.execute(
             'SELECT * FROM currency_predictions \
             WHERE %s is_by_experts = TRUE \
@@ -369,7 +415,9 @@ class DBHandler(DBHandlerBase):
                 raise ValueError(f"invalid value {repr(v)}") from None
             else:
                 return True
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     @rangetest(value=(0, float("inf")))
     def change_user_rate(self, user_id:int, iso:str, **kwargs):
@@ -377,7 +425,8 @@ class DBHandler(DBHandlerBase):
             for k, v in kwargs.items():
                 try:
                     self.execute(
-                        'UPDATE users_rates SET %s = ? WHERE user_id = ? and iso = ?' % k,
+                        'UPDATE users_rates SET %s = ? \
+                        WHERE user_id = ? and iso = ?' % k,
                         (v, user_id, iso)
                     )
                 except sqlite3.OperationalError:
@@ -385,7 +434,9 @@ class DBHandler(DBHandlerBase):
                 except sqlite3.IntegrityError:
                     raise ValueError(f"invalid value {repr(v)}") from None
             return True
-        raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+        raise exceptions.UserDoesNotExistError(
+            f"user id {user_id} does not exist", cause='id'
+        )
 
     def delete_user_rate(self, user_id:int, iso:str):
         self.execute(
@@ -399,7 +450,10 @@ class DBHandler(DBHandlerBase):
         if self.check_prediction_exists(pred_id):
             # validation of parameters
             assert all(
-                [x not in kwargs for x in ['iso_to', 'iso_from', 'user_id', 'pred_id']]
+                [
+                    x not in kwargs 
+                    for x in ('iso_to', 'iso_from', 'user_id', 'pred_id')
+                ]
             ), 'unsupported arguments'
             if kwargs.get('up_to_date') is not None:
                 assert check_datetime_in_future(
@@ -409,7 +463,8 @@ class DBHandler(DBHandlerBase):
             try:
                 for k, v in kwargs.items():
                     self.execute(
-                        'UPDATE currency_predictions SET %s = ? WHERE id = ? ' % k,
+                        'UPDATE currency_predictions SET %s = ? \
+                        WHERE id = ? ' % k,
                         (v, pred_id,)
                     )
             except sqlite3.OperationalError:
@@ -417,7 +472,9 @@ class DBHandler(DBHandlerBase):
             except sqlite3.IntegrityError:
                 raise ValueError(f"invalid value {repr(v)}") from None
             return True
-        raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction id {pred_id} does not exist", cause='id'
+        )
 
     def delete_prediction(self, pred_id:int):
         self.execute(
@@ -426,7 +483,9 @@ class DBHandler(DBHandlerBase):
         )
         return True
 
-    def toggle_prediction_reaction(self, pred_id:int, user_id:int, if_like:bool=True):
+    def toggle_prediction_reaction(
+                self, pred_id:int, user_id:int, if_like:bool=True
+            ):
         """
         if_like:
             True - like prediction
@@ -434,11 +493,16 @@ class DBHandler(DBHandlerBase):
             None - delete any reaction
         """
         if not self.check_prediction_exists(pred_id):
-            raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+            raise exceptions.PredictionDoesNotExistError(
+                f"prediction id {pred_id} does not exist", cause='id'
+            )
         if not self.check_user_exists(user_id):
-            raise exceptions.UserDoesNotExistError(f"user id {user_id} does not exist", cause='id')
+            raise exceptions.UserDoesNotExistError(
+                f"user id {user_id} does not exist", cause='id'
+            )
         self.execute(
-            'DELETE FROM predictions_reactions WHERE pred_id = ? and user_id = ?',
+            'DELETE FROM predictions_reactions \
+            WHERE pred_id = ? and user_id = ?',
             (pred_id, user_id)
         )
         if if_like is not None:
@@ -458,7 +522,9 @@ class DBHandler(DBHandlerBase):
                 ''',
                 (pred_id,)
             )[0]['num']
-        raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction id {pred_id} does not exist", cause='id'
+        )
 
     def get_prediction_dislikes(self, pred_id:int):
         if self.check_prediction_exists(pred_id):
@@ -470,7 +536,9 @@ class DBHandler(DBHandlerBase):
                 ''',
                 (pred_id,)
             )[0]['num']
-        raise exceptions.PredictionDoesNotExistError(f"prediction id {pred_id} does not exist", cause='id')
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction id {pred_id} does not exist", cause='id'
+        )
 
     def get_max_liked_predictions(self):
         return [
@@ -479,7 +547,8 @@ class DBHandler(DBHandlerBase):
                 '''
                     SELECT
                     p.id, CAST(TOTAL(r.reaction) AS INT) likes_diff
-                    FROM currency_predictions p LEFT OUTER JOIN predictions_reactions r
+                    FROM currency_predictions p LEFT OUTER JOIN 
+                    predictions_reactions r
                     ON p.id = r.pred_id
                     WHERE datetime(p.up_to_date) > datetime()
                     GROUP BY p.id
@@ -502,7 +571,11 @@ class SessionDBHandler(DBHandlerBase):
         )
 
     def check_session_exists(self, user_id:int):
-        return len(self.execute('SELECT user_id FROM sessions WHERE user_id = ?', (user_id,))) > 0
+        return len(
+            self.execute(
+                'SELECT user_id FROM sessions WHERE user_id = ?', (user_id,)
+            )
+        ) > 0
 
     def add_session(self, user_id:int):
         self.execute('INSERT INTO sessions(user_id) VALUES (?)', (user_id,))
@@ -514,8 +587,12 @@ class SessionDBHandler(DBHandlerBase):
 
     def get_session(self, user_id:int):
         if self.check_session_exists(user_id):
-            return self.execute('SELECT * FROM sessions WHERE user_id = ?', (user_id,))[0]
-        raise exceptions.SessionDoesNotExistError(f"session with user id {user_id} does not exist", cause='user_id')
+            return self.execute(
+                'SELECT * FROM sessions WHERE user_id = ?', (user_id,)
+            )[0]
+        raise exceptions.SessionDoesNotExistError(
+            f"session with user id {user_id} does not exist", cause='user_id'
+        )
 
     def get_all_sessions(self):
         return self.execute("SELECT * FROM sessions")
@@ -523,20 +600,27 @@ class SessionDBHandler(DBHandlerBase):
     def decrease_count(self, user_id:int):
         if self.check_session_exists(user_id):
             self.execute(
-                'UPDATE sessions SET free_notifications_count = free_notifications_count - 1 WHERE user_id = ?',
+                'UPDATE sessions \
+                SET free_notifications_count = free_notifications_count - 1 \
+                WHERE user_id = ?',
                 (user_id,)
             )
             return True
-        raise exceptions.SessionDoesNotExistError(f"session with user id {user_id} does not exist", cause='user_id')
+        raise exceptions.SessionDoesNotExistError(
+            f"session with user id {user_id} does not exist", cause='user_id'
+        )
 
     def set_count(self, user_id:int, count:int):
         if self.check_session_exists(user_id):
             self.execute(
-                'UPDATE sessions SET free_notifications_count = ? WHERE user_id = ?',
+                'UPDATE sessions SET free_notifications_count = ? \
+                WHERE user_id = ?',
                 (count, user_id,)
             )
             return True
-        raise exceptions.SessionDoesNotExistError(f"session with user id {user_id} does not exist", cause='user_id')
+        raise exceptions.SessionDoesNotExistError(
+            f"session with user id {user_id} does not exist", cause='user_id'
+        )
 
     def fetch_count(self, user_id:int, *, with_decrease:bool=False):
         if self.check_session_exists(user_id):
@@ -547,10 +631,13 @@ class SessionDBHandler(DBHandlerBase):
             if len(is_user_pro) > 0 and is_user_pro[0]['is_pro'] != 0:
                 return 1
             count = self.execute(
-                'SELECT free_notifications_count FROM sessions WHERE user_id = ?',
+                'SELECT free_notifications_count FROM sessions \
+                WHERE user_id = ?',
                 (user_id,)
             )[0]['free_notifications_count']
             if with_decrease:
                 self.decrease_count(user_id)
             return count
-        raise exceptions.SessionDoesNotExistError(f"session with user id {user_id} does not exist", cause='user_id')
+        raise exceptions.SessionDoesNotExistError(
+            f"session with user id {user_id} does not exist", cause='user_id'
+        )

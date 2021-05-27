@@ -55,22 +55,22 @@ class UserBase(object):
     def prettify_rates(rates: list):
         total_str = ''
         for idx, (k, v) in enumerate(rates.items(), start=1):
-            total_str += "\t{}. {}:\n\t\t▫ Процент - {}\n\t\t▫ Время проверки - {}\n".format(
-                    idx, 
-                    k, 
+            total_str += (
+                    "\t{}. {}:\n\t\t▫ Процент - {}\n"
+                    "\t\t▫ Время проверки - {}\n"
+                ).format(
+                    idx, k, 
                     prettify_percent(v.get('percent_delta')), 
                     ', '.join(v.get('check_times'))
-                ).replace(
-                    '\t', 
-                    '    '
-                )
+                ).replace('\t', '    ')
         return total_str
 
     def __iter__(self):
         # also implements list(User), because __iter__ is used by list()
         for i in [
                 self.id, self.is_active, self.is_pro, self.is_staff,
-                self.to_notify_by_experts, self.rates, self.timezone, self.language
+                self.to_notify_by_experts, self.rates, 
+                self.timezone, self.language
                 ]:
             yield i
 
@@ -107,14 +107,19 @@ class User(UserBase):
         return list(self.get_predictions())
 
     def get_predictions(self, only_actual:bool=True):
-        for pred_data in self.db.get_user_predictions(self.id, only_actual=only_actual):
+        for pred_data in self.db.get_user_predictions(
+                self.id, only_actual=only_actual
+                ):
             yield Prediction.from_dict(pred_data)
 
     def update_rates(self, iso, **kwargs):
         self.db.change_user_rate(self.id, iso, **kwargs)
         self.rates = self.normalize_rates(self.db.get_user_rates(self.id))
 
-    def create_prediction(self, iso_from:str, iso_to:str, value:float, up_to_date:datetime):
+    def create_prediction(
+            self, iso_from:str, iso_to:str, value:float, 
+            up_to_date:datetime
+            ):
         assert check_datetime_in_future(up_to_date)
         self.db.add_prediction(
             self.id, iso_from, iso_to, 
@@ -127,8 +132,10 @@ class User(UserBase):
         return True
 
     def delete_rate(self, iso: str):
-        assert iso not in settings.CURRENCIES, f"can't delete {iso}, since it is in default currencies"
-        assert iso in self.rates, f"can't delete non-present currency {iso}"
+        assert iso not in settings.CURRENCIES, \
+            f"can't delete {iso}, since it is in default currencies"
+        assert iso in self.rates, \
+            f"can't delete non-present currency {iso}"
         self.db.delete_user_rate(self.id, iso)
         del self.rates[iso]
         return True
@@ -140,7 +147,9 @@ class User(UserBase):
             cls.db.add_user(user_id)
             defaults = get_default_rates(*settings.CURRENCIES, to_print=False)
             for currency in settings.CURRENCIES:
-                cls.db.add_user_rate(user_id, currency, value=defaults.get(currency)) 
+                cls.db.add_user_rate(
+                    user_id, currency, value=defaults.get(currency)
+                ) 
 
     @classmethod
     def exists(cls, user_id:int):
@@ -174,7 +183,10 @@ class User(UserBase):
     def delete_premium(self):
         self.update(is_pro=0)
         try:
-            Session.db.set_count(self.id, settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER)
+            Session.db.set_count(
+                self.id, 
+                settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
+            )
         except exceptions.SessionDoesNotExistError:
             pass
         for k, v in self.rates.items():
@@ -264,7 +276,9 @@ class Prediction(object):
 
     @classmethod
     def get_experts_predictions(cls, *, only_actual:bool=False):
-        for pred_data in cls.db.get_experts_predictions(only_actual=only_actual):
+        for pred_data in cls.db.get_experts_predictions(
+                only_actual=only_actual
+                ):
             yield cls.from_dict(pred_data)
 
     @classmethod
@@ -275,7 +289,7 @@ class Prediction(object):
     @classmethod
     def get_unverified_predictions(cls, *args, **kwargs):
         """
-        Get predictions which `up_to_date` is expired and `real_value` is still None
+        Get predictions which `up_to_date` is expired and `real_value` is None
         """
         for pred_data in cls.db.get_unverified_predictions(*args, **kwargs):
             yield cls.from_dict(pred_data)
@@ -288,7 +302,9 @@ class Prediction(object):
     def __str__(self):
         return "Prediction(up_to={}, currencies='{}-{}', value={}{})".format(
             str(self.up_to_date), self.iso_from, self.iso_to, 
-            self.value, (f', real value={self.real_value}' if self.real_value else '')
+            self.value, (
+                f', real value={self.real_value}' if self.real_value else ''
+            )
         )
 
     def __repr__(self):
@@ -297,19 +313,29 @@ class Prediction(object):
     def trepr(self, user:User):
         """ Telegram repr """
         return (
-            f"{self.iso_from}-{self.iso_to}, "
-            f"{convert_to_country_format(adapt_datetime(self.up_to_date, user.timezone), user.language)}"
+            "{}-{}, {}".format(
+                self.iso_from, self.iso_to, 
+                convert_to_country_format(
+                    adapt_datetime(self.up_to_date, user.timezone), 
+                    user.language
+                )
+            )
         )
 
     def tstr(self, user:User):
         """ Telegram str """
-        return '\n'.join(
-            [
-                "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
-                f"Up to: {convert_to_country_format(adapt_datetime(self.up_to_date, user.timezone), user.language)}",
-                f"Exchange Rate: {prettify_float(self.value)}"
-            ] +
-            ([f"Likes: {self.likes}", f"Dislikes: {self.dislikes}"] if not self.is_by_experts else [])
+        return (
+            "Prediction\nCurrencies: {}-{}\n"
+            "Up to: {}\nExchange rate: {}\n{}"
+        ).format(
+            self.iso_from, self.iso_to, 
+            convert_to_country_format(
+                adapt_datetime(self.up_to_date, user.timezone), user.language
+            ), prettify_float(self.value), 
+            (
+                f"\nLikes: {self.likes}\nDislikes: {self.dislikes}" 
+                if not self.is_by_experts else ''
+            )
         )
 
 

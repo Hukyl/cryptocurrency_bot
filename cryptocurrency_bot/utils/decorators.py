@@ -55,16 +55,28 @@ def rangetest(strict_range:bool=True, **kargs):
                 if argname in kwargs:
                     value = kwargs.get(argname)
                     if strict_range:
-                        assert low < value < high, f"unexpected value '{value}' for argument '{argname}'"
+                        assert low < value < high, \
+                            "unexpected value '{}' for argument '{}'".format(
+                                value, argname
+                            )
                     else:
-                        assert low <= value <= high, f"unexpected value '{value}' for argument '{argname}'"                        
+                        assert low <= value <= high, \
+                            "unexpected value '{}' for argument '{}'".format(
+                                value, argname
+                            )                        
 
                 elif argname in allvars:
                     pos = allvars.index(argname)
                     if strict_range:
-                        assert low < args[pos] < high, f"unexpected value '{args[pos]}' for argument '{argname}'"
+                        assert low < args[pos] < high, \
+                            "unexpected value '{}' for argument '{}'".format(
+                                args[pos], argname
+                            )
                     else:
-                        assert low <= args[pos] <= high, f"unexpected value '{args[pos]}' for argument '{argname}'"
+                        assert low <= args[pos] <= high, \
+                            "unexpected value '{}' for argument '{}'".format(
+                                args[pos], argname
+                            )
             return func(*args, **kwargs)
         return wrapper
     return inner

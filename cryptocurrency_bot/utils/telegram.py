@@ -36,4 +36,3 @@ def inline_kbs(buttons:dict, row_width:int=3):
     ]
     markup.add(*buttons)
     return markup
-

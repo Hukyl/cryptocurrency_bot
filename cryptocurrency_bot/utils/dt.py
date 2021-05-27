@@ -30,7 +30,8 @@ def get_now():
 
 
 def check_datetime_in_future(up_to_date:dt.datetime):
-    assert up_to_date.tzinfo is None, 'can compare only timezone-naive datetime'
+    assert up_to_date.tzinfo is None, \
+           'can compare only timezone-naive datetime'
     now = get_now() 
     return up_to_date >= now
 
@@ -38,7 +39,9 @@ def check_datetime_in_future(up_to_date:dt.datetime):
 @rangetest(strict_range=False, utcoffset=(-11, 12))
 def convert_check_times(check_times:list, utcoffset:int=0):
     return [
-        (dt.datetime.strptime(t, '%H:%M') - dt.timedelta(0, utcoffset * 3600)).strftime('%H:%M')
+        (
+            dt.datetime.strptime(t, '%H:%M') - dt.timedelta(hours=utcoffset)
+        ).strftime('%H:%M')
         for t in check_times
     ]
 
@@ -46,7 +49,9 @@ def convert_check_times(check_times:list, utcoffset:int=0):
 @rangetest(strict_range=False, utcoffset=(-11, 12))
 def adapt_check_times(check_times:list, utcoffset:int=0):
     return [
-        (dt.datetime.strptime(t, '%H:%M') + dt.timedelta(0, utcoffset * 3600)).strftime('%H:%M')
+        (
+            dt.datetime.strptime(t, '%H:%M') + dt.timedelta(hours=utcoffset)
+        ).strftime('%H:%M')
         for t in check_times
     ]
 
