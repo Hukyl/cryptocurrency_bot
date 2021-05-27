@@ -1,3 +1,3 @@
-from . import db, parsers, user
+from . import db, parsers, user, logger
 
-__all__ = ['db', 'parsers', 'user']
+__all__ = ['db', 'parsers', 'user', 'logger']

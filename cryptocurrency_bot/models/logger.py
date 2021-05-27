@@ -52,13 +52,13 @@ class Logger(object):
         return self.log(message, kind="error")
 
     def warning(self, message:str, /) -> None:
-        return self.log(message, kind="error")
+        return self.log(message, kind="warning")
 
     def info(self, message:str, /) -> None:
-        return self.log(message, kind="error")
+        return self.log(message, kind="info")
 
     def debug(self, message:str, /) -> None:
-        return self.log(message, kind="error")
+        return self.log(message, kind="debug")
 
     def set_level(self, level:str, /) -> None:
         assert level in self.LOG_LEVELS, 'unsupported logging level'

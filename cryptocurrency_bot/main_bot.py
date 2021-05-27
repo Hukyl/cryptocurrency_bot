@@ -57,8 +57,9 @@ def get_or_create_session(chat_id):
     try:
         session = USERS_SESSIONS.get(chat_id)
         if not session:
+            session = Session(chat_id)
             settings.logger.debug(f"User logged in: {session.user.id}")
-        USERS_SESSIONS[chat_id] = session or Session(chat_id)
+        USERS_SESSIONS[chat_id] = session
     except MemoryError:
         for i in range(50):
             USERS_SESSIONS.popitem()
@@ -384,7 +385,7 @@ def see_users_currency_predictions(msg):
     user = bot.session.user
 
     def see_self_predictions(msg_inner):
-        preds = {x.repr(user): f'get_prediction_{x.id}' for x in user.get_predictions()}
+        preds = {x.trepr(user): f'get_prediction_{x.id}' for x in user.get_predictions()}
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
             bot.send_message(
@@ -404,7 +405,7 @@ def see_users_currency_predictions(msg):
             experts_str = (
                 '⚜ Experts predictions ⚜ are:\n'
                 +
-                ('\n\n'.join([x.str(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
+                ('\n\n'.join([x.tstr(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
@@ -417,7 +418,7 @@ def see_users_currency_predictions(msg):
         liked_preds_str = (
             'Most liked predictions are:\n'
             +
-            ('\n\n'.join([x.str(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
+            ('\n\n'.join([x.tstr(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
@@ -457,7 +458,7 @@ def see_users_currency_predictions(msg):
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg_inner.chat.id,
-                _(random_pred.str(user), user.language),
+                _(random_pred.tstr(user), user.language),
                 reply_markup=inline_kb
             )
             return see_users_currency_predictions(msg_inner)
@@ -515,7 +516,7 @@ def get_closest_prediction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(following_pred.str(user), user.language),
+            text=_(following_pred.tstr(user), user.language),
             reply_markup=inline_kb
         )
 
@@ -532,7 +533,7 @@ def toggle_user_reaction(call):
     bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=_(prediction.str(user), user.language),
+            text=_(prediction.tstr(user), user.language),
             reply_markup=get_prediction_inline_kb_for_liking(prediction)
         )
     bot.answer_callback_query(
@@ -550,7 +551,7 @@ def get_prediction_details(call):
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text=_(prediction.str(user), user.language),
+        text=_(prediction.tstr(user), user.language),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
             _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -570,7 +571,7 @@ def ask_delete_prediction(call):
             text=_(
                 "Are you sure you want to delete this prediction:\n{}?",
                 user.language
-            ).format(prediction.repr(user)),
+            ).format(prediction.trepr(user)),
             reply_markup=inline_kbs({
                 _('Yes', user.language): f'delete_prediction_{pred_id}',
                 _('No', user.language): f'get_user_predictions_{prediction.user_id}'
@@ -598,7 +599,7 @@ def delete_prediction(call):
         answer_msg = _(
             "Prediction ({}) was deleted",
             user.language
-        ).format(prediction.repr(user))
+        ).format(prediction.trepr(user))
     else:
         answer_msg = _('You cannot delete a verified prediction!', user.language)
     bot.answer_callback_query(
@@ -612,7 +613,7 @@ def delete_prediction(call):
 def get_user_predictions(call):
     user = bot.session.user
     kb_inline = inline_kbs({
-        x.repr(user): f'get_prediction_{x.id}'
+        x.trepr(user): f'get_prediction_{x.id}'
         for x in user.get_predictions()
     }, row_width=1)
     return bot.edit_message_text(
@@ -1510,10 +1511,7 @@ def check_premium_ended():
 @schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
 def verify_predictions():
-    predictions = Prediction.get_unverified_predictions()
-    if not predictions:
-        return
-    for pred in predictions:
+    for pred in Prediction.get_unverified_predictions():
         user = User(pred.user_id)
         try:
             pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
@@ -1530,7 +1528,7 @@ def verify_predictions():
                 _(
                     "The rates are unreachable, the prediction `{}` was scheduled for 5 minutes later",
                     user.language
-                ).format(pred.repr(user))
+                ).format(pred.trepr(user))
             )
             pred.delete(force=True)
         else:
@@ -1542,14 +1540,14 @@ def verify_predictions():
                     'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
                     user.language
                 ).format(
-                    pred.repr(user),
+                    pred.trepr(user),
                     prettify_float(pred.value),
                     prettify_float(pred.real_value),
                     prettify_percent(diff.get('percentage_difference'), to_sign=True)
                 ),
                 parse_mode='Markdown'
             )
-    settings.logger.debug(f"Predictions verified: {', '.join(x.id for x in predictions)}")
+        settings.logger.debug(f"{str(pred)} verified")
 
 
 @schedule.repeat(schedule.every().minutes.at(':00'))
@@ -1557,12 +1555,8 @@ def verify_predictions():
 def start_alarms():
     t = get_now().strftime('%H:%M')
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        users = User.get_users_by_check_time(t)
-        if not users:
-            return
-        for user in users:
+        for user in User.get_users_by_check_time(t):
             executor.submit(send_alarm, user, t)
-        settings.logger.debug(f"Alarms started for {', '.join(x.id for x in users)}")
 
 
 @settings.logger.catch_error
@@ -1599,6 +1593,7 @@ def send_alarm(user, t):
                         ),
                         parse_mode='Markdown'
                     )
+                    settings.logger.debug(f"Sent '{k}-USD' alarm for {str(user)}")
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
                     user.update(is_active=0)

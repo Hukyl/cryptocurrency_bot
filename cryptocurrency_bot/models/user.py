@@ -196,6 +196,12 @@ class User(UserBase):
         for prediction in self.get_predictions(True):
             prediction.update(is_by_experts=0)
 
+    def __str__(self):
+        return f"User(id={self.id})"
+
+    def __repr__(self):
+        return self.__str__()
+
 
 
 class Prediction(object):
@@ -279,13 +285,24 @@ class Prediction(object):
         pred_data = cls.db.get_random_prediction()
         return cls.from_dict(pred_data) if pred_data != -1 else None
 
-    def repr(self, user:User):
+    def __str__(self):
+        return "Prediction(up_to={}, currencies='{}-{}', value={}{})".format(
+            str(self.up_to_date), self.iso_from, self.iso_to, 
+            self.value, (f', real value={self.real_value}' if self.real_value else '')
+        )
+
+    def __repr__(self):
+        return self.__str__()
+
+    def trepr(self, user:User):
+        """ Telegram repr """
         return (
             f"{self.iso_from}-{self.iso_to}, "
             f"{convert_to_country_format(adapt_datetime(self.up_to_date, user.timezone), user.language)}"
         )
 
-    def str(self, user:User):
+    def tstr(self, user:User):
+        """ Telegram str """
         return '\n'.join(
             [
                 "Prediction", f"Currencies: {self.iso_from}-{self.iso_to}", 
