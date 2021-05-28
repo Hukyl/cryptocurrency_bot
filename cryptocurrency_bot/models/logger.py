@@ -27,7 +27,7 @@ class Logger(object):
         )
         self.log_level = 'info'
         os.makedirs(self.base_path, exist_ok=False)
-        self.file = self.create_logfile()
+        self.logfile = self.create_logfile()
 
     def create_logfile(self):
         """
@@ -40,13 +40,24 @@ class Logger(object):
         """
         self.log_count += 1
         return open(
-            os.path.join(self.base_path, f"log{self.log_count}.txt"), 
+            os.path.join(self.base_path, f"log{self.log_count}.log"), 
             'w', encoding="utf-8"
         )
 
+    def update_logfile(self):
+        """
+        Update log file, close previous one
+
+        :return:
+            success_status(bool)=True
+        """
+        self.logfile.close()
+        self.logfile = self.create_logfile()
+        return True
+
     @property
     def logfile_size_ok(self) -> bool:
-        return os.path.getsize(self.file.name) < self.MAX_SIZE
+        return os.path.getsize(self.logfile.name) < self.MAX_SIZE
 
     def log(self, message:str, /, *, kind:str) -> None:
         """
@@ -68,11 +79,11 @@ class Logger(object):
                 f"[{dt.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] "
                 f"[{kind.upper()}] {message}"
             )
-            self.file.write(message + "\n")
-            self.file.flush()
+            self.logfile.write(message + "\n")
+            self.logfile.flush()
             cprint(message, info['color'])
             if not self.logfile_size_ok:
-                self.file = self.create_logfile()
+                self.update_logfile()
 
     def error(self, message:str, /) -> None:
         return self.log(message, kind="error")
@@ -117,4 +128,4 @@ class Logger(object):
         return inner
 
     def __del__(self):
-        self.file.close()
+        self.logfile.close()

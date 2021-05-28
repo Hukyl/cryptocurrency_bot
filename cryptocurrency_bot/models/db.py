@@ -11,7 +11,6 @@ from . import exceptions
 
 
 
-
 sqlite3.register_adapter(
     datetime, lambda x: x.strftime('%Y-%m-%d %H:%M:%S').encode('ascii')
 )
