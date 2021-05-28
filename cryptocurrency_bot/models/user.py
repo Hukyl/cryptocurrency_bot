@@ -219,7 +219,7 @@ class User(UserBase):
             KeyError: if `iso` not in user's rates
             DBHandler.delete_user_rate errors
         """
-        if iso not in settings.CURRENCIES:
+        if iso in settings.CURRENCIES:
             raise ValueError(
                 f"can't delete {iso}, since it is in default currencies"
             )
@@ -230,7 +230,7 @@ class User(UserBase):
         return True
 
     @classmethod
-    def init_user(cls, user_id: int) -> None:
+    def init_user(cls, user_id:int) -> True:
         """
         Initialize user in database
         type: classmethod
@@ -249,6 +249,7 @@ class User(UserBase):
                 cls.db.add_user_rate(
                     user_id, currency, value=defaults.get(currency)
                 )
+            return True
         raise exceptions.UserAlreadyExistsError(
             f"user {user_id} already exists", cause="id"
         )
@@ -372,7 +373,7 @@ class User(UserBase):
         until_datetime = get_now() + timedelta(days=100*365)
         self.init_premium(until_datetime)
         self.update(is_staff=1)
-        for prediction in self.get_predictions(True):
+        for prediction in self.get_predictions(only_actual=True):
             prediction.update(is_by_experts=1)
         return True
 

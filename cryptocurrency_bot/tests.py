@@ -15,7 +15,7 @@ class BasicTestCase(unittest.TestCase):
         self.session_db = models.db.SessionDBHandler(configs.settings.DB_NAME)
 
     def tearDown(self):
-        os.remove(configs.settings.DB_NAME)    
+        os.remove(configs.settings.DB_NAME)
 
 
 class DBTestCase(BasicTestCase):
@@ -53,7 +53,7 @@ class DBTestCase(BasicTestCase):
         user_data = self.db.get_user(1)
         self.assertEqual(user_data['is_active'], 0)
         self.assertEqual(user_data['language'], 'ru')
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.db.change_user(1, ababagalamaga='1212302')
 
     def test_add_user_rate(self):
@@ -77,7 +77,7 @@ class DBTestCase(BasicTestCase):
         rate = self.db.get_user_rates(0)[0]
         self.assertEqual(rate['value'], 52.0)
         self.assertEqual(rate['percent_delta'], 0.08)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.db.change_user_rate(0, 'BRENT', asdfasdf='RUB')
         with self.assertRaises(AssertionError):
             self.db.change_user_rate(0, 'BRENT', value=-5)
@@ -242,17 +242,17 @@ class DBTestCase(BasicTestCase):
         pred1 = 1
         self.assertEqual(self.db.get_prediction_likes(pred1), 0)
         self.assertEqual(self.db.get_prediction_dislikes(pred1), 0)
-        self.db.toggle_prediction_reaction(pred1, user1, if_like=True)
+        self.db.toggle_prediction_reaction(pred1, user1, reaction=True)
         self.assertEqual(self.db.get_prediction_likes(pred1), 1)
         self.assertEqual(self.db.get_prediction_dislikes(pred1), 0)
-        self.db.toggle_prediction_reaction(pred1, user1, if_like=False)
+        self.db.toggle_prediction_reaction(pred1, user1, reaction=False)
         self.assertEqual(self.db.get_prediction_likes(pred1), 0)
         self.assertEqual(self.db.get_prediction_dislikes(pred1), 1)
         self.db.add_prediction(
             0, 'RUB', 'USD', 0.007, utils.dt.get_now().replace(year=2120)
         )
         pred2 = 2
-        self.db.toggle_prediction_reaction(pred2, user1, if_like=True)
+        self.db.toggle_prediction_reaction(pred2, user1, reaction=True)
         self.assertEqual(
             [x['id'] for x in self.db.get_max_liked_predictions()], [2, 1]
         )
@@ -302,7 +302,7 @@ class UserModelTestCase(BasicTestCase):
             0, 'BTC', value=31_000, percent_delta=0.01, 
             check_times=['07:00', '09:00', '10:30']
         ) 
-        user = models.user.UserBase(self.db.get_user(0))
+        user = models.user.User.from_dict(self.db.get_user(0))
         self.assertDictEqual(
             user.rates, 
             {
@@ -341,19 +341,19 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_change_dbuser(self):
-        user = models.user.User(0)
-        self.assertEqual(self.db.get_user(0)['timezone'], 0)  # timezone
+        user = models.user.User(2)
+        self.assertEqual(self.db.get_user(2)['timezone'], 0)  # timezone
         self.assertEqual(user.timezone, 0)
         user.update(timezone=+2)
-        self.assertEqual(self.db.get_user(0)['timezone'], 2)  # timezone
+        self.assertEqual(self.db.get_user(2)['timezone'], 2)  # timezone
         self.assertEqual(user.timezone, 2)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             user.update(ababgalgamaga=123)
         with self.assertRaises(ValueError):
             user.update(timezone=+20)
 
     def test_change_dbuser_rates(self):
-        user = models.user.User(0)
+        user = models.user.User(3)
         self.assertListEqual(
             user.rates.get('BRENT').get('check_times'), 
             configs.settings.DEFAULT_CHECK_TIMES
@@ -369,13 +369,13 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.01)
         user.update_rates('BRENT', percent_delta=0.2)
         self.assertEqual(user.rates.get('BRENT').get('percent_delta'), 0.2)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             user.update_rates('BRENT', ababgalamaga=123123123)
         with self.assertRaises(TypeError):
             user.update_rates('BRENT', value='abcdef')
 
     def test_premium_dbuser(self):
-        user = models.user.User(0)
+        user = models.user.User(4)
         d1 = utils.dt.get_now().replace(year=2120)
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -400,7 +400,7 @@ class UserModelTestCase(BasicTestCase):
             )
 
     def test_staff_dbuser(self):
-        user = models.user.User(0)
+        user = models.user.User(5)
         d_test = utils.dt.get_now()
         self.assertEqual(user.is_pro, 0)
         self.assertEqual(user.is_staff, 0)
@@ -424,7 +424,7 @@ class UserModelTestCase(BasicTestCase):
             )
 
     def test_add_dbuser_rates(self):
-        user = models.user.User(0)
+        user = models.user.User(6)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
         user.add_rate(
             'UAH', check_times=['09:00', '10:00', '12:00'], 
@@ -440,19 +440,19 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_delete_dbuser_rates(self):
-        user = models.user.User(0)
+        user = models.user.User(7)
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
         user.add_rate("UAH")
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES) + 1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             user.delete_rate(configs.settings.CURRENCIES[0])
-        with self.assertRaises(AssertionError):
-            user.delete_rate("ababagalamaga")            
+        with self.assertRaises(KeyError):
+            user.delete_rate("ababagalamaga")
         user.delete_rate("UAH")
         self.assertEqual(len(user.rates), len(configs.settings.CURRENCIES))
 
     def test_get_currencies_by_check_time_dbuser(self):
-        user = models.user.User(0)
+        user = models.user.User(8)
         user.update_rates('BRENT', check_times=['09:00', '10:00', '11:00'])
         user.update_rates('RTS', check_times=['11:00', '12:00', '13:00'])
         user.update_rates('BTC', check_times=['13:00', '14:00', '15:00'])
@@ -475,7 +475,7 @@ class UserModelTestCase(BasicTestCase):
         )
 
     def test_get_pro_users(self):
-        user = models.user.User(0)
+        user = models.user.User(9)
         self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
         user.init_premium(utils.dt.get_now().replace(year=2120))
         self.assertEqual(len(list(models.user.User.get_pro_users())), 1)
@@ -483,7 +483,7 @@ class UserModelTestCase(BasicTestCase):
         self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
 
     def test_get_staff_users(self):
-        user = models.user.User(0)
+        user = models.user.User(10)
         self.assertEqual(len(list(models.user.User.get_pro_users())), 0)
         self.assertEqual(len(list(models.user.User.get_staff_users())), 0)
         user.init_staff()
@@ -495,7 +495,7 @@ class UserModelTestCase(BasicTestCase):
 
     def test_get_all_users(self):
         self.assertEqual(len(list(models.user.User.get_all_users())), 0)
-        models.user.User(0)
+        models.user.User(11)
         self.assertEqual(len(list(models.user.User.get_all_users())), 1)
         self.tearDown()
         self.setUp()
