@@ -33,11 +33,10 @@ class Logger(object):
         """
         Create a log file, increase `log_count` and return it
 
-        Return:
+        :return:
             file(_io.TextIOWrapper): open(
                 base_path + 'log' + count, mode='w', encoding='utf-8'
             )
-        
         """
         self.log_count += 1
         return open(
@@ -53,13 +52,13 @@ class Logger(object):
         """
         Log message to console and to file
 
-        Positional parameters:
+        :positional arguments:
             message(str): what message will be logged
-        Keyword parameters:
+        :keyword arguments:
             kind(str): what type of log will be used
-        Raises:
+        :raise:
             AssertionError: if `kind` not in Logger.LOG_LEVELS
-        Return: None
+        :return: None
         """
         assert (
             info := self.LOG_LEVELS.get(kind.lower())
@@ -93,9 +92,9 @@ class Logger(object):
         Any lower-level logs will be discarded
         (e.g. if level == 'info', 'debug' will not be shown)
 
-        Positional parameters:
+        :positional arguments:
             level(str): level of logging
-        Raises:
+        :raise:
             AssertionError: if level not in Logger.LOG_LEVELS
         """
         assert level in self.LOG_LEVELS, 'unsupported logging level'

@@ -24,6 +24,10 @@ class SessionDoesNotExistError(ExceptionWithCause):
     pass
 
 
+class SessionAlreadyExistsError(ExceptionWithCause):
+    pass
+
+
 class CurrencyDoesNotExistError(ExceptionWithCause):
     pass
 

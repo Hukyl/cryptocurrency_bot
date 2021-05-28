@@ -151,7 +151,7 @@ class DBHandler(DBHandlerBase):
         """
         Add user to database
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
             is_active(bool)=True: to notify or not to
             is_pro(datetime.datetime | bool): does user have pro and until when
@@ -162,10 +162,10 @@ class DBHandler(DBHandlerBase):
             to_notify_by_experts(bool)=True: to enable notifications by experts
             timezone(int)=0: user's timezone (in range(-11, 12))
             language(str)='en': user's language in short form ('en', 'ru' etc.)
-        Raises:
-            exceptions.UserAlreadyExistsError: if user with `user_id` exists
+        :raise:
+            exceptions.UserAlreadyExistsError: if `user_id` in db
             sqlite3.DatabaseError: if invalid types are passed
-        Return:
+        :return:
             success_status(bool)=True
         """
         if not self.check_user_exists(user_id):
@@ -191,16 +191,16 @@ class DBHandler(DBHandlerBase):
         """
         Add rate to user
 
-        Parameters:
+        :arguments:
             user_id(int): user's id who add rate to
             iso(str): Rate `iso`-USD
             value(float)=1: 1 `iso` - `value` USD (0 < value < float('inf'))
             percent_delta(float)=0.01: percent at which to notify (0<delta<1)
-            check_times(list)=settings.DEFAULT_CHECK_TIMES: in format ('%H:%M')
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
+            check_times(list[str])=settings.DEFAULT_CHECK_TIMES: '%H:%M'
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
             sqlite3.DatabaseError: if invalid types are passed
-        Return:
+        :return:
             success_status(bool)=True
         """
         if self.check_user_exists(user_id):
@@ -221,18 +221,18 @@ class DBHandler(DBHandlerBase):
         """
         Add prediction to database
         
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
             iso_from(str): currency's iso from which to convert
             iso_to(str): currency's iso to which to convert
             value(float): 1 `iso_from` - `value` `iso_from`
             up_to_date(datetime.datetime): datetime when to verify
             is_by_experts(bool)=False: is made by expert user
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
             AssertionError: if `up_to_date` in in the past
             sqlite3.DatabaseError: if invalid types are passed
-        Return:
+        :return:
             success_status(bool)=True
 
         Returns True if succeeded else None
@@ -254,9 +254,9 @@ class DBHandler(DBHandlerBase):
 
     def check_user_exists(self, user_id: int) -> bool:
         """
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
-        Return:
+        :return:
             success_status(bool): if user exists or not
         """
         return len(
@@ -265,9 +265,9 @@ class DBHandler(DBHandlerBase):
 
     def check_prediction_exists(self, pred_id: int):
         """
-        Parameters:
+        :arguments:
             pred_id(int): prediction's id in database
-        Return:
+        :return:
             success_status(bool): if prediction exists or not
         """
         return len(self.execute(
@@ -278,10 +278,10 @@ class DBHandler(DBHandlerBase):
         """
         Check if user rate exists
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
             iso(str): currency's iso
-        Return:
+        :return:
             success_status(bool): does rate exist or not
         """
         if self.check_user_exists(user_id):
@@ -297,10 +297,10 @@ class DBHandler(DBHandlerBase):
         """
         Get all users, where `check_time` in check times
 
-        Parameters:
+        :arguments:
             check_time(str): check time in format '%H:%M'
-        Return:
-            users_list(list)
+        :return:
+            users_list(list[dict])
         """
         return [
             self.get_user(user_id['id'])
@@ -317,12 +317,12 @@ class DBHandler(DBHandlerBase):
         """
         Get all user data (except the predictions)
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
             sqlite3.DatabaseError: if invalid types are passed
-        Return:
+        :return:
             user_data(dict)
         """
         if self.check_user_exists(user_id):
@@ -338,10 +338,10 @@ class DBHandler(DBHandlerBase):
 
     def get_all_users(self, *, if_all:bool=True):
         """
-        Keyword parameters:
+        :keyword arguments:
             if_all(bool)=True: to include staff users
-        Return:
-            users(list): data of users
+        :return:
+            users(list[dict]): data of users
         """
         filter_sql = 'WHERE is_staff != 1' if not if_all else ''
         return [
@@ -355,8 +355,8 @@ class DBHandler(DBHandlerBase):
         """
         Get all users with `is_staff` status
 
-        Return:
-            users(list): data of users
+        :return:
+            users(list[dict]): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -369,8 +369,8 @@ class DBHandler(DBHandlerBase):
         """
         Get all active users
 
-        Return:
-            users(list): data of users
+        :return:
+            users(list[dict]): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -383,8 +383,8 @@ class DBHandler(DBHandlerBase):
         """
         Get all users who are pro and active
 
-        Return:
-            users(list): data of users
+        :return:
+            users(list[dict]): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -398,11 +398,11 @@ class DBHandler(DBHandlerBase):
         """
         Get user's rates
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
-        Return:
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
+        :return:
             user_rates(dict): all users_rates
         """
         if self.check_user_exists(user_id):
@@ -421,11 +421,11 @@ class DBHandler(DBHandlerBase):
         """
         Get prediction by its id
 
-        Parameters:
+        :arguments:
             pred_id(int): prediction's id in database
-        Raises:
-            exceptions.PredictionDoesNotExistError: if `pred_id` not exists
-        Return:
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
+        :return:
             pred_data(dict)
         """
         if self.check_prediction_exists(pred_id):
@@ -441,8 +441,8 @@ class DBHandler(DBHandlerBase):
         """
         Get predictions where `up_to_date` is in future
 
-        Return:
-            preds(list): data of predictions
+        :return:
+            preds(list[dict]): data of predictions
         """
         return self.execute(
             'SELECT * FROM currency_predictions \
@@ -454,14 +454,14 @@ class DBHandler(DBHandlerBase):
         """
         Return all predictions user made
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
-        Keyword parameters:
+        :keyword arguments:
             only_actual(bool)=False: to include past predictions
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
-        Return:
-            preds_data(list): data of user's predictions
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
+        :return:
+            preds_data(list[dict]): data of user's predictions
         """
         check = (
             'datetime() < datetime(up_to_date) and ' if only_actual else ''
@@ -480,9 +480,9 @@ class DBHandler(DBHandlerBase):
         """
         Get random actual prediction
 
-        Raises:
+        :raise:
             exceptions.PredictionDoesNotExistError: if no predictions in db
-        Return:
+        :return:
             pred(int | dict): prediction's data
         """
         res = self.execute(
@@ -500,11 +500,11 @@ class DBHandler(DBHandlerBase):
         """
         Get previous and next predictions' ids of prediction
 
-        Parameters:
+        :arguments:
             pred_id(int): prediction's id in database
-        Raises:
-            exceptions.PredictionDoesNotExistError: if no `pred_id` exists
-        Return:
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
+        :return:
             neighbors(dict): neighbors of prediction
         """
 
@@ -544,10 +544,10 @@ class DBHandler(DBHandlerBase):
         """
         Get all prediction with `is_by_experts` = True
 
-        Keyword parameters:
+        :keyword arguments:
             only_actual(bool)=False: to include past predictions
-        Return:
-            preds(list): data of predictions
+        :return:
+            preds(list[dict]): data of predictions
         """
         check_datetime_str = (
             'datetime() < datetime(up_to_date) and ' if only_actual else ''
@@ -562,8 +562,8 @@ class DBHandler(DBHandlerBase):
         """
         Get all predictions with `real_value` = None and `up_to_date` in past
 
-        Return:
-            preds(list): predictions' data
+        :return:
+            preds(list[dict]): predictions' data
         """
         return self.execute(
             'SELECT * FROM currency_predictions \
@@ -574,9 +574,9 @@ class DBHandler(DBHandlerBase):
         """
         Change some of user's data
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
-        Keyword parameters:
+        :keyword arguments:
             is_active(bool)=True: to notify or not to
             is_pro(datetime.datetime | bool): does user have pro and until when
                 True - user has pro status forever
@@ -586,11 +586,11 @@ class DBHandler(DBHandlerBase):
             to_notify_by_experts(bool)=True: to enable notifications by experts
             timezone(int)=0: user's timezone (in range(-11, 12))
             language(str)='en': user's language in short form ('en', 'ru' etc.)
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
             KeyError: if non-existent column name
             ValueError: if invalid column value
-        Return:
+        :return:
             success_status(bool)=True
         """
         if self.check_user_exists(user_id):
@@ -615,19 +615,19 @@ class DBHandler(DBHandlerBase):
         """
         Change some of user's rate data
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
             iso(str): currency's iso which data to change
-        Keyword parameters:
+        :keyword arguments:
             value(float): 1 `iso` - `value` USD (0 < value < float('inf'))
             percent_delta(float): percent at which to notify (0<delta<1)
-            check_times(list): in format ('%H:%M')
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
-            exceptions.RateDoesNotExistError: if no user rate with `iso`
+            check_times(list[dict]): in format ('%H:%M')
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
+            exceptions.RateDoesNotExistError: if no `iso` in db
             KeyError: if non-existent column name
             ValueError: if invalid column value
-        Return:
+        :return:
             success_status(bool)=True
         """
         if self.check_user_rate_exists(user_id, iso):
@@ -652,13 +652,13 @@ class DBHandler(DBHandlerBase):
         """
         Delete user rate
 
-        Parameters:
+        :arguments:
             user_id(int): user's id in Telegram
             iso(str): currency's iso which to delete
-        Raises:
-            exceptions.UserDoesNotExistError: if no user with `user_id`
-            exceptions.RateDoesNotExistError: if no rate with `iso`
-        Return:
+        :raise:
+            exceptions.UserDoesNotExistError: if no `user_id` in db
+            exceptions.RateDoesNotExistError: if no `iso` in db
+        :return:
             success_status(bool)=True
         """
         if self.check_user_rate_exists(user_id, iso):
@@ -676,24 +676,24 @@ class DBHandler(DBHandlerBase):
         """
         Change some values of prediction
 
-        Parameters:
-            pred_id(int): prediction's id in database
-        Keyword parameters:
+        :arguments:
+            pred_id(int): prediction's id in db
+        :keyword arguments:
             value(float): 1 `iso_from` - `value` `iso_from`
             up_to_date(datetime.datetime): datetime when to verify
             is_by_experts(bool)=False: is made by expert user
-        Raises:
-            exceptions.PredictionDoesNotExistError: if no prediction `pred_id`
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
             AssertionError: 
                 - key in ('iso_to', 'iso_from', 'user_id', 'id')
                 - `up_to_date` in the past
             KeyError: if non-existent column names
             ValueError: if invalid column values
-        Return:
+        :return:
             success_status(bool)=True
         """
         if self.check_prediction_exists(pred_id):
-            # validation of parameters
+            # validation of arguments
             assert all(
                 [
                     x not in kwargs 
@@ -723,13 +723,13 @@ class DBHandler(DBHandlerBase):
 
     def delete_prediction(self, pred_id:int):
         """
-        Delete prediction from database
+        Delete prediction from db
 
-        Parameters:
-            pred_id(int): prediction's id in database
-        Raises:
+        :arguments:
+            pred_id(int): prediction's id in db
+        :raise:
             exceptions.PredictionDoesNotExistError: if no prediction `pred_id`
-        Return:
+        :return:
             success_status(bool)=True
         """
         if self.check_prediction_exists(pred_id):
@@ -743,13 +743,23 @@ class DBHandler(DBHandlerBase):
         )
 
     def toggle_prediction_reaction(
-                self, pred_id:int, user_id:int, reaction:bool=True
+            self, pred_id:int, user_id:int, reaction:bool=True
             ):
         """
-        reaction:
-            True - like prediction
-            False - dislike prediction
-            None - delete any reaction
+        Set a reaction to prediction by user
+
+        :arguments:
+            pred_id(int): prediction id to toggle reaction
+            user_id(int): user's id in Telegram
+            reaction(bool | None): reaction to prediction
+                True - like prediction
+                False - dislike prediction 
+                None - delete any reaction
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
+            exceptions.UserDoesNotExistError: if no `user_id` in db
+        :return:
+            success_status(bool)=True
         """
         if not self.check_prediction_exists(pred_id):
             raise exceptions.PredictionDoesNotExistError(
@@ -772,6 +782,16 @@ class DBHandler(DBHandlerBase):
         return True
 
     def get_prediction_likes(self, pred_id:int):
+        """
+        Get total count of prediction likes
+
+        :arguments:
+            pred_id(int): prediction's id in db
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
+        :return:
+            likes_count(int)
+        """
         if self.check_prediction_exists(pred_id):
             return self.execute(
                 ''' 
@@ -786,6 +806,16 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_prediction_dislikes(self, pred_id:int):
+        """
+        Get total count of prediction dislikes
+
+        :arguments:
+            pred_id(int): prediction's id in db
+        :raise:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` in db
+        :return:
+            dislikes_count(int)
+        """        
         if self.check_prediction_exists(pred_id):
             return self.execute(
                 ''' 
@@ -800,6 +830,12 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_max_liked_predictions(self):
+        """
+        Get actual predictions in order of sum likes and dislikes decreasing
+
+        :return:
+            preds(list[dict]): data of predictions
+        """
         return [
             self.get_prediction(pred_data['id'])
             for pred_data in self.execute(
@@ -829,22 +865,71 @@ class SessionDBHandler(DBHandlerBase):
             )''' % settings.DEFAULT_EXPERT_PREDICTIONS_NOTIFICATIONS_NUMBER
         )
 
-    def check_session_exists(self, user_id:int):
+    def check_session_exists(self, user_id:int) -> bool:
+        """
+        Check if session exists in db by user's id
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :return:
+            success_status(bool): does the session exist or not
+        """
         return len(
             self.execute(
                 'SELECT user_id FROM sessions WHERE user_id = ?', (user_id,)
             )
         ) > 0
 
-    def add_session(self, user_id:int):
-        self.execute('INSERT INTO sessions(user_id) VALUES (?)', (user_id,))
-        return True
+    def add_session(self, user_id:int) -> True:
+        """
+        Add session to db
 
-    def delete_session(self, user_id:int):
-        self.execute('DELETE FROM sessions WHERE user_id = ?', (user_id,))
-        return True
+        :arguments:
+            user_id(int): user's id in Telegram
+        :raise:
+            exceptions.SessionAlreadyExistsError: if `user_id` in db
+        :return:
+            success_status(bool)=True
+        """
+        if not self.check_session_exists(user_id):
+            self.execute(
+                'INSERT INTO sessions(user_id) VALUES (?)', 
+                (user_id,)
+            )
+            return True
+        raise exceptions.SessionAlreadyExistsError(
+            f"session with user {user_id} already exists", cause='user_id'
+        )
 
-    def get_session(self, user_id:int):
+    def delete_session(self, user_id:int) -> True:
+        """
+        Delete session from db
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :raise:
+            exceptions.SessionDoesNotExistError: if no `user_id` in db
+        :return:
+            success_status(bool)=True
+        """
+        if self.check_session_exists(user_id):
+            self.execute('DELETE FROM sessions WHERE user_id = ?', (user_id,))
+            return True
+        raise exceptions.SessionDoesNotExistError(
+            f"session with user {user_id} does not exist", cause='user_id'
+        )            
+
+    def get_session(self, user_id:int) -> dict:
+        """
+        Get session data from db
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :raise:
+            exceptions.SessionDoesNotExistError: if no `user_id` in db
+        :return:
+            session_data(dict)
+        """
         if self.check_session_exists(user_id):
             return self.execute(
                 'SELECT * FROM sessions WHERE user_id = ?', (user_id,)
@@ -853,10 +938,26 @@ class SessionDBHandler(DBHandlerBase):
             f"session with user id {user_id} does not exist", cause='user_id'
         )
 
-    def get_all_sessions(self):
+    def get_all_sessions(self) -> list:
+        """
+        Get all sessions in db
+
+        :return:
+            sessions(list[dict]): sessions' data
+        """
         return self.execute("SELECT * FROM sessions")
 
-    def decrease_count(self, user_id:int):
+    def decrease_count(self, user_id:int) -> True:
+        """
+        Decrease the `free_notifications_count` by 1
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :raise:
+            exceptions.SessionDoesNotExistError: if no `user_id` in db
+        :return:
+            success_status(bool)=True
+        """
         if self.check_session_exists(user_id):
             self.execute(
                 'UPDATE sessions \
@@ -870,6 +971,17 @@ class SessionDBHandler(DBHandlerBase):
         )
 
     def set_count(self, user_id:int, count:int):
+        """
+        Set `free_notifications_count` to some number
+
+        :arguments:
+            user_id(int): user's id in Telegram
+            count(int): new count
+        :raise:
+            exceptions.SessionDoesNotExistError: if no `user_id` in db
+        :return:
+            success_status(bool)=True
+        """
         if self.check_session_exists(user_id):
             self.execute(
                 'UPDATE sessions SET free_notifications_count = ? \
@@ -882,6 +994,16 @@ class SessionDBHandler(DBHandlerBase):
         )
 
     def fetch_count(self, user_id:int, *, with_decrease:bool=False):
+        """
+        Get count `free_notifications_count`
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :keyword arguments:
+            with_decrease(bool)=False: to decrease the count while fetching
+        :raise:
+            exceptions.SessionDoesNotExistError: if no `user_id` in db
+        """
         if self.check_session_exists(user_id):
             is_user_pro = self.execute(
                 'SELECT is_pro FROM users WHERE id = ?',
