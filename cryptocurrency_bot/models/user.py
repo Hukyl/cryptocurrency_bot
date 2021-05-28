@@ -379,11 +379,15 @@ class User(UserBase):
         """
         Remove all `init_premium` features,
         set actual predictions `is_by_experts` to False (see Prediction)
+
+        Return: 
+            success_status(bool)=True
         """
         self.delete_premium()
         self.update(is_staff=0)
         for prediction in self.get_predictions(only_actual=True):
             prediction.update(is_by_experts=0)
+        return True
 
     def __str__(self):
         return f"User(id={self.id})"
@@ -596,6 +600,13 @@ class Prediction(object):
 
 
 class Session(object):
+    """
+    A temporary session which can be easily removed, replaced etc.
+
+    Attributes:
+        user(User): which user's the session is
+        free_notifications_count(int): how many notifications can user recieve
+    """
     db = SessionDBHandler(settings.DB_NAME)
 
     def __init__(self, user_id: int):
@@ -606,8 +617,17 @@ class Session(object):
     def free_notifications_count(self):
         return self.db.fetch_count(self.user.user_id)
 
-    def decrease_count(self):
+    def decrease_count(self) -> None:
+        """
+        Decrease `free_notifications_count` by 1, also in database
+        """
         self.db.decrease_count(self.user.user_id)
 
     def set_count(self, count: int):
+        """
+        Set `free_notifications_count` to `count`
+
+        Parameters:
+            count(int): how many notifications user will be able to recieve
+        """
         self.db.set_count(self.user.user_id, count)

@@ -144,19 +144,43 @@ class DBHandler(DBHandlerBase):
         )
 
     def add_user(
-            self, user_id:int, is_active: bool=True, is_pro=False,
+            self, user_id:int, is_active:bool=True, is_pro=False,
             is_staff:bool=False, to_notify_by_experts:bool=True, 
             timezone:int=0, language:str='en'
-    ):
-        self.execute(
-            "INSERT INTO users \
-            VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id, is_active, is_pro, is_staff, 
-                to_notify_by_experts, timezone, language
+            ):
+        """
+        Add user to database
+
+        Parameters:
+            user_id(int): user's id in Telegram
+            is_active(bool)=True: to notify or not to
+            is_pro(datetime.datetime | bool): does user have pro and until when
+                True - user has pro status forever
+                False - user does nto have pro status
+                datetime.datetime - user has pro status until some time
+            is_staff(bool)=False: is user a staff member
+            to_notify_by_experts(bool)=True: to enable notifications by experts
+            timezone(int)=0: user's timezone (in range(-11, 12))
+            language(str)='en': user's language in short form ('en', 'ru' etc.)
+        Raises:
+            exceptions.UserAlreadyExistsError: if user with `user_id` exists
+            sqlite3.DatabaseError: if invalid types are passed
+        Return:
+            success_status(bool)=True
+        """
+        if not self.check_user_exists(user_id):
+            self.execute(
+                "INSERT INTO users \
+                VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    user_id, is_active, is_pro, is_staff, 
+                    to_notify_by_experts, timezone, language
+                )
             )
+            return True
+        raise exceptions.UserAlreadyExistsError(
+            f"user {user_id} already exists", cause="id"
         )
-        return True
 
     @rangetest(value=(0, float('inf')))
     def add_user_rate(
@@ -164,6 +188,21 @@ class DBHandler(DBHandlerBase):
             percent_delta:float=0.01, 
             check_times:list=settings.DEFAULT_CHECK_TIMES
     ):
+        """
+        Add rate to user
+
+        Parameters:
+            user_id(int): user's id who add rate to
+            iso(str): Rate `iso`-USD
+            value(float)=1: 1 `iso` - `value` USD (0 < value < float('inf'))
+            percent_delta(float)=0.01: percent at which to notify (0<delta<1)
+            check_times(list)=settings.DEFAULT_CHECK_TIMES: in format ('%H:%M')
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            sqlite3.DatabaseError: if invalid types are passed
+        Return:
+            success_status(bool)=True
+        """
         if self.check_user_exists(user_id):
             self.execute(
                 "INSERT INTO users_rates VALUES (?, ?, ?, ?, ?)",
@@ -178,9 +217,24 @@ class DBHandler(DBHandlerBase):
     def add_prediction(
             self, user_id:int, iso_from:str, iso_to:str,
             value:float, up_to_date:datetime, is_by_experts:bool=False
-    ):
+    ) -> bool:
         """
-        Add a prediction if user with `user_id` exists
+        Add prediction to database
+        
+        Parameters:
+            user_id(int): user's id in Telegram
+            iso_from(str): currency's iso from which to convert
+            iso_to(str): currency's iso to which to convert
+            value(float): 1 `iso_from` - `value` `iso_from`
+            up_to_date(datetime.datetime): datetime when to verify
+            is_by_experts(bool)=False: is made by expert user
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            AssertionError: if `up_to_date` in in the past
+            sqlite3.DatabaseError: if invalid types are passed
+        Return:
+            success_status(bool)=True
+
         Returns True if succeeded else None
         """
         if self.check_user_exists(user_id):
@@ -198,20 +252,55 @@ class DBHandler(DBHandlerBase):
             f"user id {user_id} does not exist", cause='id'
         )
 
-    def check_user_exists(self, user_id: int):
+    def check_user_exists(self, user_id: int) -> bool:
+        """
+        Parameters:
+            user_id(int): user's id in Telegram
+        Return:
+            success_status(bool): if user exists or not
+        """
         return len(
             self.execute('SELECT id FROM users WHERE id = ?', (user_id,))
         ) > 0
 
     def check_prediction_exists(self, pred_id: int):
+        """
+        Parameters:
+            pred_id(int): prediction's id in database
+        Return:
+            success_status(bool): if prediction exists or not
+        """
         return len(self.execute(
             'SELECT id FROM currency_predictions WHERE id = ?', (pred_id,)
         )) > 0
 
-    def get_users_by_check_time(self, check_time:str):
+    def check_user_rate_exists(self, user_id:int, iso:str):
         """
-        Get all users, which check times, converted from their timezone to UTC,
-        equals to `check_time` (which is in UTC)
+        Check if user rate exists
+
+        Parameters:
+            user_id(int): user's id in Telegram
+            iso(str): currency's iso
+        Return:
+            success_status(bool): does rate exist or not
+        """
+        if self.check_user_exists(user_id):
+            return len(self.execute(
+                "SELECT iso FROM users_rates WHERE user_id = ? AND iso = ?",
+                (user_id, iso)
+            )) > 0
+        raise exceptions.UserDoesNotExistError(
+            f"user {user_id} does not exist", cause='id'
+        )
+
+    def get_users_by_check_time(self, check_time:str) -> list:
+        """
+        Get all users, where `check_time` in check times
+
+        Parameters:
+            check_time(str): check time in format '%H:%M'
+        Return:
+            users_list(list)
         """
         return [
             self.get_user(user_id['id'])
@@ -226,11 +315,15 @@ class DBHandler(DBHandlerBase):
 
     def get_user(self, user_id:int):
         """
-        Get all user data (except the predictions) by his id
-        raise UserDoesNotExistError if user with this id does not exist
-        otherwise returns dict(
-            user_id, is_active, is_pro, is_staff, rates, timezone, language
-        )
+        Get all user data (except the predictions)
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            sqlite3.DatabaseError: if invalid types are passed
+        Return:
+            user_data(dict)
         """
         if self.check_user_exists(user_id):
             return {
@@ -244,6 +337,12 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_all_users(self, *, if_all:bool=True):
+        """
+        Keyword parameters:
+            if_all(bool)=True: to include staff users
+        Return:
+            users(list): data of users
+        """
         filter_sql = 'WHERE is_staff != 1' if not if_all else ''
         return [
             self.get_user(user_data['id'])
@@ -254,7 +353,10 @@ class DBHandler(DBHandlerBase):
 
     def get_staff_users(self):
         """
-        Get all users with is_staff status
+        Get all users with `is_staff` status
+
+        Return:
+            users(list): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -266,6 +368,9 @@ class DBHandler(DBHandlerBase):
     def get_active_users(self):
         """
         Get all active users
+
+        Return:
+            users(list): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -277,6 +382,9 @@ class DBHandler(DBHandlerBase):
     def get_pro_users(self):
         """
         Get all users who are pro and active
+
+        Return:
+            users(list): data of users
         """
         return [
             self.get_user(user_data['id'])
@@ -288,9 +396,14 @@ class DBHandler(DBHandlerBase):
 
     def get_user_rates(self, user_id:int):
         """
-        Get users rates
-        Returns list of tuples (iso, value, percent_delta, check_times) 
-        If no rates found, returns empty list
+        Get user's rates
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+        Return:
+            user_rates(dict): all users_rates
         """
         if self.check_user_exists(user_id):
             return self.execute(
@@ -307,11 +420,13 @@ class DBHandler(DBHandlerBase):
     def get_prediction(self, pred_id:int):
         """
         Get prediction by its id
-        Returns None if prediction with this id does not exist
-        otherwise returns list(
-            id, user_id, iso_from, iso_to, 
-            value, up_to_date, is_by_experts, real_value
-        )
+
+        Parameters:
+            pred_id(int): prediction's id in database
+        Raises:
+            exceptions.PredictionDoesNotExistError: if `pred_id` not exists
+        Return:
+            pred_data(dict)
         """
         if self.check_prediction_exists(pred_id):
             return self.execute(
@@ -323,6 +438,12 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_actual_predictions(self):
+        """
+        Get predictions where `up_to_date` is in future
+
+        Return:
+            preds(list): data of predictions
+        """
         return self.execute(
             'SELECT * FROM currency_predictions \
             WHERE datetime() < datetime(up_to_date) \
@@ -330,27 +451,61 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_user_predictions(self, user_id:int, *, only_actual:bool=False):
-        check_datetime_str = (
+        """
+        Return all predictions user made
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Keyword parameters:
+            only_actual(bool)=False: to include past predictions
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+        Return:
+            preds_data(list): data of user's predictions
+        """
+        check = (
             'datetime() < datetime(up_to_date) and ' if only_actual else ''
         )
-        return self.execute(
-            'SELECT * FROM currency_predictions \
-            WHERE %s user_id = ? ORDER BY up_to_date ASC' % check_datetime_str,
-            (user_id,)
+        if self.check_user_exists(user_id):
+            return self.execute(
+                'SELECT * FROM currency_predictions \
+                WHERE %s user_id = ? ORDER BY up_to_date ASC' % check,
+                (user_id,)
+            )
+        raise exceptions.UserDoesNotExistError(
+            f"User {user_id} does not exist", cause='id'
         )
 
     def get_random_prediction(self):
+        """
+        Get random actual prediction
+
+        Raises:
+            exceptions.PredictionDoesNotExistError: if no predictions in db
+        Return:
+            pred(int | dict): prediction's data
+        """
         res = self.execute(
             'SELECT * FROM currency_predictions \
-            WHERE is_by_experts = FALSE ORDER BY RANDOM() LIMIT 1'
+            WHERE is_by_experts = FALSE AND datetime(up_to_date) > datetime() \
+            ORDER BY RANDOM() LIMIT 1'
         )
-        return res[0] if res else -1
+        if res:
+            return res[0]
+        raise exceptions.PredictionDoesNotExistError(
+            "no predictions in database", cause="empty database"
+        )
 
     def get_closest_prediction_neighbours(self, pred_id:int):
         """
-        Returns previous and next prediction of prediction by `pred_id`
-        raise PredictionDoesNotExistError if prediction does not exist
-        :return: dict(previous=X, current=pred_id, next=Y)
+        Get previous and next predictions' ids of prediction
+
+        Parameters:
+            pred_id(int): prediction's id in database
+        Raises:
+            exceptions.PredictionDoesNotExistError: if no `pred_id` exists
+        Return:
+            neighbors(dict): neighbors of prediction
         """
 
         def get_next():
@@ -385,7 +540,15 @@ class DBHandler(DBHandlerBase):
             f"prediction id {pred_id} does not exist", cause='id'
         )
 
-    def get_experts_predictions(self, only_actual: bool = False):
+    def get_experts_predictions(self, *, only_actual:bool=False):
+        """
+        Get all prediction with `is_by_experts` = True
+
+        Keyword parameters:
+            only_actual(bool)=False: to include past predictions
+        Return:
+            preds(list): data of predictions
+        """
         check_datetime_str = (
             'datetime() < datetime(up_to_date) and ' if only_actual else ''
         )
@@ -396,12 +559,40 @@ class DBHandler(DBHandlerBase):
         )
 
     def get_unverified_predictions(self):
+        """
+        Get all predictions with `real_value` = None and `up_to_date` in past
+
+        Return:
+            preds(list): predictions' data
+        """
         return self.execute(
             'SELECT * FROM currency_predictions \
             WHERE datetime() > datetime(up_to_date) AND real_value is NULL'
         )
 
     def change_user(self, user_id:int, **kwargs):
+        """
+        Change some of user's data
+
+        Parameters:
+            user_id(int): user's id in Telegram
+        Keyword parameters:
+            is_active(bool)=True: to notify or not to
+            is_pro(datetime.datetime | bool): does user have pro and until when
+                True - user has pro status forever
+                False - user does nto have pro status
+                datetime.datetime - user has pro status until some time
+            is_staff(bool)=False: is user a staff member
+            to_notify_by_experts(bool)=True: to enable notifications by experts
+            timezone(int)=0: user's timezone (in range(-11, 12))
+            language(str)='en': user's language in short form ('en', 'ru' etc.)
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            KeyError: if non-existent column name
+            ValueError: if invalid column value
+        Return:
+            success_status(bool)=True
+        """
         if self.check_user_exists(user_id):
             try:
                 for k, v in kwargs.items():
@@ -410,7 +601,7 @@ class DBHandler(DBHandlerBase):
                         (v, user_id)
                     )
             except sqlite3.OperationalError:
-                raise ValueError(f'invalid argument {repr(k)}') from None
+                raise KeyError(f'invalid argument {repr(k)}') from None
             except sqlite3.IntegrityError:
                 raise ValueError(f"invalid value {repr(v)}") from None
             else:
@@ -421,38 +612,92 @@ class DBHandler(DBHandlerBase):
 
     @rangetest(value=(0, float("inf")))
     def change_user_rate(self, user_id:int, iso:str, **kwargs):
-        if self.check_user_exists(user_id):
-            for k, v in kwargs.items():
-                try:
+        """
+        Change some of user's rate data
+
+        Parameters:
+            user_id(int): user's id in Telegram
+            iso(str): currency's iso which data to change
+        Keyword parameters:
+            value(float): 1 `iso` - `value` USD (0 < value < float('inf'))
+            percent_delta(float): percent at which to notify (0<delta<1)
+            check_times(list): in format ('%H:%M')
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            exceptions.RateDoesNotExistError: if no user rate with `iso`
+            KeyError: if non-existent column name
+            ValueError: if invalid column value
+        Return:
+            success_status(bool)=True
+        """
+        if self.check_user_rate_exists(user_id, iso):
+            try:
+                for k, v in kwargs.items():
                     self.execute(
                         'UPDATE users_rates SET %s = ? \
                         WHERE user_id = ? and iso = ?' % k,
                         (v, user_id, iso)
                     )
-                except sqlite3.OperationalError:
-                    raise ValueError(f'invalid argument {repr(k)}') from None
-                except sqlite3.IntegrityError:
-                    raise ValueError(f"invalid value {repr(v)}") from None
-            return True
-        raise exceptions.UserDoesNotExistError(
-            f"user id {user_id} does not exist", cause='id'
-        )
+            except sqlite3.OperationalError:
+                raise KeyError(f'invalid argument {repr(k)}') from None
+            except sqlite3.IntegrityError:
+                raise ValueError(f"invalid value {repr(v)}") from None
+            else:
+                return True
+        raise exceptions.RateDoesNotExistError(
+            f"rate {iso} of user {user_id} does not exist", cause='iso'
+        )                
 
     def delete_user_rate(self, user_id:int, iso:str):
-        self.execute(
-            'DELETE FROM users_rates WHERE user_id = ? AND iso = ?',
-            (user_id, iso)
+        """
+        Delete user rate
+
+        Parameters:
+            user_id(int): user's id in Telegram
+            iso(str): currency's iso which to delete
+        Raises:
+            exceptions.UserDoesNotExistError: if no user with `user_id`
+            exceptions.RateDoesNotExistError: if no rate with `iso`
+        Return:
+            success_status(bool)=True
+        """
+        if self.check_user_rate_exists(user_id, iso):
+            self.execute(
+                'DELETE FROM users_rates WHERE user_id = ? AND iso = ?',
+                (user_id, iso)
+            )
+            return True
+        raise exceptions.RateDoesNotExistError(
+            f"rate {iso} of user {user_id} does not exist", cause='iso'
         )
-        return True
 
     @rangetest(value=(0, float("inf")), real_value=(0, float("inf")))
     def change_prediction(self, pred_id:int, **kwargs):
+        """
+        Change some values of prediction
+
+        Parameters:
+            pred_id(int): prediction's id in database
+        Keyword parameters:
+            value(float): 1 `iso_from` - `value` `iso_from`
+            up_to_date(datetime.datetime): datetime when to verify
+            is_by_experts(bool)=False: is made by expert user
+        Raises:
+            exceptions.PredictionDoesNotExistError: if no prediction `pred_id`
+            AssertionError: 
+                - key in ('iso_to', 'iso_from', 'user_id', 'id')
+                - `up_to_date` in the past
+            KeyError: if non-existent column names
+            ValueError: if invalid column values
+        Return:
+            success_status(bool)=True
+        """
         if self.check_prediction_exists(pred_id):
             # validation of parameters
             assert all(
                 [
                     x not in kwargs 
-                    for x in ('iso_to', 'iso_from', 'user_id', 'pred_id')
+                    for x in ('iso_to', 'iso_from', 'user_id', 'id')
                 ]
             ), 'unsupported arguments'
             if kwargs.get('up_to_date') is not None:
@@ -468,7 +713,7 @@ class DBHandler(DBHandlerBase):
                         (v, pred_id,)
                     )
             except sqlite3.OperationalError:
-                raise ValueError(f'invalid argument {repr(k)}') from None
+                raise KeyError(f'invalid argument {repr(k)}') from None
             except sqlite3.IntegrityError:
                 raise ValueError(f"invalid value {repr(v)}") from None
             return True
@@ -477,11 +722,25 @@ class DBHandler(DBHandlerBase):
         )
 
     def delete_prediction(self, pred_id:int):
-        self.execute(
-            'DELETE FROM currency_predictions WHERE id = ?',
-            (pred_id,)
+        """
+        Delete prediction from database
+
+        Parameters:
+            pred_id(int): prediction's id in database
+        Raises:
+            exceptions.PredictionDoesNotExistError: if no prediction `pred_id`
+        Return:
+            success_status(bool)=True
+        """
+        if self.check_prediction_exists(pred_id):
+            self.execute(
+                'DELETE FROM currency_predictions WHERE id = ?',
+                (pred_id,)
+            )
+            return True
+        raise exceptions.PredictionDoesNotExistError(
+            f"prediction {pred_id} does not exist", cause='id'
         )
-        return True
 
     def toggle_prediction_reaction(
                 self, pred_id:int, user_id:int, reaction:bool=True
