@@ -935,21 +935,24 @@ def toggle_user_experts_predictions(msg):
 
 @bot.message_handler(commands=['me'])
 def see_user_info(msg):
-    user = bot.session.user
+    u = bot.session.user
     info = "Пользователь @{}\nTelegram ID: {} \nПодписка: {}\nПерсонал: {}\
             \nЧасовой пояс: {}\nОповещения: {}\nПрогнозы от экспертов: {}\
             \nОповещения: {}\n{}".format(
-                msg.from_user.username, user.id, 
-                (f'до {convert_to_country_format(user.is_pro, user.language)}' 
-                    if user.is_pro else 'нет'),
-                ('да' if user.is_staff else 'нет'), 
-                prettify_utcoffset(user.timezone),
-                ('включены' if user.is_active else 'отключены'),
-                ('включены' if user.is_active else 'отключены'),
-                ('включены' if user.to_notify_by_experts else 'отключены'),
-                User.prettify_rates(user.rates)
+                msg.from_user.username, u.id, 
+                (
+                    f'до {convert_to_country_format(u.is_pro, u.language)}' 
+                    if isinstance(u.is_pro, datetime.datetime) else 
+                    'да' if u.is_pro is True else 'нет'
+                ),
+                ('да' if u.is_staff else 'нет'), 
+                prettify_utcoffset(u.timezone),
+                ('включены' if u.is_active else 'отключены'),
+                ('включены' if u.is_active else 'отключены'),
+                ('включены' if u.to_notify_by_experts else 'отключены'),
+                User.prettify_rates(u.rates)
             )
-    bot.send_message(msg.chat.id, _(info, user.language))
+    bot.send_message(msg.chat.id, _(info, u.language))
     return start_bot(msg)
 
 
@@ -1692,7 +1695,7 @@ def check_premium_ended():
             settings.logger.info(f"{usr} lost premium")
 
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        for user in User.get_pro_users():
+        for user in User.get_pro_users(only_temp=True):
             executor.submit(check_user_premium_ended, user)
 
 

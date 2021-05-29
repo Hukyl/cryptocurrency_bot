@@ -20,7 +20,7 @@ class Logger(object):
         'debug': {'color': 'green', 'level': 10}
     }
 
-    def __init__(self, *, using_files:bool=True):
+    def __init__(self):
         self.log_count = 0
         self.base_path = os.path.join(
             'logs', dt.utcnow().strftime('%Y-%m-%d_%H-%M-%S')

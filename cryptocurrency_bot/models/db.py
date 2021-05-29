@@ -18,7 +18,7 @@ sqlite3.register_converter(
     "datetime", 
     lambda x: datetime.strptime(
         x.decode("ascii"), '%Y-%m-%d %H:%M:%S'
-    ) if x.decode("ascii") != '0' else False
+    ) if x.decode("ascii") not in ['0', '1'] else bool(int(x.decode('ascii')))
 )
 sqlite3.register_adapter(list, lambda x: ','.join(x).encode('ascii'))
 sqlite3.register_converter(
@@ -378,18 +378,23 @@ class DBHandler(DBHandlerBase):
             )
         ]
 
-    def get_pro_users(self):
+    def get_pro_users(self, *, only_temp:bool=False):
         """
         Get all users who are pro and active
-
+        
+        :keyword arguments:
+            only_temp(bool)=False: to include users with `is_pro`=True
+                (users with infinite premium)
         :return:
             users(list[dict]): data of users
         """
+        check_str = 'AND is_pro != TRUE' if only_temp else ''
         return [
             self.get_user(user_data['id'])
             for user_data in self.execute(
                 'SELECT id FROM users \
-                WHERE is_active = TRUE and is_pro != FALSE'
+                WHERE is_active = TRUE and \
+                is_pro != FALSE %s' % check_str
             )
         ]
 

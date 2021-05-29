@@ -273,8 +273,9 @@ class DBTestCase(BasicTestCase):
         self.assertEqual(len(self.db.get_pro_users()), 0)
         self.db.change_user(0, is_pro=utils.dt.get_now().replace(year=2120))
         self.assertEqual(len(self.db.get_pro_users()), 1)
-        self.db.add_user(1, is_pro=utils.dt.get_now().replace(year=2120))
+        self.db.add_user(1, is_pro=True)
         self.assertEqual(len(self.db.get_pro_users()), 2)
+        self.assertEqual(len(self.db.get_pro_users(only_temp=True)), 1)
         self.db.change_user(0, is_pro=0)   
         self.assertEqual(len(self.db.get_pro_users()), 1)
 

@@ -81,7 +81,8 @@ class User(UserBase):
     db = DBHandler(settings.DB_NAME)
 
     def __init__(self, user_id:int):
-        self.init_user(user_id)
+        if not self.__class__.exists(user_id):
+            self.init_user(user_id)
         data = self.db.get_user(user_id)
         super().__init__(data)
 
@@ -370,8 +371,7 @@ class User(UserBase):
         :return:
             success_status(bool)=True
         """
-        until_datetime = get_now() + timedelta(days=100*365)
-        self.init_premium(until_datetime)
+        self.init_premium(True)
         self.update(is_staff=1)
         for prediction in self.get_predictions(only_actual=True):
             prediction.update(is_by_experts=1)
