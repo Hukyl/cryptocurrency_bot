@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .db import DBHandler, SessionDBHandler
 from configs import settings
 from utils import prettify_percent, get_default_rates, prettify_float
 from utils.dt import (
-    check_datetime_in_future, get_now, 
+    check_datetime_in_future, 
     adapt_datetime, convert_to_country_format
 )
 from . import exceptions
@@ -613,7 +613,20 @@ class Session(object):
 
     def __init__(self, user_id:int):
         self.user = User(user_id)
-        self.db.add_session(user_id)
+        if not self.__class__.exists(user_id):
+            self.db.add_session(user_id)
+
+    @classmethod
+    def exists(cls, user_id:int):
+        """
+        Check whether session with `user_id` exists
+
+        :arguments:
+            user_id(int): user's id in Telegram
+        :return:
+            success_status(bool)
+        """
+        return cls.db.check_session_exists(user_id)
 
     @property
     def free_notifications_count(self):
