@@ -502,8 +502,9 @@ def see_users_currency_predictions(msg):
         return see_users_currency_predictions(msg_inner)
 
     def liking_system(msg_inner):
-        rand_pred = Prediction.get_random_prediction()
-        if rand_pred is None:
+        try:
+            rand_pred = Prediction.get_random_prediction()
+        except exceptions.PredictionDoesNotExistError:
             # if no predictions are there
             bot.send_message(
                 msg_inner.chat.id,
