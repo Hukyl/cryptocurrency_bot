@@ -877,8 +877,7 @@ def get_callback_for_change_currency_converter_amount(call):
                 )
             )
             return bot.register_next_step_handler(
-                call.message, ask_sum, 
-                call, [msg_to_delete]
+                call.message, ask_sum, call, [msg_to_delete]
             )
         elif command == 'Reset':
             return set_amount_to_1(call)
