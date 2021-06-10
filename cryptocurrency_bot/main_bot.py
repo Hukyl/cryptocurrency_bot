@@ -29,7 +29,7 @@ bot.full_bot_commands = {
     # Change percent delta at which to notify
     '/change_timezone': 'сменить ваш часовой пояс',  # change your timezone
     '/toggle_alarms': 'включить/выключить оповещения',  # Toggle alarms
-    '/toggle_experts_predictions': 'включить/выключить прогнозы от экспертов',  
+    '/toggle_experts_predictions': 'включить/выключить прогнозы от экспертов',
     # Toggle experts predictions
     '/make_prediction': 'сделать прогноз',  # Make a prediction
     '/get_predictions': 'прогнозы',  # Go to "Predictions" section
@@ -86,7 +86,7 @@ def check_if_command(bot_instance, message):
     # answer for command, even if the `register_next_step_handler` is used
     if message.entities:
         is_bot_command = (
-            message.entities[0].type == 'bot_command' and 
+            message.entities[0].type == 'bot_command' and
             message.text in bot_instance.full_bot_commands
         )
         if is_bot_command:
@@ -265,14 +265,14 @@ def make_user_currency_prediction(msg):
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    '❗ Please enter the date only in the specified format ❗', 
+                    '❗ Please enter the date only in the specified format ❗',
                     user.language
                 )
             )
             bot.register_next_step_handler(msg_inner, get_date)
         except AssertionError:
             bot.send_message(
-                msg_inner.chat.id, 
+                msg_inner.chat.id,
                 _('❗ You cannot enter a past date ❗', user.language)
             )
             bot.register_next_step_handler(msg_inner, get_date)
@@ -302,7 +302,7 @@ def make_user_currency_prediction(msg):
                 msg_inner.chat.id,
                 _(
                     '❗ Enter currency iso codes only'
-                    ' in the specified format ❗', 
+                    ' in the specified format ❗',
                     user.language
                 )
             )
@@ -312,7 +312,7 @@ def make_user_currency_prediction(msg):
                     msg_inner.chat.id,
                     _(
                         "Enter the forecast result "
-                        "(for example, 27.50, 22300)", 
+                        "(for example, 27.50, 22300)",
                         user.language
                     )
                 )
@@ -375,7 +375,7 @@ def make_user_currency_prediction(msg):
                             convert_to_country_format(
                                 adapt_datetime(
                                     prediction.up_to_date, usr.timezone
-                                ), 
+                                ),
                                 usr.language
                             ),
                             prettify_float(prediction.value)
@@ -588,11 +588,11 @@ def get_closest_prediction(call):
     user = bot.session.user
     inline_kb = get_prediction_inline_kb_for_liking(following_pred)
     bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_(following_pred.tstr(user), user.language),
-            reply_markup=inline_kb
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_(following_pred.tstr(user), user.language),
+        reply_markup=inline_kb
+    )
 
 
 @bot.callback_query_handler(
@@ -607,11 +607,11 @@ def toggle_user_reaction(call):
     reaction = True if action == 'like' else False
     prediction.toggle_like(call.message.chat.id, reaction)
     bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_(prediction.tstr(user), user.language),
-            reply_markup=get_prediction_inline_kb_for_liking(prediction)
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_(prediction.tstr(user), user.language),
+        reply_markup=get_prediction_inline_kb_for_liking(prediction)
+    )
     bot.answer_callback_query(
         callback_query_id=call.id,
         show_alert=False,
@@ -697,11 +697,11 @@ def get_user_predictions(call):
         for x in user.get_predictions()
     }, row_width=1)
     return bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_('Here are your predictions', user.language),
-            reply_markup=kb_inline
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_('Here are your predictions', user.language),
+        reply_markup=kb_inline
+    )
 
 
 @bot.message_handler(commands=['convert'])
@@ -719,7 +719,7 @@ def convert_currency(msg):
                 msg_inner.chat.id,
                 _(
                     '❗ Enter currency iso codes'
-                    ' only in the specified format ❗', 
+                    ' only in the specified format ❗',
                     user.language
                 )
             )
@@ -787,7 +787,7 @@ def get_callback_for_change_currency_converter_amount(call):
                 change_amount = call_inner.data.split('_')[-1]
                 change_amount = float(change_amount)
                 iso_from, iso_to = [
-                    x.split() 
+                    x.split()
                     for x in call_inner.message.text.split(':')[-1].split('-')
                 ]
                 rate = float(iso_to[0].replace(',', '.')) / float(
@@ -806,7 +806,7 @@ def get_callback_for_change_currency_converter_amount(call):
                         callback_query_id=call_inner.id,
                         show_alert=False,
                         text=_(
-                            f"Amount is already {change_amount}", 
+                            f"Amount is already {change_amount}",
                             user.language
                         )
                     )
@@ -870,12 +870,12 @@ def get_callback_for_change_currency_converter_amount(call):
         if command == '...':
             # bot.clear_step_handler(call.message)
             msg_to_delete = bot.send_message(
-                    call.message.chat.id,
-                    _(
-                        'Enter new amount',
-                        user.language
-                    )
+                call.message.chat.id,
+                _(
+                    'Enter new amount',
+                    user.language
                 )
+            )
             return bot.register_next_step_handler(
                 call.message, ask_sum, call, [msg_to_delete]
             )
@@ -940,10 +940,10 @@ def see_user_info(msg):
     info = "Пользователь @{}\nTelegram ID: {} \nПодписка: {}\nПерсонал: {}\
             \nЧасовой пояс: {}\nОповещения: {}\nПрогнозы от экспертов: {}\
             \nОповещения: {}\n{}".format(
-                msg.from_user.username, u.id, 
+                msg.from_user.username, u.id,
                 (
-                    f'до {convert_to_country_format(u.is_pro, u.language)}' 
-                    if isinstance(u.is_pro, datetime.datetime) else 
+                    f'до {convert_to_country_format(u.is_pro, u.language)}'
+                    if isinstance(u.is_pro, datetime.datetime) else
                     'да' if u.is_pro is True else 'нет'
                 ),
                 ('да' if u.is_staff else 'нет'), 
