@@ -4,184 +4,231 @@ import threading
 import sys
 from time import sleep
 
+import schedule
+import argparse
+
 from models.user import *
+from models.logger import Logger, cprint
 from utils import dt
 from utils import infinite_loop
 
 
-def get_ints_safe(args):
-    try:
-        args = [int(x) for x in args]
-    except ValueError:
-        print(f"FAILURE: Enter only valid integers for user ids: {', '.join(args)}")
-        sys.exit(1)
-    return args
 
-#########################################################################################
+def is_valid_file(parser, arg, *, ext:str=None, check_exists:bool=True):
+    if check_exists and not os.path.exists(arg):
+        parser.error(f"The file {arg} does not exist!")
+    elif ext and os.path.splitext(arg)[1] != ext:
+        parser.error(f"The file {arg} has wrong extension!")
+    else:
+        return arg
 
 
-def runbot(*args):
+def runbot(level:str):
     import main_bot
-    is_debug = '-d' in args or '--DEBUG' in args
     targets = [
-        *main_bot.THREAD_LIST,
+        main_bot.schedule_thread,
         main_bot.bot.infinity_polling,
     ]
-    if is_debug:
-        for target in targets:
-            threading.Thread(target=target, daemon=True).start()
-    else:
-        for target in targets:
-            threading.Thread(target=infinite_loop, args=(target,), daemon=True).start()
-    main_bot.settings.logger.log("Bot started", kind="debug" if is_debug else "info")
+    settings.logger.set_level(level)
+    for target in targets:
+        threading.Thread(
+            target=infinite_loop, args=(target,), daemon=True
+        ).start()
+    main_bot.settings.logger.info("Bot started")
     while True:
         try:
             sleep(100000)
         except KeyboardInterrupt:
             break
-    main_bot.settings.logger.log("Bot stopped", kind="debug" if is_debug else "info")
+    schedule.clear()
+    main_bot.settings.logger.info("Bot stopped")
 
 
-def check_subscribed(*args):
-    args = get_ints_safe(args)
-    for user_id in args:
-        if not User.db.check_user_exists(user_id):
-            print(f"FAILURE: No user found by id: {user_id}")
+def check_subscribed(ids:list):
+    for user_id in ids:
+        if not User.exists(user_id):
+            cprint(f"FAILURE: No user found by id: {user_id}", "red")
             continue
         user = User(user_id)
         if user.is_pro:
-            print(f"SUCCESS: User {user_id} IS subscribed until {dt.convert_to_country_format(user.is_pro, 'ru')} UTC")
+            cprint(
+                "SUCCESS: User {} IS subscribed until {} UTC".format(
+                    user_id,
+                    dt.convert_to_country_format(user.is_pro, 'ru')
+                ),
+                "green"
+            )
         else:
-            print(f"SUCCESS: User {user_id} IS NOT subscribed")
+            cprint(f"SUCCESS: User {user_id} IS NOT subscribed", "green")
 
 
-def give_staff(*args):
-    args = get_ints_safe(args)
-    for user_id in args:
-        if not User.db.check_user_exists(user_id):
-            print(f"FAILURE: No user found by id: {user_id}")
+def give_staff(ids:list):
+    for user_id in ids:
+        if not User.exists(user_id):
+            cprint(f"FAILURE: No user found by id: {user_id}", "red")
             continue
         user = User(user_id)
         if user.is_staff:
-            print(f"FAILURE: User {user_id} already has a staff membership")
+            cprint(
+                f"FAILURE: User {user_id} already has a staff membership", 
+                "red"
+            )
         else:
             user.init_staff()
-            print(f"SUCCESS: User {user_id} received a staff membership")
+            cprint(
+                f"SUCCESS: User {user_id} received a staff membership", 
+                "green"
+            )
 
 
-def remove_staff(*args):
-    args = get_ints_safe(args)
-    for user_id in args:
-        if not User.db.check_user_exists(user_id):
-            print(f"FAILURE: No user found by id: {user_id}")
+def remove_staff(ids:list):
+    for user_id in ids:
+        if not User.exists(user_id):
+            cprint(f"FAILURE: No user found by id: {user_id}", "red")
             continue
         user = User(user_id)
         if not user.is_staff:
-            print(f"FAILURE: User {user_id} has no staff membership")
+            cprint(f"FAILURE: User {user_id} has no staff membership", "red")
         else:
             user.delete_staff()
-            print(f"SUCCESS: User {user_id} doesn't have a staff membership now")
+            cprint(
+                f"SUCCESS: User {user_id} doesn't have a staff membership now",
+                "green"
+            )
 
 
-def get_notification_count(*args):
-    args = get_ints_safe(args)
-    for user_id in args:
-        if not User.db.check_user_exists(user_id):
-            print(f"FAILURE: No user found by id: {user_id}")
+def get_notification_count(ids:list):
+    for user_id in ids:
+        if not User.exists(user_id):
+            cprint(f"FAILURE: No user found by id: {user_id}", "red")
             continue
         session = Session(user_id)
-        print(f"SUCCESS: User {user_id} has {session.free_notifications_count} notifications left")
+        cprint(
+            "SUCCESS: User {} has {} notifications left".format(
+                user_id, session.free_notifications_count
+            ), 
+            "green"
+        )
 
 
-def set_notification_count(*args):
-    args = get_ints_safe(args)
-    if len(args) != 2:
-        print(f"FAILURE: unsupported number of operands: {len(args)}")
-        sys.exit(1)
-    user_id, new_count = args
-    if not User.db.check_user_exists(user_id):
-        print(f"FAILURE: No user found by id: {user_id}")
+def set_notification_count(user_id:int, count:int):
+    if not User.exists(user_id):
+        cprint(f"FAILURE: No user found by id: {user_id}", "red")
         sys.exit(1)
     session = Session(user_id)
-    session.set_count(new_count)
-    print(f"SUCCESS: User {user_id} notification count has been set to {new_count}")
+    session.set_count(count)
+    cprint(
+        f"SUCCESS: User {user_id} notification count has been set to {count}", 
+        "green"
+    )
 
 
-def create_db_dump(*args, **kwargs):
-    if len(args) != 2:
-        print(f"FAILURE: unsupported number of operands: {len(args)}")
-        sys.exit(1)
-    input_db_name, output_filename = args
-    if not os.path.isfile(input_db_name):
-        print(f"FAILURE: Database {repr(input_db_name)} does not exist")
-        sys.exit(1)
-    with sqlite3.connect(input_db_name) as conn:
-        with open(output_filename, 'w') as file:
+def create_db_dump(db_filename:str, dump_filename:str):
+    with sqlite3.connect(db_filename) as conn:
+        with open(dump_filename, 'w') as file:
             for line in conn.iterdump():
                 file.write("%s\n" % line)
-    print("SUCCESS: dump was created successfully")
+    cprint("SUCCESS: dump was created successfully", "green")
 
 
-def load_db_from_dump(*args, **kwargs):
-    if len(args) != 2:
-        print(f"FAILURE: unsupported number of operands: {len(args)}")
-        sys.exit(1)
-    input_dump_filename, output_db_name = args
-    if not os.path.isfile(input_dump_filename):
-        print(f"FAILURE: dump {repr(input_dump_filename)} does not exist")
-        sys.exit(1)
-    if os.path.isfile(output_db_name):
-        os.remove(output_db_name)
-    with sqlite3.connect(output_db_name) as conn:
-        with open(input_dump_filename, 'r') as file:
+def load_db_dump(dump_filename:str, db_filename:str):
+    if os.path.isfile(db_filename):
+        os.remove(db_filename)
+    with sqlite3.connect(db_filename) as conn:
+        with open(dump_filename, 'r') as file:
             conn.executescript(file.read())
-    print("SUCCESS: database was created successfully")
+    cprint("SUCCESS: database was created successfully", "green")
 
-
-
-def help_message():
-    message = """Utility for bot managing
-
-commands:
-    run [-d, --DEBUG] - run bot with(-out) debug flag.
-    give-staff [user_id] [user_id] [...] - give staff membership to users.
-    remove-staff [user_id] [user_id] [...] - remove staff from users.
-    check-subscribed [user_id] [user_id] [...] - check whether users are subscribed.
-    get-notification-count [user_id] [user_id] [...] - get notifications count for users.
-    set-notification-count [user_id] [count] - set new notifications count.
-    create-db-dump [db_filename] [output_dump_file] - create a dump from 'db_filename' database.
-    load-db-from-dump [dump_filename] [output_db_filename] - create a db from dump.
-    help - see help.
-"""
-    print(message)
 
 
 if __name__ == '__main__':
     commands = {
-        'remove-staff': remove_staff,
-        'give-staff': give_staff,
-        'check-subscribed': check_subscribed,
-        'run': runbot,
-        'get-notification-count': get_notification_count,
-        'set-notification-count': set_notification_count,
-        'create-db-dump': create_db_dump,
-        'load-db-from-dump': load_db_from_dump,
-        'help': help_message
+        'run': lambda namespace: runbot(namespace.level),
+        'check-subscribed': lambda namespace: check_subscribed(namespace.ids),
+        'give-staff': lambda namespace: give_staff(namespace.ids),
+        'remove-staff': lambda namespace: remove_staff(namespace.ids),
+        'get-notification-count': lambda namespace: get_notification_count(
+            namespace.ids
+        ),
+        'set-notification-count': lambda namespace: set_notification_count(
+            namespace.user_id, namespace.count
+        ),
+        'create-db-dump': lambda namespace: create_db_dump(
+            namespace.db, namespace.dump
+        ),
+        'load-db-dump': lambda namespace: load_db_dump(
+            namespace.dump, namespace.db
+        ),
     }
-    filename, *args = sys.argv[:]
-    if len(args) == 0:
-        help_message()
-        sys.exit(0)
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help="command", dest='command')
+    parser_run = subparsers.add_parser('run', help='run the bot')
+    parser_run.add_argument(
+        "-l", "--level", default="info", 
+        help="set logger level", type=str, choices=list(Logger.LOG_LEVELS)
+    )
+    parser_subscribed = subparsers.add_parser(
+        'check-subscribed', help="check whether user(s) are subscribed"
+    )
+    parser_subscribed.add_argument(
+        'ids', metavar='user_id', type=int, nargs="+"
+    )
+    parser_give_staff = subparsers.add_parser(
+        'give-staff', help="give staff membership to users"
+    )
+    parser_give_staff.add_argument(
+        'ids', metavar='user_id', type=int, nargs="+"
+    )
+    parser_remove_staff = subparsers.add_parser(
+        'remove-staff', help="remove staff membership from users"
+    )
+    parser_remove_staff.add_argument(
+        'ids', metavar='user_id', type=int, nargs="+"
+    )
+    parser_get_count = subparsers.add_parser(
+        'get-notification-count', help="get notifications count for users"
+    )
+    parser_get_count.add_argument(
+        'ids', metavar='user_id', type=int, nargs="+"
+    )
+    parser_set_count = subparsers.add_parser(
+        'set-notification-count', help="set new notifications count"
+    )
+    parser_set_count.add_argument('user_id', type=int)
+    parser_set_count.add_argument('count', type=int)
+    parser_create_dump = subparsers.add_parser(
+        'create-db-dump', help="create database dump"
+    )
+    parser_create_dump.add_argument(
+        '--db', help="database filename",
+        default=settings.DB_NAME, required=False,
+        type=lambda x: is_valid_file(parser_create_dump, x, ext='.sqlite3')
+    )
+    parser_create_dump.add_argument(
+        '--dump', help="dump filename",
+        default=settings.DUMP_NAME, required=False,
+        type=lambda x: is_valid_file(
+            parser_create_dump, x, ext='.sql', check_exists=False
+        )
+    )
+    parser_load_dump = subparsers.add_parser(
+        'load-db-dump', help="load database from dump"
+    )
+    parser_load_dump.add_argument(
+        '--dump', help="dump filename",
+        default=settings.DUMP_NAME, required=False,
+        type=lambda x: is_valid_file(parser_create_dump, x, ext='.sql')
+    )
+    parser_load_dump.add_argument(
+        '--db', help="database filename",
+        default=settings.DB_NAME, required=False,
+        type=lambda x: is_valid_file(
+            parser_create_dump, x, ext='.sqlite3', check_exists=False
+        )
+    )
+    namespace = parser.parse_args()
+    if len(namespace.__dict__) > 1:
+        commands[namespace.command](namespace)
     else:
-        func, *args = args
-        func = commands.get(func, None)
-        if func is None:
-            print("FAILURE: Unknown command.")
-            help_message()
-        else:
-            try:
-                func(*args)
-            except Exception as e:
-                print("FAILURE: Some error occurred, please check input arguments")
-                print(e)
-            sys.exit(0)
+        parser.print_help()

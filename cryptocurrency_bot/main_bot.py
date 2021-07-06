@@ -6,10 +6,12 @@ import time
 
 import telebot
 from telebot.types import LabeledPrice
+import schedule
 
 from configs import settings
 from models.parsers import *
 from models.user import User, Prediction, Session
+from models import exceptions
 from utils import *
 from utils.translator import translate as _
 from utils.telegram import kbs, inline_kbs
@@ -27,7 +29,8 @@ bot.full_bot_commands = {
     # Change percent delta at which to notify
     '/change_timezone': 'сменить ваш часовой пояс',  # change your timezone
     '/toggle_alarms': 'включить/выключить оповещения',  # Toggle alarms
-    '/toggle_experts_predictions': 'включить/выключить прогнозы от экспертов',  # Toggle experts predictions
+    '/toggle_experts_predictions': 'включить/выключить прогнозы от экспертов',
+    # Toggle experts predictions
     '/make_prediction': 'сделать прогноз',  # Make a prediction
     '/get_predictions': 'прогнозы',  # Go to "Predictions" section
     '/convert': 'конвертер валют',  # Currency Converter
@@ -47,13 +50,17 @@ currency_parser = CurrencyExchanger(proxy_list=get_proxy_list())
 
 USERS_SESSIONS = {}
 
-####################################################################################################
+###############################################################################
 
 
 def get_or_create_session(chat_id):
     global USERS_SESSIONS
     try:
-        USERS_SESSIONS[chat_id] = USERS_SESSIONS.get(chat_id, Session(chat_id))
+        session = USERS_SESSIONS.get(chat_id)
+        if not session:
+            session = Session(chat_id)
+            settings.logger.debug(f"{session.user} logged in")
+        USERS_SESSIONS[chat_id] = session
     except MemoryError:
         for i in range(50):
             USERS_SESSIONS.popitem()
@@ -78,14 +85,17 @@ def set_call_session(bot_instance, call):
 def check_if_command(bot_instance, message):
     # answer for command, even if the `register_next_step_handler` is used
     if message.entities:
-        is_bot_command = message.entities[0].type == 'bot_command' and message.text in bot_instance.full_bot_commands
+        is_bot_command = (
+            message.entities[0].type == 'bot_command' and
+            message.text in bot_instance.full_bot_commands
+        )
         if is_bot_command:
             try:
                 bot_instance.clear_step_handler(message)
             except RecursionError:
                 pass
 
-####################################################################################################
+###############################################################################
 
 
 @settings.logger.catch_error
@@ -104,13 +114,16 @@ def start_message(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            "I am <b>{}</b>, your personal shareholder bot, and I will keep you updated on important trading events!",
+            "I am <b>{}</b>, your personal shareholder bot, and I will keep"
+            " you updated on important trading events!",
             user.language
         ).format(bot.get_me().first_name),
         parse_mode='html'
     )
-    if (add_info and (tech_support_recognizer in add_info)) or not list(User.get_staff_users()):
-        # if user started bot with techsupport link or there are not support users
+    if (add_info and (
+            tech_support_recognizer in add_info
+            )) or not list(User.get_staff_users()):
+        # if user started bot with support link or there are not staff users
         user.init_staff()
         bot.send_message(
             msg.chat.id,
@@ -119,6 +132,7 @@ def start_message(msg):
                 user.language
             )
         )
+        settings.logger.info(f"{user} recieved staff status")
     return start_bot(msg)
 
 
@@ -134,17 +148,21 @@ def start_bot(msg, to_show_commands: bool = True):
     ]
     kb = kbs(buttons, one_time_keyboard=False)
     if to_show_commands:
-        str_ = '\n'.join(['{} - %s' % v for k, v in bot.short_bot_commands.items()])
+        commands_str = '\n'.join(
+            '{} - %s' % v for k, v in bot.short_bot_commands.items()
+        )
         bot.send_message(
             msg.chat.id,
             _(
-                str_,
+                commands_str,
                 user.language,
             ).format(*list(bot.short_bot_commands)),
             reply_markup=kb
         )
     else:
-        bot.send_message(msg.chat.id, _("Main menu", user.language), reply_markup=kb)
+        bot.send_message(
+            msg.chat.id, _("Main menu", user.language), reply_markup=kb
+        )
     bot.register_next_step_handler(msg, choose_option, buttons=buttons)
 
 
@@ -158,22 +176,32 @@ def choose_option(msg, buttons=None):
         # go to notifications section
         buttons = {
             _("Your info", user.language): see_user_info,
-            _('Change alarm time', user.language): change_user_rate_check_times,
-            _('Change alarm percent', user.language): change_user_rate_percent_delta,
+            _(
+                'Change alarm time', user.language
+            ): change_user_rate_check_times,
+            _(
+                'Change alarm percent', user.language
+            ): change_user_rate_percent_delta,
             _('Toggle alarms', user.language): toggle_user_alarms,
-            _("Toggle experts predictions", user.language): toggle_user_experts_predictions,
+            _(
+                "Toggle experts predictions", user.language
+            ): toggle_user_experts_predictions,
             _('Change time zone', user.language): change_user_timezone,
             _('Main menu', user.language): start_bot
         }
         if user.is_pro:
-            buttons[_('⚜ Other currencies ⚜', user.language)] = other_user_currencies_menu
+            buttons[_(
+                '⚜ Other currencies ⚜', user.language
+            )] = other_user_currencies_menu
         kb = kbs(list(buttons), one_time_keyboard=False, row_width=2)
         bot.send_message(
             msg.chat.id,
             _('Выберите опцию', user.language),
             reply_markup=kb
         )
-        return bot.register_next_step_handler(msg, change_alarms, user, buttons)
+        return bot.register_next_step_handler(
+            msg, change_alarms, buttons
+        )
     elif buttons[2] == msg.text:
         return buy_subscription(msg)
     elif buttons[-2] == msg.text:
@@ -236,47 +264,65 @@ def make_user_currency_prediction(msg):
         except ValueError:
             bot.send_message(
                 msg_inner.chat.id,
-                _('❗ Please enter the date only in the specified format ❗', user.language)
+                _(
+                    '❗ Please enter the date only in the specified format ❗',
+                    user.language
+                )
             )
             bot.register_next_step_handler(msg_inner, get_date)
         except AssertionError:
-            bot.send_message(msg_inner.chat.id, _('❗ You cannot enter a past date ❗', user.language))
+            bot.send_message(
+                msg_inner.chat.id,
+                _('❗ You cannot enter a past date ❗', user.language)
+            )
             bot.register_next_step_handler(msg_inner, get_date)
         else:
             date = up_to_date
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
+                    'Enter the ISO-codes of the forecast currency '
+                    '`<ISO>-<ISO>`\nFor example, USD-RUB',
                     user.language
                 ),
                 parse_mode='Markdown',
-                reply_markup=kbs(list(settings.ACCEPTABLE_CURRENCIES_CONVERTION))
+                reply_markup=kbs(settings.ACCEPTABLE_CURRENCIES_CONVERTION)
             )
             bot.register_next_step_handler(msg_inner, get_iso)
 
     def get_iso(msg_inner):
         nonlocal iso_from, iso_to
-        msg_inner.text = settings.ACCEPTABLE_CURRENCIES_CONVERTION.get(msg_inner.text, msg_inner.text)
+        msg_inner.text = settings.ACCEPTABLE_CURRENCIES_CONVERTION.get(
+            msg_inner.text, msg_inner.text
+        )
         try:
             iso_from, iso_to = [x.strip() for x in msg_inner.text.split('-')]
         except ValueError:
             bot.send_message(
                 msg_inner.chat.id,
-                _('❗ Enter currency iso codes only in the specified format ❗', user.language)
+                _(
+                    '❗ Enter currency iso codes only'
+                    ' in the specified format ❗',
+                    user.language
+                )
             )
         else:
             if currency_parser.check_rate_exists(iso_from, iso_to):
                 bot.send_message(
                     msg_inner.chat.id,
-                    _("Enter the forecast result (for example, 27.50, 22300)", user.language)
+                    _(
+                        "Enter the forecast result "
+                        "(for example, 27.50, 22300)",
+                        user.language
+                    )
                 )
                 return bot.register_next_step_handler(msg_inner, get_value)
             else:
                 bot.send_message(
                     msg_inner.chat.id,
                     _(
-                        "❗ This currency does not exist or is not supported, please try another one ❗",
+                        "❗ This currency does not exist or is not supported"
+                        ", please try another one ❗",
                         user.language
                     )
                 )
@@ -287,25 +333,32 @@ def make_user_currency_prediction(msg):
         try:
             value = float(msg_inner.text.replace(',', '.'))
         except ValueError:
-            bot.send_message(msg_inner.chat.id, _('❗ Enter only numbers ❗', user.language))
+            bot.send_message(
+                msg_inner.chat.id, _('❗ Enter only numbers ❗', user.language)
+            )
             bot.register_next_step_handler(msg_inner, get_value)
         else:
             buttons = [_('Yes', user.language), _('No', user.language)]
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm '
+                    'Here is the forecast data:\nForecast period: {}'
+                    '\nCurrency: {} - {}\nValue: {}\n.\nConfirm '
                     'forecast creation?',
                     user.language
                 ).format(
-                    convert_to_country_format(adapt_datetime(date, user.timezone), user.language),
+                    convert_to_country_format(
+                        adapt_datetime(date, user.timezone), user.language
+                    ),
                     iso_from,
                     iso_to,
                     prettify_float(value)
                 ),
                 reply_markup=kbs(buttons)
             )
-            bot.register_next_step_handler(msg_inner, confirm_prediction, buttons)
+            bot.register_next_step_handler(
+                msg_inner, confirm_prediction, buttons
+            )
 
     def resend_prediction_all_users(prediction):
         for usr in User.get_all_users(if_all=False):
@@ -314,12 +367,15 @@ def make_user_currency_prediction(msg):
                     bot.send_message(
                         usr.id,
                         _(
-                            '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
+                            '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n'
+                            '*Up to:* {}\n*Predicted value:* {}',
                             usr.language
                         ).format(
                             prediction.iso_from, prediction.iso_to,
                             convert_to_country_format(
-                                adapt_datetime(prediction.up_to_date, usr.timezone), 
+                                adapt_datetime(
+                                    prediction.up_to_date, usr.timezone
+                                ),
                                 usr.language
                             ),
                             prettify_float(prediction.value)
@@ -331,26 +387,36 @@ def make_user_currency_prediction(msg):
                     bot.send_message(
                         usr.id,
                         _(
-                            "❗ Your limit on receiving predictions has expired, contact our support team ❗",
+                            "❗ Your limit on receiving predictions has"
+                            " expired, contact our support team ❗",
                             usr.language
                         )
                     )
 
     def confirm_prediction(msg_inner, buttons):
         if msg_inner.text == buttons[0]:
-            user.create_prediction(iso_from, iso_to, prettify_float(value), date)
+            user.create_prediction(
+                iso_from, iso_to, prettify_float(value), date
+            )
             if user.is_staff:
                 threading.Thread(
                     target=resend_prediction_all_users,
                     args=(user.predictions[-1],), daemon=True
                 ).start()
-            bot.send_message(msg_inner.chat.id, _('The forecast has been created!', user.language))
+            bot.send_message(
+                msg_inner.chat.id, 
+                _('The forecast has been created!', user.language)
+            )
             return start_bot(msg_inner)
         elif msg_inner.text == buttons[1]:
-            bot.send_message(msg_inner.chat.id, _('Forecast not created', user.language))
+            bot.send_message(
+                msg_inner.chat.id, _('Forecast not created', user.language)
+            )
             return start_bot(msg_inner)
         else:
-            bot.send_message(msg_inner.chat.id, _('Response not processed', user.language))
+            bot.send_message(
+                msg_inner.chat.id, _('Response not processed', user.language)
+            )
             return start_bot(msg_inner)
 
     bot.send_message(
@@ -365,7 +431,8 @@ def make_user_currency_prediction(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'Select the forecast validity period in the format `{}`\nFor example, {}',
+            'Select the forecast validity period in the format `{}`\n'
+            'For example, {}',
             user.language
         ).format(datetime_format, datetime_example),
         parse_mode='Markdown'
@@ -378,7 +445,10 @@ def see_users_currency_predictions(msg):
     user = bot.session.user
 
     def see_self_predictions(msg_inner):
-        preds = {x.repr(user): f'get_prediction_{x.id}' for x in user.get_predictions()}
+        preds = {
+            x.trepr(user): f'get_prediction_{x.id}' 
+            for x in user.get_predictions()
+        }
         kb_inline = inline_kbs(preds, row_width=1)
         if len(preds) == 0:
             bot.send_message(
@@ -398,7 +468,10 @@ def see_users_currency_predictions(msg):
             experts_str = (
                 '⚜ Experts predictions ⚜ are:\n'
                 +
-                ('\n\n'.join([x.str(user) for x in Prediction.get_experts_predictions()][:5]) or ' none')
+                ('\n\n'.join([
+                    x.tstr(user) 
+                    for x in Prediction.get_experts_predictions()][:5]
+                ) or ' none')
             )
             if experts_str.endswith('none'):
                 # if no predictions were concatenated to prefix
@@ -411,7 +484,10 @@ def see_users_currency_predictions(msg):
         liked_preds_str = (
             'Most liked predictions are:\n'
             +
-            ('\n\n'.join([x.str(user) for x in Prediction.get_most_liked_predictions()][:5]) or ' none')
+            ('\n\n'.join([
+                x.tstr(user) 
+                for x in Prediction.get_most_liked_predictions()][:5]
+            ) or ' none')
         )
         if liked_preds_str.endswith('none'):
             # if no predictions were concatenated to prefix
@@ -426,32 +502,34 @@ def see_users_currency_predictions(msg):
         return see_users_currency_predictions(msg_inner)
 
     def liking_system(msg_inner):
-        random_pred = Prediction.get_random_prediction()
-        if random_pred is None:
+        try:
+            rand_pred = Prediction.get_random_prediction()
+        except exceptions.PredictionDoesNotExistError:
             # if no predictions are there
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    'There are no predictions to like yet, you can create one!',
+                    'There are no predictions to like yet,'
+                    ' you can create one!',
                     user.language
                 )
             )
             return start_bot(msg_inner)
         else:
-            closest = random_pred.get_closest_neighbours()
+            closest = rand_pred.get_closest_neighbours()
             previous, nxt = closest['previous'], closest['next']
             inline_buttons = {
-                '👍': f'like_prediction_{random_pred.id}',
-                '👎': f'dislike_prediction_{random_pred.id}'
+                '👍': f'like_prediction_{rand_pred.id}',
+                '👎': f'dislike_prediction_{rand_pred.id}'
             }
             if previous:
-                inline_buttons['<<'] = f'previous_prediction_to_{random_pred.id}'
+                inline_buttons['<<'] = f'previous_prediction_to_{rand_pred.id}'
             if nxt:
-                inline_buttons['>>'] = f'next_prediction_to_{random_pred.id}'
+                inline_buttons['>>'] = f'next_prediction_to_{rand_pred.id}'
             inline_kb = inline_kbs(inline_buttons, row_width=2)
             bot.send_message(
                 msg_inner.chat.id,
-                _(random_pred.str(user), user.language),
+                _(rand_pred.tstr(user), user.language),
                 reply_markup=inline_kb
             )
             return see_users_currency_predictions(msg_inner)
@@ -498,7 +576,10 @@ def get_prediction_inline_kb_for_liking(pred):
 
 
 @bot.callback_query_handler(
-    lambda call: 'next_prediction_to_' in call.data or 'previous_prediction_to_' in call.data
+    lambda call: (
+        'next_prediction_to_' in call.data or 
+        'previous_prediction_to_' in call.data
+    )
 )
 def get_closest_prediction(call):
     action, *data, pred_id = call.data.split('_')
@@ -507,15 +588,17 @@ def get_closest_prediction(call):
     user = bot.session.user
     inline_kb = get_prediction_inline_kb_for_liking(following_pred)
     bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_(following_pred.str(user), user.language),
-            reply_markup=inline_kb
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_(following_pred.tstr(user), user.language),
+        reply_markup=inline_kb
+    )
 
 
 @bot.callback_query_handler(
-    lambda call: 'like_prediction_' in call.data or 'dislike_prediction_' in call.data
+    lambda call: (
+        'like_prediction_' in call.data or 'dislike_prediction_' in call.data
+    )
 )
 def toggle_user_reaction(call):
     action, *some_data, pred_id = call.data.split('_')
@@ -524,11 +607,11 @@ def toggle_user_reaction(call):
     reaction = True if action == 'like' else False
     prediction.toggle_like(call.message.chat.id, reaction)
     bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_(prediction.str(user), user.language),
-            reply_markup=get_prediction_inline_kb_for_liking(prediction)
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_(prediction.tstr(user), user.language),
+        reply_markup=get_prediction_inline_kb_for_liking(prediction)
+    )
     bot.answer_callback_query(
         callback_query_id=call.id,
         show_alert=False,
@@ -539,15 +622,15 @@ def toggle_user_reaction(call):
 @bot.callback_query_handler(lambda call: 'get_prediction_' in call.data)
 def get_prediction_details(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = Prediction(pred_id)
+    pred = Prediction(pred_id)
     user = bot.session.user
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text=_(prediction.str(user), user.language),
+        text=_(pred.tstr(user), user.language),
         reply_markup=inline_kbs({
             _('Delete', user.language): f'ask_delete_prediction_{pred_id}',
-            _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
+            _('Back', user.language): f'get_user_predictions_{pred.user_id}'
         }, row_width=1)
     )
 
@@ -555,19 +638,19 @@ def get_prediction_details(call):
 @bot.callback_query_handler(lambda call: 'ask_delete_prediction_' in call.data)
 def ask_delete_prediction(call):
     pred_id = int(call.data.split('_')[-1])
-    prediction = Prediction(pred_id)
+    pred = Prediction(pred_id)
     user = bot.session.user
-    if prediction.is_actual:
+    if pred.is_actual:
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=_(
                 "Are you sure you want to delete this prediction:\n{}?",
                 user.language
-            ).format(prediction.repr(user)),
+            ).format(pred.trepr(user)),
             reply_markup=inline_kbs({
                 _('Yes', user.language): f'delete_prediction_{pred_id}',
-                _('No', user.language): f'get_user_predictions_{prediction.user_id}'
+                _('No', user.language): f'get_user_predictions_{pred.user_id}'
             })
         )
     else:
@@ -576,7 +659,9 @@ def ask_delete_prediction(call):
             message_id=call.message.message_id,
             text=_('You cannot delete a verified prediction!', user.language),
             reply_markup=inline_kbs({
-                    _('Back', user.language): f'get_user_predictions_{prediction.user_id}'
+                _(
+                    'Back', user.language
+                ): f'get_user_predictions_{pred.user_id}'
             })
         )
 
@@ -592,9 +677,11 @@ def delete_prediction(call):
         answer_msg = _(
             "Prediction ({}) was deleted",
             user.language
-        ).format(prediction.repr(user))
+        ).format(prediction.trepr(user))
     else:
-        answer_msg = _('You cannot delete a verified prediction!', user.language)
+        answer_msg = _(
+            'You cannot delete a verified prediction!', user.language
+        )
     bot.answer_callback_query(
         callback_query_id=call.id,
         show_alert=False,
@@ -606,15 +693,15 @@ def delete_prediction(call):
 def get_user_predictions(call):
     user = bot.session.user
     kb_inline = inline_kbs({
-        x.repr(user): f'get_prediction_{x.id}'
+        x.trepr(user): f'get_prediction_{x.id}'
         for x in user.get_predictions()
     }, row_width=1)
     return bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=_('Here are your predictions', user.language),
-            reply_markup=kb_inline
-        )
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=_('Here are your predictions', user.language),
+        reply_markup=kb_inline
+    )
 
 
 @bot.message_handler(commands=['convert'])
@@ -630,7 +717,11 @@ def convert_currency(msg):
         except ValueError:
             bot.send_message(
                 msg_inner.chat.id,
-                _('❗ Enter currency iso codes only in the specified format ❗', user.language)
+                _(
+                    '❗ Enter currency iso codes'
+                    ' only in the specified format ❗',
+                    user.language
+                )
             )
             return bot.register_next_step_handler(msg_inner, get_isos)
         else:
@@ -644,7 +735,8 @@ def convert_currency(msg):
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    "❗ The converter did not find such currencies, please try again ❗",
+                    "❗ The converter did not find such"
+                    " currencies, please try again ❗",
                     user.language
                 )
             )
@@ -674,7 +766,8 @@ def convert_currency(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB',
+            'Enter the ISO-codes of currencies `<ISO>-<ISO>`\n'
+            'For example, USD-RUB',
             user.language
         ),
         parse_mode='Markdown'
@@ -682,7 +775,9 @@ def convert_currency(msg):
     bot.register_next_step_handler(msg, get_isos)
 
 
-@bot.callback_query_handler(lambda call: 'change_currency_converter_amount_to_' in call.data)
+@bot.callback_query_handler(
+    lambda call: 'change_currency_converter_amount_to_' in call.data
+)
 def get_callback_for_change_currency_converter_amount(call):
     user = bot.session.user
 
@@ -691,8 +786,13 @@ def get_callback_for_change_currency_converter_amount(call):
             if call_inner.message:
                 change_amount = call_inner.data.split('_')[-1]
                 change_amount = float(change_amount)
-                iso_from, iso_to = [x.split() for x in call_inner.message.text.split(':')[-1].split('-')]
-                rate = float(iso_to[0].replace(',', '.')) / float(iso_from[0].replace(',', '.'))
+                iso_from, iso_to = [
+                    x.split()
+                    for x in call_inner.message.text.split(':')[-1].split('-')
+                ]
+                rate = float(iso_to[0].replace(',', '.')) / float(
+                    iso_from[0].replace(',', '.')
+                )
                 new_amount = rate * change_amount
                 markup = inline_kbs(
                     {
@@ -705,7 +805,10 @@ def get_callback_for_change_currency_converter_amount(call):
                     return bot.answer_callback_query(
                         callback_query_id=call_inner.id,
                         show_alert=False,
-                        text=_(f"Amount is already {change_amount}", user.language)
+                        text=_(
+                            f"Amount is already {change_amount}",
+                            user.language
+                        )
                     )
                 else:
                     bot.edit_message_text(
@@ -767,18 +870,21 @@ def get_callback_for_change_currency_converter_amount(call):
         if command == '...':
             # bot.clear_step_handler(call.message)
             msg_to_delete = bot.send_message(
-                    call.message.chat.id,
-                    _(
-                        'Enter new amount',
-                        user.language
-                    )
+                call.message.chat.id,
+                _(
+                    'Enter new amount',
+                    user.language
                 )
-            return bot.register_next_step_handler(call.message, ask_sum, call, [msg_to_delete])
+            )
+            return bot.register_next_step_handler(
+                call.message, ask_sum, call, [msg_to_delete]
+            )
         elif command == 'Reset':
             return set_amount_to_1(call)
 
 
-def change_alarms(msg, user, buttons):
+def change_alarms(msg, buttons):
+    user = bot.session.user
     func = buttons.get(msg.text, None)
     if func is None:
         bot.send_message(
@@ -792,26 +898,11 @@ def change_alarms(msg, user, buttons):
         return bot.register_next_step_handler(
             msg,
             change_alarms,
-            bot.session.user,
             buttons
         )
     else:
         return func(msg)
 
-@bot.message_handler(commands=['me'])
-def see_user_info(msg):
-    user = bot.session.user
-    info = f"Пользователь @{msg.from_user.username}\
-            ;Telegram ID: {user.user_id}\
-            ;Подписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
-            ;Персонал: {'да' if user.is_staff else 'нет'}\
-            ;Часовой пояс: {prettify_utcoffset(user.timezone)}\
-            ;Оповещения: {'включены' if user.is_active else 'отключены'}\
-            ;Прогнозы от экспертов: {'включены' if user.to_notify_by_experts else 'отключены'}\
-            ;Оповещения:\
-            ;{User.prettify_rates(user.rates)}"
-    bot.send_message(msg.chat.id, _(info, user.language, parse_mode='newline'))
-    return start_bot(msg)
 
 @bot.message_handler(commands=['toggle_alarms'])
 def toggle_user_alarms(msg):
@@ -834,7 +925,9 @@ def toggle_user_experts_predictions(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            f"Experts' predictions {'en' if user.to_notify_by_experts else 'dis'}abled",
+            "Experts' predictions {}abled".format(
+                'en' if user.to_notify_by_experts else 'dis'
+            ),
             user.language
         )
     )
@@ -843,17 +936,25 @@ def toggle_user_experts_predictions(msg):
 
 @bot.message_handler(commands=['me'])
 def see_user_info(msg):
-    user = bot.session.user
-    info = f"Пользователь @{msg.from_user.username}\
-            \nTelegram ID: {user.id}\
-            \nПодписка: {f'до {convert_to_country_format(user.is_pro, user.language)}' if user.is_pro else 'нет'}\
-            \nПерсонал: {'да' if user.is_staff else 'нет'}\
-            \nЧасовой пояс: {prettify_utcoffset(user.timezone)}\
-            \nОповещения: {'включены' if user.is_active else 'отключены'}\
-            \nПрогнозы от экспертов: {'включены' if user.to_notify_by_experts else 'отключены'}\
-            \nОповещения:\
-            \n{User.prettify_rates(user.rates)}"
-    bot.send_message(msg.chat.id, _(info, user.language))
+    u = bot.session.user
+    is_subscribed = (
+        f'до {convert_to_country_format(u.is_pro, u.language)}'
+        if isinstance(u.is_pro, datetime.datetime) else
+        'да' if u.is_pro is True else 'нет'
+    )
+    info = (
+        f"Пользователь @{msg.from_user.username}\n" +
+        f"Telegram ID: {u.id}\n" +
+        f"Подписка: {is_subscribed}\n" +
+        f"Персонал: {'да' if u.is_staff else 'нет'}\n" +
+        f"Часовой пояс: {prettify_utcoffset(u.timezone)}\n" +
+        f"Оповещения: {'включены' if u.is_active else 'отключены'}\n" +
+        'Прогнозы от экспертов: {}\n'.format(
+            'включены' if u.to_notify_by_experts else 'отключены'
+        ) + 
+        User.prettify_rates(u.rates)
+    )
+    bot.send_message(msg.chat.id, _(info, u.language))
     return start_bot(msg)
 
 
@@ -874,7 +975,9 @@ def change_user_rate_percent_delta(msg):
                     user.language
                 ).format(
                     currency,
-                    prettify_percent(user.rates.get(currency).get('percent_delta'))
+                    prettify_percent(
+                        user.rates.get(currency).get('percent_delta')
+                    )
                 ),
                 reply_markup=kbs(settings.PERCENTAGES)
             )
@@ -896,10 +999,16 @@ def change_user_rate_percent_delta(msg):
             else:
                 raise ValueError
         except ValueError:
-            bot.send_message(msg_inner.chat.id, _("❗ Enter only numbers ❗", user.language))
+            bot.send_message(
+                msg_inner.chat.id,
+                _("❗ Enter only numbers ❗", user.language)
+            )
             return bot.register_next_step_handler(msg_inner, inner2)
         except AssertionError:
-            bot.send_message(msg_inner.chat.id, _("❗ Percent must be in range from 0 to 100 ❗", user.language))
+            bot.send_message(
+                msg_inner.chat.id, 
+                _("❗ Percent must be in range from 0 to 100 ❗", user.language)
+            )
             return bot.register_next_step_handler(msg_inner, inner2)
         user.update_rates(currency, percent_delta=delta)
         bot.send_message(
@@ -940,7 +1049,8 @@ def change_user_rate_check_times(msg):
                 bot.send_message(
                     msg_inner.chat.id,
                     _(
-                        "You subscribed ⚜ and you are presented with all possible alert times!",
+                        "You subscribed ⚜ and you are presented"
+                        " with all possible alert times!",
                         user.language
                     )
                 )
@@ -967,14 +1077,18 @@ def change_user_rate_check_times(msg):
                         'Select {} time(s)',
                         user.language
                     ).format(start),
-                    reply_markup=kbs(adapt_check_times(available_times, user.timezone))
+                    reply_markup=kbs(
+                        adapt_check_times(available_times, user.timezone)
+                    )
                 )
                 bot.register_next_step_handler(msg_inner, inner2, start)
         else:
             bot.send_message(
                 msg_inner.chat.id,
                 _('❗ Please enter only valid currencies ❗', user.language),
-                reply_markup=kbs(adapt_check_times(settings.CURRENCIES, user.timezone))
+                reply_markup=kbs(
+                    adapt_check_times(settings.CURRENCIES, user.timezone)
+                )
             )
             bot.register_next_step_handler(msg_inner, inner1)
 
@@ -1013,14 +1127,18 @@ def change_user_rate_check_times(msg):
                     user.language
                 )
             )
-            return bot.register_next_step_handler(msg_inner, inner2, iteration_num)
+            return bot.register_next_step_handler(
+                msg_inner, inner2, iteration_num
+            )
         else:
             bot.send_message(
                 msg_inner.chat.id,
                 _(
                     f"Enter more {iteration_num} time(s)",
                     user.language),
-                reply_markup=kbs(adapt_check_times(available_times, user.timezone))
+                reply_markup=kbs(
+                    adapt_check_times(available_times, user.timezone)
+                )
             )
             bot.register_next_step_handler(msg_inner, inner2, iteration_num)
     kb = kbs(user.rates.keys())
@@ -1086,7 +1204,10 @@ def other_user_currencies_menu(msg):
     def next_step(msg_inner):
         option = buttons.get(msg_inner.text, None)
         if option is None:
-            bot.send_message(msg_inner.chat.id, _('❗ Choose only from the suggestions ❗', user.language))
+            bot.send_message(
+                msg_inner.chat.id, 
+                _('❗ Choose only from the suggestions ❗', user.language)
+            )
             bot.register_next_step_handler(msg_inner, next_step)
         else:
             return option(msg_inner)
@@ -1103,8 +1224,13 @@ def other_user_currencies_menu(msg):
 def delete_user_currency(msg):
     user = bot.session.user
     curr = None
-    deletable_currencies = list(set(user.rates).difference(set(settings.CURRENCIES)))
-    answer_options = {_("Yes", user.language): True, _("No", user.language): False}
+    deletable_currencies = list(
+        set(user.rates).difference(set(settings.CURRENCIES))
+    )
+    answer_options = {
+        _("Yes", user.language): True,
+        _("No", user.language): False
+    }
 
     def confirm_deletion(msg_inner):
         option = answer_options.get(msg_inner.text, None)
@@ -1122,7 +1248,11 @@ def delete_user_currency(msg):
         elif option is None:
             bot.send_message(
                 msg_inner.chat.id,
-                _("I don't understand your answer, returning to the main menu...", user.language)
+                _(
+                    "I don't understand your answer,"
+                    " returning to the main menu...", 
+                    user.language
+                )
             )
         return start_bot(msg_inner)
 
@@ -1132,7 +1262,10 @@ def delete_user_currency(msg):
         if curr in deletable_currencies:
             bot.send_message(
                 msg_inner.chat.id,
-                _("Are you sure you want to delete this currency: {}?", user.language).format(curr),
+                _(
+                    "Are you sure you want to delete this currency: {}?", 
+                    user.language
+                ).format(curr),
                 reply_markup=kbs(list(answer_options))
             )
             bot.register_next_step_handler(msg_inner, confirm_deletion)
@@ -1149,7 +1282,9 @@ def delete_user_currency(msg):
                     msg_inner.chat.id,
                     _("❗ This currency is not supported ❗", user.language)
                 )
-            bot.register_next_step_handler(msg_inner, choose_currency_to_delete)
+            bot.register_next_step_handler(
+                msg_inner, choose_currency_to_delete
+            )
 
     if len(deletable_currencies) > 0:
         bot.send_message(
@@ -1162,7 +1297,10 @@ def delete_user_currency(msg):
         )
         bot.register_next_step_handler(msg, choose_currency_to_delete)
     else:
-        bot.send_message(msg.chat.id, _("You have no extra currencies to delete", user.language))
+        bot.send_message(
+            msg.chat.id, 
+            _("You have no extra currencies to delete", user.language)
+        )
         return start_bot(msg)
 
 
@@ -1178,7 +1316,8 @@ def add_new_currency(msg):
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    '❗ This currency does not exist or is not supported, please try another one ❗',
+                    '❗ This currency does not exist or is not supported,'
+                    ' please try another one ❗',
                     user.language
                 )
             )
@@ -1187,15 +1326,21 @@ def add_new_currency(msg):
             if iso in user.rates:
                 bot.send_message(
                     msg_inner.chat.id,
-                    _('❗ The currency is already on your currency list ❗', user.language)
+                    _(
+                        '❗ The currency is already on your currency list ❗', 
+                        user.language
+                    )
                 )
                 return start_bot(msg_inner)
             elif user.is_pro:
-                user.add_rate(iso, value=rate, check_times=settings.CHECK_TIMES)
+                user.add_rate(
+                    iso, value=rate, check_times=settings.CHECK_TIMES
+                )
                 bot.send_message(
                     msg_inner.chat.id,
                     _(
-                        'New currency has been created successfully!\nNow the rate is {} - {} USD',
+                        'New currency has been created successfully!\n'
+                        'Now the rate is {} - {} USD',
                         user.language
                     ).format(iso, rate)
                 )
@@ -1219,19 +1364,21 @@ def buy_subscription(msg):
     prices = [
         [
             LabeledPrice(
-                label=f"Cost of subscription for {price.get('period')} month" + (
-                    's' if price.get('period') > 1 else ''
+                label=f"Cost of subscription for {p.get('period')} month" + (
+                    's' if p.get('period') > 1 else ''
                 ),
-                amount=int(prettify_float(start_price * price.get('period')) * 100)
+                amount=int(prettify_float(start_price * p.get('period')) * 100)
             )
         ] + ([
             LabeledPrice(
-                label=f'Discount {price.get("discount")*100}%',
-                amount=-int(prettify_float(start_price * price.get('period') * price.get('discount')) * 100)
+                label=f'Discount {p.get("discount")*100}%',
+                amount=-int(prettify_float(
+                    start_price * p.get('period') * p.get('discount')
+                ) * 100)
                 # * 100 because `amount` is interpreted in cents
             )
-        ] if price.get('discount') > 0 else [])
-        for price in prices_json_list
+        ] if p.get('discount') > 0 else [])
+        for p in prices_json_list
     ]
     prices_easy = {
         price.get('period'): price.get('discount')
@@ -1243,26 +1390,35 @@ def buy_subscription(msg):
             prices_str = ''
             for price in prices_json_list:
                 period = price.get('period')
-                word_ending = '' if period == 1 else 'a' if period in range(2, 5) else 'ов'                
-                total_sum = int(substract_percent(period * start_price, price.get('discount')))
-                prices_str += f';{period} месяц{word_ending} - {total_sum} $'
+                word_ending = (
+                    '' if period == 1 else 
+                    'a' if period in range(2, 5) else 'ов'
+                )                
+                total_sum = int(substract_percent(
+                    period * start_price, price.get('discount')
+                ))
+                prices_str += f'\n{period} месяц{word_ending} - {total_sum} $'
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    f'Отлично!\nВыберите длительность Подписки (в месяцах)\n{prices_str}',
+                    'Отлично!\nВыберите длительность Подписки (в месяцах)\n'
+                    f'{prices_str}',
                     user.language
                 ),
                 reply_markup=kbs(list(prices_easy))
             )
             bot.register_next_step_handler(msg_inner, get_months_number)
         elif msg_inner.text == _('No, thanks', user.language):
-            bot.send_message(msg_inner.chat.id, _('Okay, we\'ll wait!', user.language))
+            bot.send_message(
+                msg_inner.chat.id, _('Okay, we\'ll wait!', user.language)
+            )
             return start_bot(msg_inner)
         else:
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    "I don't understand your answer, returning to the main menu...",
+                    "I don't understand your answer, "
+                    "returning to the main menu...",
                     user.language
                 )
             )
@@ -1270,7 +1426,9 @@ def buy_subscription(msg):
 
     def get_months_number(msg_inner):
         months = msg_inner.text
-        if not (months.isdigit() and (int(msg_inner.text) in list(prices_easy))):
+        if not (months.isdigit() and (
+                    int(msg_inner.text) in list(prices_easy))
+                ):
             bot.send_message(
                 msg_inner.chat.id,
                 _('❗ Please enter only suggested values ❗', user.language),
@@ -1278,11 +1436,16 @@ def buy_subscription(msg):
             )
             bot.register_next_step_handler(msg_inner, get_months_number)
         else:
-            price = [(y, x) for x, y in zip(list(prices_easy), prices) if x == int(months)][0]
+            price = [
+                (y, x) 
+                for x, y in zip(list(prices_easy), prices) 
+                if x == int(months)
+            ][0]
             bot.send_message(
                 msg_inner.chat.id,
                 _(
-                    '❗ Pay just as you receive invoice, otherwise payment can be not received ❗',
+                    '❗ Pay just as you receive invoice, '
+                    'otherwise payment can be not received ❗',
                     user.language
                 )
             )
@@ -1298,8 +1461,8 @@ def buy_subscription(msg):
             ).format(n_months),
             provider_token=settings.PAYMENT_TOKEN,
             currency='usd',
-            photo_url='https://i1.wp.com/bestservices.reviews/wp-content/uploads/2019/09/Subscription-Billing.jpg?w'
-                      '=1200&ssl=1',
+            photo_url='https://i1.wp.com/bestservices.reviews/wp-content/'
+            'uploads/2019/09/Subscription-Billing.jpg?w=1200&ssl=1',
             photo_height=300,  # !=0/None or picture won't be shown
             photo_width=600,
             photo_size=512,
@@ -1313,8 +1476,11 @@ def buy_subscription(msg):
         bot.send_message(
                 msg.chat.id,
                 _(
-                    'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. '
-                    'Forecasts from experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription '
+                    'When buying a Subscription, you get access to:\n'
+                    '1. Unlimited number of alerts per day\n'
+                    '2. Forecasts from experts\n'
+                    '3. Adding your currencies to alerts\n'
+                    'And more! \n\nBuy a Subscription '
                     'today, and you will not regret it',
                     user.language
                 ),
@@ -1363,7 +1529,11 @@ def subscription_payment_success(msg):
             )
         )
     )
-    settings.logger.log(f"User {user.id} paid for subscription until {adapt(datetime_expires, 0)}", kind="info")
+    settings.logger.info(
+        "{} paid for subscription until {}".format(
+            str(user), adapt(datetime_expires, 0)
+        )
+    )
     return start_bot(msg)
 
 
@@ -1380,10 +1550,15 @@ def change_language(msg):
         else:
             bot.send_message(
                 msg_inner.chat.id,
-                _("❗ Choose only from the suggested languages ❗", user.language),
+                _(
+                    "❗ Choose only from the suggested languages ❗", 
+                    user.language
+                ),
                 reply_markup=kbs(buttons)
             )
-            return bot.register_next_step_handler(msg_inner, confirm_language, user)
+            return bot.register_next_step_handler(
+                msg_inner, confirm_language, user
+            )
         bot.send_message(
             msg_inner.chat.id,
             _("Language changed successfully", user.language)
@@ -1393,7 +1568,8 @@ def change_language(msg):
     bot.send_message(
         msg.chat.id,
         _(
-            'At the moment, the service has two languages: Russian 🇷🇺 and English 🇬🇧',
+            'At the moment, the service has two languages: '
+            'Russian 🇷🇺 and English 🇬🇧',
             user.language
         ),
         reply_markup=kbs(buttons)
@@ -1408,12 +1584,17 @@ def send_techsupport_message(msg):
         bot.send_message(
             msg.chat.id,
             _(
-                '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always '
-                'grateful for your help!',
+                '⚙ This is techsupport of @{} ⚙\n'
+                'Feel free to send us any feedbacks about this bot,'
+                ' we are always grateful for your help!',
                 user.language
             ).format(bot.get_me().username),
             reply_markup=inline_kbs(
-                {_('Send message to Techsupport', user.language): 'send_message_to_techsupport'}
+                {
+                    _(
+                        'Send message to Techsupport', user.language
+                    ): 'send_message_to_techsupport'
+                }
             )
         )
     else:
@@ -1424,7 +1605,9 @@ def send_techsupport_message(msg):
     return start_bot(msg)
 
 
-@bot.callback_query_handler(func=lambda call: call.data == 'send_message_to_techsupport')
+@bot.callback_query_handler(
+    lambda call: call.data == 'send_message_to_techsupport'
+)
 def send_message_to_techsupport(call):
     def send_message(msg):
         answer_msg = ''
@@ -1479,104 +1662,102 @@ def send_bot_help(msg):
     return start_bot(msg, to_show_commands=False)
 
 
-#################################################################################################################
+###############################################################################
 
 
+@schedule.repeat(schedule.every(3).minutes)
 def update_rates():
-    while True:
-        sleep_time = 180 / (len(currency_parser.parsers))  # one update per three minutes
-        for parser in currency_parser.parsers.values():
-            if not parser.update_value(safe=True):
-                settings.logger.log(f"Rate {parser.iso}-USD can not be updated", kind="error")
-            time.sleep(sleep_time)
+    for parser in currency_parser.parsers.values():
+        if not parser.update_value(safe=True):
+            settings.logger.error(f"Rate {parser.iso}-USD can not be updated")
+    settings.logger.debug("Rates updated")
 
 
+@schedule.repeat(schedule.every(10).minutes)
 def update_proxies():
-    while True:
-        proxies = get_proxy_list()
-        for parser in currency_parser.parsers.values():
-            parser.proxy_list = proxies
-        time.sleep(605)  # 5 secs longer than proxy website update time
+    proxies = get_proxy_list()
+    for parser in currency_parser.parsers.values():
+        parser.proxy_list = proxies
+    settings.logger.debug(f"Proxies updated, length: {len(proxies)}")
 
 
+@schedule.repeat(schedule.every(3).minutes)
 @settings.logger.catch_error
 def check_premium_ended():
     def check_user_premium_ended(usr):
         if not check_datetime_in_future(usr.is_pro):
             bot.send_message(
                 usr.id,
-                _('Your premium has expired, but you can always refresh it!', usr.language)
+                _(
+                    'Your premium has expired, but you can always refresh it!',
+                    usr.language
+                )
             )
             usr.delete_premium()
-            settings.logger.log(f"User {usr.id} lost premium", kin="info")
+            settings.logger.info(f"{usr} lost premium")
 
-    while True:
-        with futures.ThreadPoolExecutor(max_workers=50) as executor:
-            for user in User.get_pro_users():
-                executor.submit(check_user_premium_ended, user)
-        time.sleep(180)  # 3 min
+    with futures.ThreadPoolExecutor(max_workers=50) as executor:
+        for user in User.get_pro_users(only_temp=True):
+            executor.submit(check_user_premium_ended, user)
 
 
+@schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
 def verify_predictions():
-    while True:
-        for pred in Prediction.get_unverified_predictions():
-            user = User(pred.user_id)
-            try:
-                pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
-            except exceptions.ParserError:
-                settings.logger.log(f"Rate {pred.iso_from}-{pred.iso_to} is unreachable", kind="error")
-                user.create_prediction(
-                    pred.iso_from,
-                    pred.iso_to,
-                    pred.value,
-                    pred.up_to_date + datetime.timedelta(0, 5*60)  # 5 minutes
-                )
-                bot.send_messsage(
-                    pred.user_id,
-                    _(
-                        "The rates are unreachable, the prediction `{}` was scheduled for 5 minutes later",
-                        user.language
-                    ).format(pred.repr(user))
-                )
-                pred.delete(force=True)
-            else:
-                pred.update(real_value=pred_res.get(pred.iso_to))
-                diff = currency_parser.calculate_difference(old=pred.value, new=pred.real_value)
-                bot.send_message(
-                    pred.user_id,
-                    _(
-                        'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
-                        user.language
-                    ).format(
-                        pred.repr(user),
-                        prettify_float(pred.value),
-                        prettify_float(pred.real_value),
-                        prettify_percent(diff.get('percentage_difference'), to_sign=True)
-                    ),
-                    parse_mode='Markdown'
-                )
-
-
-@settings.logger.catch_error
-def check_alarm_times():
-    while True:
-        t_ = get_now().time()
-        if t_.minute == 0:
-            thread = threading.Thread(
-                target=start_alarms,
-                args=(str(t_.strftime('%H:%M')),),
-                daemon=True
+    for pred in Prediction.get_unverified_predictions():
+        user = User(pred.user_id)
+        try:
+            pred_res = currency_parser.get_rate(pred.iso_from, pred.iso_to)
+        except exceptions.ParserError:
+            settings.logger.error(
+                f"Rate {pred.iso_from}-{pred.iso_to} is unreachable"
             )
-            thread.start()
-        time.sleep(59.9)
+            user.create_prediction(
+                pred.iso_from,
+                pred.iso_to,
+                pred.value,
+                pred.up_to_date + datetime.timedelta(0, 5*60)  # 5 minutes
+            )
+            bot.send_messsage(
+                pred.user_id,
+                _(
+                    "The rates are unreachable, "
+                    "the prediction `{}` was scheduled for 5 minutes later",
+                    user.language
+                ).format(pred.trepr(user))
+            )
+            pred.delete(force=True)
+        else:
+            pred.update(real_value=pred_res.get(pred.iso_to))
+            diff = currency_parser.calculate_difference(
+                old=pred.value, new=pred.real_value
+            )
+            bot.send_message(
+                pred.user_id,
+                _(
+                    'Results of `{}`:\n*Predicted value:* {}\n'
+                    '*Real value:* {}\n*Percentage difference:* {}',
+                    user.language
+                ).format(
+                    pred.trepr(user),
+                    prettify_float(pred.value),
+                    prettify_float(pred.real_value),
+                    prettify_percent(
+                        diff.get('percentage_difference'), to_sign=True
+                    )
+                ),
+                parse_mode='Markdown'
+            )
+        settings.logger.debug(f"{str(pred)} verified")
 
 
+@schedule.repeat(schedule.every().minutes.at(':00'))
 @settings.logger.catch_error
-def start_alarms(time_):
+def start_alarms():
+    t = get_now().strftime('%H:%M')
     with futures.ThreadPoolExecutor(max_workers=50) as executor:
-        for user in User.get_users_by_check_time(time_):
-            executor.submit(send_alarm, user, time_)
+        for user in User.get_users_by_check_time(t):
+            executor.submit(send_alarm, user, t)
 
 
 @settings.logger.catch_error
@@ -1588,10 +1769,14 @@ def send_alarm(user, t):
                 v.get('value'), v.get('percent_delta')
             )
         except exceptions.ParsingError:
-            settings.logger.log(f"Rate {k}-USD is unreachable", kind="error")
+            settings.logger.error(f"Rate {k}-USD is unreachable")
             bot.send_message(
                 user.id,
-                _("The rates are not available, the notification can not be sent", user.language)
+                _(
+                    "The rates are not available, "
+                    "the notification can not be sent", 
+                    user.language
+                )
             )
         else:
             if rate.get('new', None) is not None:  # WARNING: CAN BE DELETED
@@ -1601,42 +1786,50 @@ def send_alarm(user, t):
                     bot.send_message(
                         user.id,
                         _(
-                            '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
+                            '*Notification*\n*{}* = *{} USD*\n'
+                            'The change: *{:+} ({})*\n'
+                            'Previous: *{} = {} USD *',
                             user.language
                         ).format(
                             k,
                             prettify_float(new),
                             prettify_float(rate.get('difference')),
-                            prettify_percent(rate.get('percentage_difference'), to_sign=True),
+                            prettify_percent(
+                                rate.get('percentage_difference'), 
+                                to_sign=True
+                            ),
                             k,
                             prettify_float(old)
                         ),
                         parse_mode='Markdown'
                     )
+                    settings.logger.debug(
+                        f"Sent '{k}-USD' alarm for {str(user)}"
+                    )
                 except telebot.apihelper.ApiTelegramException:
                     # from traceback: "Bad Request: chat not found"
                     user.update(is_active=0)
-                    settings.logger.log(f"User {user.id} is not reachable", kind="warning")
-                    # not to sent notifications anymore, since chat is not reachable
+                    settings.logger.warning(f"{str(user)} is not reachable")
+                    # not to notify anymore, since chat is not reachable
 
 
-THREAD_LIST = [
-    check_alarm_times, update_proxies, update_rates, 
-    check_premium_ended, verify_predictions
-]
+def schedule_thread():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 def main():
     import logging
     telebot.logger.setLevel(logging.DEBUG)
-    for target in THREAD_LIST:
-        threading.Thread(target=target, daemon=True).start()
-    settings.logger.log("Bot started", kind="debug")
+    settings.logger.set_level('debug')
+    settings.logger.info("Bot started")
+    threading.Thread(target=schedule_thread, daemon=True).start()
     bot.polling()
-    settings.logger.log("Bot stopped", kind="debug")
+    settings.logger.info("Bot stopped")
 
 
-####################################################################################################
+###############################################################################
 
 
 if __name__ == '__main__':

@@ -1,14 +1,13 @@
-from google_trans_new import google_translator
-from google_trans_new.google_trans_new import google_new_transError 
-
-
-gt_t = google_translator()
+from deep_translator import GoogleTranslator
 
 
 translation_dict = {
-    'I am <b>{}</b>, your personal shareholder bot, and I will keep you updated on important trading events!': {
-        'en': 'I am <b>{}</b>, your personal shareholder bot, and I will keep you updated on important trading events!',
-        'ru': 'Я - {}, твой личный бот акционер, и буду держать тебя в курсе важных событий трейдинга!'
+    'I am <b>{}</b>, your personal shareholder bot, and I will keep you '
+    'updated on important trading events!': {
+        'en': 'I am <b>{}</b>, your personal shareholder bot, and I will keep'
+              ' you updated on important trading events!',
+        'ru': 'Я - {}, твой личный бот акционер, и буду держать тебя в'
+              ' курсе важных событий трейдинга!'
     },
     ' none': {
         'en': ' none',
@@ -26,8 +25,10 @@ translation_dict = {
         'en': 'Are you sure you want to delete this prediction:\n{}?', 
         'ru': 'Вы уверены, что хотите удалить этот прогноз:\n{}?'
     },
-    'At the moment, the service has two languages: Russian 🇷🇺 and English 🇬🇧': {
-        'en': 'At the moment, the service has two languages: Russian 🇷🇺 and English 🇬🇧',
+    'At the moment, the service has two languages: '
+    'Russian 🇷🇺 and English 🇬🇧': {
+        'en': 'At the moment, the service has two languages: '
+              'Russian 🇷🇺 and English 🇬🇧',
         'ru': 'На данный момент, есть два языка: Русский 🇷🇺 и Английский 🇬🇧'
     },
     'Back': {
@@ -90,12 +91,16 @@ translation_dict = {
         'en': 'Enter the forecast result (for example, 27.50, 22300)', 
         'ru': 'Введите результат прогноза (например, 27.50, 22300)'
     },
-    'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB': {
-        'en': 'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\nFor example, USD-RUB',
-        'ru': 'Введите ISO-коды валют прогноза `<ISO>-<ISO>`\nНапример, USD-RUB'
+    'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\n'
+    'For example, USD-RUB': {
+        'en': 'Enter the ISO-codes of the forecast currency `<ISO>-<ISO>`\n'
+              'For example, USD-RUB',
+        'ru': 'Введите ISO-коды валют прогноза `<ISO>-<ISO>`\n'
+              'Например, USD-RUB'
     },
     'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB': {
-        'en': 'Enter the ISO-codes of currencies `<ISO>-<ISO>`\nFor example, USD-RUB',
+        'en': 'Enter the ISO-codes of currencies `<ISO>-<ISO>`\n'
+        'For example, USD-RUB',
         'ru': 'Введите ISO-коды валют `<ISO>-<ISO>`\nНапример, USD-RUB'
     },
     'Enter the ISO-code of the new currency': {
@@ -118,10 +123,13 @@ translation_dict = {
         'en': 'Here are your predictions', 
         'ru': 'Вот ваши прогнозы'
     },
-    'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast creation?': {
-        'en': 'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\nValue: {}\n.\nConfirm forecast '
+    'Here is the forecast data:\nForecast period: {}\nCurrency: {} - {}\n'
+    'Value: {}\n.\nConfirm forecast creation?': {
+        'en': 'Here is the forecast data:\nForecast period: {}\n'
+              'Currency: {} - {}\nValue: {}\n.\nConfirm forecast '
               'creation?',
-        'ru': 'Вот данные прогноза: \nПериод прогноза: {} \nВалюта: {} - {} \nЗначение: {}\n. \nПодтвердить создание '
+        'ru': 'Вот данные прогноза: \nПериод прогноза: {} \nВалюта: {} - {} \n'
+              'Значение: {}\n. \nПодтвердить создание '
               'прогноза? '
     },
     "I don't understand your answer, returning to the main menu...": {
@@ -148,8 +156,10 @@ translation_dict = {
         'en': 'My predictions', 
         'ru': 'Мои прогнозы'
     },
-    'New currency has been created successfully!\nNow the rate is {} - {} USD': {
-        'en': 'New currency has been created successfully!\nNow the rate is {} - {} USD',
+    'New currency has been created successfully!\n'
+    'Now the rate is {} - {} USD': {
+        'en': 'New currency has been created successfully!\n'
+              'Now the rate is {} - {} USD',
         'ru': 'Новая валюта успешно создана!\nСейчас курс {} - {} USD'
     },
     'No': {
@@ -200,13 +210,19 @@ translation_dict = {
         'en': "Price",
         'ru': "Цена"
     },
-    '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}': {
-        'en': '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n*Up to:* {}\n*Predicted value:* {}',
-        'ru': '*⚜ Прогноз от эксперта ⚜*\n*Валюты: {}-{}*\n*До:* {}\n*Прогнозируемое значение:* {}'
+    '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n'
+    '*Up to:* {}\n*Predicted value:* {}': {
+        'en': '*⚜ Experts prediction ⚜*\n*Currencies: {}-{}*\n'
+              '*Up to:* {}\n*Predicted value:* {}',
+        'ru': '*⚜ Прогноз от эксперта ⚜*\n*Валюты: {}-{}*\n'
+              '*До:* {}\n*Прогнозируемое значение:* {}'
     },
-    '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *': {
-        'en': '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\nPrevious: *{} = {} USD *',
-        'ru': "*Оповещение*\n*{}* = *{} USD*\nИзменение: *{:+} ({})*\nПредыдущее: *{} = {} USD*"
+    '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\n'
+    'Previous: *{} = {} USD *': {
+        'en': '*Notification*\n*{}* = *{} USD*\nThe change: *{:+} ({})*\n'
+              'Previous: *{} = {} USD *',
+        'ru': "*Оповещение*\n*{}* = *{} USD*\nИзменение: *{:+} ({})*\n"
+              "Предыдущее: *{} = {} USD*"
     },
     'Quotes': {
         'en': 'Quotes', 
@@ -220,9 +236,12 @@ translation_dict = {
         'en': 'Response not processed',
         'ru': 'Ответ не обработан'
     },
-    'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}': {
-        'en': 'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n*Percentage difference:* {}',
-        'ru': 'Результат `{}`:\n*Прогнозируемое значение:* {}\n*Настоящее значение:* {}\n*Разница в процентах:* {}'
+    'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n'
+    '*Percentage difference:* {}': {
+        'en': 'Results of `{}`:\n*Predicted value:* {}\n*Real value:* {}\n'
+              '*Percentage difference:* {}',
+        'ru': 'Результат `{}`:\n*Прогнозируемое значение:* {}\n'
+              '*Настоящее значение:* {}\n*Разница в процентах:* {}'
     },
     'Russian 🇷🇺': {
         'en': 'Russian 🇷🇺', 
@@ -236,8 +255,10 @@ translation_dict = {
         'en': 'Select the currency to change percentage', 
         'ru': 'Выберите валюту для изменения процента оповещений'
     },
-    'Select the forecast validity period in the format `{}`\nFor example, {}': {
-        'en': 'Select the forecast validity period in the format `{}`\nFor example, {}',
+    'Select the forecast validity period in the format `{}`\n'
+    'For example, {}': {
+        'en': 'Select the forecast validity period in the format `{}`\n'
+              'For example, {}',
         'ru': 'Выберите период действия прогноза в формате `{}`\nНапример, {}'
     },
     'Select {} time(s)': {
@@ -296,15 +317,20 @@ translation_dict = {
         'en': 'Welcome, {}!', 
         'ru': 'Добро пожаловать, {}!'
     },
-    'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts from '
-    'experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, and you will not regret '
-    'it': {
-        'en': 'When buying a Subscription, you get access to:\n1. Unlimited number of alerts per day\n2. Forecasts '
-              'from experts\n3. Adding your currencies to alerts\nAnd more! \n\nBuy a Subscription today, '
-              'and you will not regret it',
-        'ru': 'Покупая Подписку, вы получаете доступ к:\n\t1. Неограниченому количеству оповещений в день\n\t2. '
-              'Прогнозам от экспертов\n\t3. Добавлению своих валют к оповещения\n\tИ другому!\n\nПокупайте Подписку '
-              'уже сегодня, и вы об этом не пожалеете '
+    'When buying a Subscription, you get access to:\n'
+    '1. Unlimited number of alerts per day\n2. Forecasts from '
+    'experts\n3. Adding your currencies to alerts\nAnd more! \n\n'
+    'Buy a Subscription today, and you will not regret it': {
+        'en': 'When buying a Subscription, you get access to:\n'
+              '1. Unlimited number of alerts per day\n2. Forecasts '
+              'from experts\n3. Adding your currencies to alerts\nAnd more!'
+              '\n\nBuy a Subscription today, and you will not regret it',
+        'ru': 'Покупая Подписку, вы получаете доступ к:\n\t'
+              '1. Неограниченому количеству оповещений в день\n\t'
+              '2. Прогнозам от экспертов\n\t'
+              '3. Добавлению своих валют к оповещения\n\t'
+              'И другому!\n\nПокупайте Подписку уже сегодня, '
+              'и вы об этом не пожалеете'
     },
     'Write your message to technical support ({} to go to the menu)': {
         'en': 'Write your message to technical support ({} to go to the menu)',
@@ -339,8 +365,10 @@ translation_dict = {
         'ru': 'Вы платите за подписку на протяжении {} месяца(ов)'
     },
     'You subscribed ⚜ and you are presented with all possible alert times!': {
-        'en': 'You subscribed ⚜ and you are presented with all possible alert times!',
-        'ru': "Вы офоромили ⚜ подписку ⚜, и вам предоставляются все возможные времена оповещений!"
+        'en': 'You subscribed ⚜ and '
+              'you are presented with all possible alert times!',
+        'ru': "Вы офоромили ⚜ подписку ⚜, "
+              "и вам предоставляются все возможные времена оповещений!"
     },
     'Your alert times for {} - {}': {
         'en': 'Your alert times for {} - {}', 
@@ -378,12 +406,15 @@ translation_dict = {
         'en': 'Your premium has expired, but you can always refresh it!',
         'ru': 'Ваша подписка истекла, но вы можете купить новую!'
     },
-    '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always grateful for '
-    'your help!': {
-        'en': '⚙ This is techsupport of @{} ⚙\nFeel free to send us any feedbacks about this bot, we are always '
-              'grateful for your help!',
-        'ru': '⚙ Это техподдержка @{} ⚙\nНе стесняйтесь присылать нам любые отзывы об этом боте, мы всегда благодарны '
-              'за вашу помощь! '
+    '⚙ This is techsupport of @{} ⚙\n'
+    'Feel free to send us any feedbacks about this bot, '
+    'we are always grateful for your help!': {
+        'en': '⚙ This is techsupport of @{} ⚙\n'
+              'Feel free to send us any feedbacks about this bot, '
+              'we are always grateful for your help!',
+        'ru': '⚙ Это техподдержка @{} ⚙\n'
+              'Не стесняйтесь присылать нам любые отзывы об этом боте, '
+              'мы всегда благодарны за вашу помощь! '
     },
     '⚙ You are already a staff member ⚙': {
         'en': '⚙ You are already a staff member ⚙', 
@@ -425,9 +456,12 @@ translation_dict = {
         'en': "❗ I can't understand your request, please try again ❗", 
         'ru': '❗ Не могу вас понять, попробуйте ещё раз ❗'
     },
-    '❗ Pay just as you receive invoice, otherwise payment can be not received ❗': {
-        'en': '❗ Pay just as you receive invoice, otherwise payment can be not received ❗',
-        'ru': '❗ Оплатите как только получите выставленный счёт, иначе оплата может не засчитаться ❗'
+    '❗ Pay just as you receive invoice, '
+    'otherwise payment can be not received ❗': {
+        'en': '❗ Pay just as you receive invoice, '
+              'otherwise payment can be not received ❗',
+        'ru': '❗ Оплатите как только получите выставленный счёт, '
+              'иначе оплата может не засчитаться ❗'
     },
     "❗ Percent must be in range from 0 to 100 ❗": {
         'en': "❗ Percent must be in range from 0 to 100 ❗",
@@ -454,16 +488,20 @@ translation_dict = {
         'ru': '❗ Вводите дату только в указаном формате ❗'
     },
     '❗ The converter did not find such currencies, please try again ❗': {
-        'en': '❗ The converter did not find such currencies, please try again ❗',
+        'en': '❗ The converter did not find such currencies, '
+              'please try again ❗',
         'ru': '❗ Конвертер не нашёл таких валют, попробуйте ещё раз ❗'
     },
     '❗ The currency is already on your currency list ❗': {
         'en': '❗ The currency is already on your currency list ❗',
         'ru': '❗ Валюта уже в вашем списке валют ❗'
     },
-    '❗ This currency does not exist or is not supported, please try another one ❗': {
-        'en': '❗ This currency does not exist or is not supported by the server, please try another one ❗',
-        'ru': '❗ Эта валюта не существует или не поддерживается, попробуйте другую ❗'
+    '❗ This currency does not exist or is not supported, '
+    'please try another one ❗': {
+        'en': '❗ This currency does not exist or is not supported, '
+              'please try another one ❗',
+        'ru': '❗ Эта валюта не существует или не поддерживается, '
+              'попробуйте другую ❗'
     },
     '❗ You cannot enter a past date ❗': {
         'en': '❗ You cannot enter a past date ❗', 
@@ -473,9 +511,12 @@ translation_dict = {
         'en': "❗ You can't delete default currencies ❗",
         'ru': "❗ Вы не можете удалить валюты, установленные по умолчанию ❗"
     },
-    "❗ Your limit on receiving predictions has expired, contact our support team ❗": {
-        'en': "❗ Your limit on receiving predictions has expired, contact our support team ❗",
-        'ru': "❗ Ваш лимит на получение прогнозов закончился, обратитесь в поддержку ❗"
+    "❗ Your limit on receiving predictions has expired, "
+    "contact our support team ❗": {
+        'en': "❗ Your limit on receiving predictions has expired, "
+              "contact our support team ❗",
+        'ru': "❗ Ваш лимит на получение прогнозов закончился, "
+              "обратитесь в поддержку ❗"
     },
     "❗ This currency is not supported ❗": {
         'en': "❗ This currency is not supported ❗",
@@ -486,19 +527,13 @@ translation_dict = {
 
 def translate(text:str, dest:str='ru'):
     """
-    Translates text into language, by translation_dct or Google Translator
-
-    parse_modes: casual: R"some text;some more<newline char>" -> translation... -> R"some text; some more<not newline
-    char>" newline: R"some text;some more;one more" -> translation... -> R"some text<newline char>some more<newline
-    char>one more"
+    Translates text into language, by translation_dict or Google Translator
     """
+    translator = GoogleTranslator(source='auto', target=dest)
     res = translation_dict.get(text, {}).get(dest, None)
     if res is None:
         try:
-            res = gt_t.translate(
-                text.replace('\n', '; '), 
-                lang_tgt=dest
-            ).strip().replace('; ', '\n').replace(';', '\n')
-        except google_new_transError:
+            res = translator.translate(text)
+        except Exception:
             res = text
     return res
