@@ -1,8 +1,4 @@
-from google_trans_new import google_translator
-from google_trans_new.google_trans_new import google_new_transError 
-
-
-gt_t = google_translator()
+from deep_translator import GoogleTranslator
 
 
 translation_dict = {
@@ -533,13 +529,11 @@ def translate(text:str, dest:str='ru'):
     """
     Translates text into language, by translation_dict or Google Translator
     """
+    translator = GoogleTranslator(source='auto', target=dest)
     res = translation_dict.get(text, {}).get(dest, None)
     if res is None:
         try:
-            res = gt_t.translate(
-                text.replace('\n', '; '), 
-                lang_tgt=dest
-            ).strip().replace('; ', '\n').replace(';', '\n')
-        except google_new_transError:
+            res = translator.translate(text)
+        except Exception:
             res = text
     return res

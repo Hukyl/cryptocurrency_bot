@@ -937,22 +937,23 @@ def toggle_user_experts_predictions(msg):
 @bot.message_handler(commands=['me'])
 def see_user_info(msg):
     u = bot.session.user
-    info = "Пользователь @{}\nTelegram ID: {} \nПодписка: {}\nПерсонал: {}\
-            \nЧасовой пояс: {}\nОповещения: {}\nПрогнозы от экспертов: {}\
-            \nОповещения: {}\n{}".format(
-                msg.from_user.username, u.id,
-                (
-                    f'до {convert_to_country_format(u.is_pro, u.language)}'
-                    if isinstance(u.is_pro, datetime.datetime) else
-                    'да' if u.is_pro is True else 'нет'
-                ),
-                ('да' if u.is_staff else 'нет'), 
-                prettify_utcoffset(u.timezone),
-                ('включены' if u.is_active else 'отключены'),
-                ('включены' if u.is_active else 'отключены'),
-                ('включены' if u.to_notify_by_experts else 'отключены'),
-                User.prettify_rates(u.rates)
-            )
+    is_subscribed = (
+        f'до {convert_to_country_format(u.is_pro, u.language)}'
+        if isinstance(u.is_pro, datetime.datetime) else
+        'да' if u.is_pro is True else 'нет'
+    )
+    info = (
+        f"Пользователь @{msg.from_user.username}\n" +
+        f"Telegram ID: {u.id}\n" +
+        f"Подписка: {is_subscribed}\n" +
+        f"Персонал: {'да' if u.is_staff else 'нет'}\n" +
+        f"Часовой пояс: {prettify_utcoffset(u.timezone)}\n" +
+        f"Оповещения: {'включены' if u.is_active else 'отключены'}\n" +
+        'Прогнозы от экспертов: {}\n'.format(
+            'включены' if u.to_notify_by_experts else 'отключены'
+        ) + 
+        User.prettify_rates(u.rates)
+    )
     bot.send_message(msg.chat.id, _(info, u.language))
     return start_bot(msg)
 
@@ -1396,7 +1397,7 @@ def buy_subscription(msg):
                 total_sum = int(substract_percent(
                     period * start_price, price.get('discount')
                 ))
-                prices_str += f';{period} месяц{word_ending} - {total_sum} $'
+                prices_str += f'\n{period} месяц{word_ending} - {total_sum} $'
             bot.send_message(
                 msg_inner.chat.id,
                 _(
